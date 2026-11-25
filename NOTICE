@@ -135,3 +135,13 @@ their ideas; it does not contain their code.
     (packages/experimental/client-ui-voice-input), MIT: the voice chat
     records with the same steps (record, resample to 16 kHz mono, PCM16 WAV)
     before it calls the plugin's speech service.
+
+The Windows x64 desktop distribution includes Cua Driver 0.45.4 and the
+Cua Driver 0.37.0 Linux wheel from Cua AI, Inc.
+(https://github.com/trycua/cua), MIT. The license is included in the computer
+resources. The shared Linux desktop is built locally from a pinned TryCua
+XFCE image and retains the packages and notices from that image.
+
+The shared Linux desktop includes a modified Moby seccomp profile, Apache-2.0.
+Source: https://github.com/moby/profiles/blob/9ee3204f0d0cfa19ca2c6a7b0fcf5a2b353954ae/seccomp/default.json
+DS Bot adds the namespace and chroot operations required by Chromium's sandbox.

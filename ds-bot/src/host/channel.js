@@ -162,6 +162,11 @@ export function install(rt) {
       const readOnly = rt.readOnly()
       if (readOnly !== undefined && !READS.has(endpoint)) return fail(readOnly, 'bot/read-only')
       switch (endpoint) {
+        case 'computer-status':
+        case 'computer-select':
+        case 'computer-stop':
+          if (!rt.computerChannel) return fail('Computer control is unavailable on this host.', 'bot/unavailable')
+          return ok(await rt.computerChannel(endpoint.slice('computer-'.length), body))
         case 'mobile':
           return ok(await rt.mobileOperator(String(body.endpoint ?? 'status'), body.payload ?? {}))
         case 'state': {

@@ -29,6 +29,7 @@ export const startApp = async ({ packaged = true } = {}) => {
   mkdirSync(paths.userData, { recursive: true })
   writeFileSync(join(paths.userData, 'locations.json'), JSON.stringify({ dataDir: home, workspace }))
   writeFileSync(join(paths.userData, 'tray-close-acknowledged'), '')
+  writeFileSync(join(paths.userData, 'legacy-storage-migrated-v1.json'), '{}')
   hold()
   await import('../../src/main.mjs')
   // The app is a packaged one, so that it has an updater. The flag comes after the start,

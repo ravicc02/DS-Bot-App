@@ -71,7 +71,10 @@ export function HeaderPill({ sessionId, useRoster, useSessions, useSessionStatus
   const doing = useActivity(map => map[owner])
   const bot = roster.byId[sessionId]
   const room = roster.roomsById[sessionId]
-  const detailsOpen = useUi(state => state.details === sessionId)
+  const detailsId = bot?.id ?? room?.id ?? sessionId
+  const detailsOpen = useUi(state => state.details === detailsId
+    || (Boolean(bot) && roster.byId[state.details]?.id === detailsId)
+    || (Boolean(room) && roster.roomsById[state.details]?.id === detailsId))
   const name = bot?.name ?? room?.name ?? ''
   const useNews = useMemoryNews ?? noNews
   const memoryIds = bot ? [bot.id] : room ? [room.id, ...room.members] : []
@@ -102,7 +105,7 @@ export function HeaderPill({ sessionId, useRoster, useSessions, useSessionStatus
       type: 'button', className: 'bt-pill', 'aria-expanded': away ? undefined : detailsOpen, 'data-memory': memoryNotice ? 'updated' : undefined,
       'aria-label': away ? t('Back to chat') : memoryNotice ? t('Memory updated. Open {name}\'s memory', { name: roster.byId[changed]?.name ?? name }) : t('View conversation details'),
       title: away ? name : undefined,
-      onClick: () => (away ? selectView('chat') : memoryNotice ? actions.openMemory(changed) : actions.toggleDetails(sessionId)),
+      onClick: () => (away ? selectView('chat') : memoryNotice ? actions.openMemory(changed) : actions.toggleDetails(detailsId)),
     },
     bot ? h(BotAvatar, { bot, size: 24, state: botState(running, doing, roster.questions?.[currentPart(bot)] !== undefined), badge: false })
       : room ? h(RoomAvatar, { room, roster, size: 24 }) : null,

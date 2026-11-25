@@ -12,7 +12,7 @@ import { springEasing, SPRING_SHAPE, useViewport, viewBottom } from './motion.js
 import { hostText, t } from './i18n.js'
 import { clientErrors } from './diagnostics.js'
 import { showsDshRow } from './dsh-offer.js'
-import { frameLayout, dragColumn, RAIL_WIDTH, FALLBACK_SIDEBAR_WIDTH, userSidebarToggle } from './frame-layout.js'
+import { frameLayout, panelLayoutView, dragColumn, RAIL_WIDTH, FALLBACK_SIDEBAR_WIDTH, userSidebarToggle } from './frame-layout.js'
 import { chatRoom, dshCollapsed } from './frame-watch.js'
 
 // -------------------------------------------------------------------------
@@ -312,7 +312,7 @@ export function TeamSidebar(props) {
   const layout = frameLayout({
     viewport: frameSnap.viewport, sidebarWidth: frameSnap.sidebarWidth,
     pref, drawer: uiNow.leftDrawer === true,
-    panel: uiNow.details ? { view: uiNow.view, yielded: uiNow.panelYield === true } : null,
+    panel: uiNow.details ? { view: panelLayoutView(uiNow.view, uiNow.tab), yielded: uiNow.panelYield === true } : null,
   })
   // A drag of the column's edge shows where it would land, live.
   const [drag, setDrag] = useState(null)

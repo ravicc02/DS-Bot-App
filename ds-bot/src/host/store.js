@@ -455,6 +455,7 @@ export function install(rt) {
     // live Agents that joined); both install after this.
     rt.indexAgents?.()
     rt.syncScopedTools?.()
+    rt.checkComputerOwners?.()
   }
   // The Bot a Session speaks for: its own chat, one of its group Sessions, or an
   // earlier segment of either.

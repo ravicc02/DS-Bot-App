@@ -20,6 +20,7 @@ function fixture({ statePath } = {}) {
       super()
       this.url = 'about:blank'
       this.loadedUrls = []
+      this.navigationHistory = { canGoBack: () => false, canGoForward: () => false }
       this.debugger = Object.assign(new EventEmitter(), {
         attach() {},
         async sendCommand(method) {
@@ -31,8 +32,6 @@ function fixture({ statePath } = {}) {
     getURL() { return this.url }
     getTitle() { return this.url }
     isLoading() { return false }
-    canGoBack() { return false }
-    canGoForward() { return false }
     isDestroyed() { return false }
     async loadURL(url) { this.url = url; this.loadedUrls.push(url) }
     async executeJavaScript(script) { return script }

@@ -218,7 +218,7 @@ export function BotSettingsForm({ bot, roster, actions, run }) {
         h(FolderMenu, { value: bot.workDir, actions, run, onPick: workDir => save({ workDir }) }))),
     h(Card, { title: t('Privacy') },
       h(SwitchRow, {
-        label: t('Private'),
+        label: t('Privacy'),
         hint: privacyHint,
         on: bot.private === true,
         disabled: bot.private !== true && (isMainBot || inGroup || !bot.workDir),

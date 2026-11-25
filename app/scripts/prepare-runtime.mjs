@@ -44,7 +44,7 @@ export function runtimeTarget(platform, arch) {
  * @param {string} cache - Download cache directory.
  * @returns {Promise<string>} verified local archive path
  */
-async function downloadPrimaryRuntimeAsset(url, sha256, cache) {
+export async function downloadRuntimeAsset(url, sha256, cache) {
   mkdirSync(cache, { recursive: true })
   const destination = join(cache, sha256)
   let bytes
@@ -82,7 +82,7 @@ async function downloadPrimaryRuntimeAsset(url, sha256, cache) {
 async function downloadNodeRuntime(target, destination, cache) {
   const artifact = lock.targets[target]
   const filename = `node-v${lock.nodeVersion}-${artifact.nodeArchive}`
-  const archive = await downloadPrimaryRuntimeAsset(`https://nodejs.org/dist/v${lock.nodeVersion}/${filename}`, artifact.nodeSha256, cache)
+  const archive = await downloadRuntimeAsset(`https://nodejs.org/dist/v${lock.nodeVersion}/${filename}`, artifact.nodeSha256, cache)
   const staging = mkdtempSync(join(tmpdir(), 'ds-bot-node-'))
   try {
     if (target === 'win-x64') await extractZip(archive, { dir: staging })
@@ -100,7 +100,7 @@ async function downloadNodeRuntime(target, destination, cache) {
 async function pythonArchive(target, cache) {
   const artifact = lock.targets[target]
   const filename = `cpython-${lock.pythonVersion}+${lock.pythonRelease}-${artifact.pythonTarget}-install_only_stripped.tar.gz`
-  return downloadPrimaryRuntimeAsset(`https://github.com/astral-sh/python-build-standalone/releases/download/${lock.pythonRelease}/${encodeURIComponent(filename)}`, artifact.pythonSha256, cache)
+  return downloadRuntimeAsset(`https://github.com/astral-sh/python-build-standalone/releases/download/${lock.pythonRelease}/${encodeURIComponent(filename)}`, artifact.pythonSha256, cache)
 }
 
 /**
@@ -240,7 +240,7 @@ export async function preparePrimaryRuntime(options) {
       await extractTar({ file: await pythonArchive(target, paths.downloads), cwd: dependencies })
       const entries = workspaceDependencyPaths(output, manifest)
       for (const wheel of [...artifact.wheels, ...lock.wheels]) {
-        await unpackPrimaryRuntimeWheel(await downloadPrimaryRuntimeAsset(wheel.url, wheel.sha256, paths.downloads), entries.pythonPackages)
+        await unpackPrimaryRuntimeWheel(await downloadRuntimeAsset(wheel.url, wheel.sha256, paths.downloads), entries.pythonPackages)
       }
       prunePrimaryRuntimePythonTests(entries.pythonPackages)
       writeFileSync(join(output, 'runtime.json'), `${JSON.stringify(manifest, undefined, 2)}\n`)

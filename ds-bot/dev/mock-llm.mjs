@@ -99,6 +99,11 @@ const STEP_LINES = ['目录看完了，一共 12 个文件，开始整理。', '
 const WRITTEN_CALL = '我先看一下目录。\n<tool_call>\n<function=pwsh>\n<parameter=command>\nGet-ChildItem\n</parameter>\n</function>\n</tool_call>'
 // Deterministic filler that grows a conversation by about `chars` characters.
 const filler = (chars, tag) => Array.from({ length: Math.ceil(chars / 20) }, (_, index) => `${tag}第${index + 1}段：这是一段用来撑长上下文的测试文字。`).join('').slice(0, chars)
+const imageCount = content => (Array.isArray(content) ? content : []).reduce((count, block) => {
+  if (block?.type === 'image') return count + 1
+  if (block?.type === 'tool_result') return count + imageCount(block.content)
+  return count
+}, 0)
 const isResults = message => Array.isArray(message?.content) && message.content.some(block => block.type === 'tool_result')
 // 'handoff' or 'backend' for a summary request, by its final prompt. The adapter merges
 // that prompt into the user message before it, so it is the last text block, not the
@@ -125,6 +130,28 @@ function decide(body) {
   }).filter(message => message.role !== 'user' || message.content.length > 0)
   const last = messages.at(-1)
   const blocks = Array.isArray(last?.content) ? last.content : []
+  const computerPrompt = message => message?.role === 'user'
+    ? /^Computer smoke: (observe|input) (fixture-[a-z0-9-]+)(?: (\d+) (\d+))?$/u.exec(textOf(message.content).trim()) : null
+  if (computerPrompt(last) && tools.has('computer_observe')) return [tool('computer_observe', {})]
+  if (blocks.some(block => block.type === 'tool_result')) {
+    const previous = messages.at(-2)?.content
+    const action = Array.isArray(previous) && previous.find(block => block.type === 'tool_use' && /^computer_(observe|click|type|key)$/u.test(block.name))
+    const prompt = action && messages.findLast(computerPrompt)
+    if (prompt) {
+      const [, mode, marker, x, y] = computerPrompt(prompt)
+      const results = blocks.filter(block => block.type === 'tool_result')
+      const failed = results.some(block => block.is_error)
+      const failure = results.map(block => textOf(block.content)).join(' ').trim().slice(0, 400)
+      if (failed || (action.name === 'computer_observe' && imageCount(blocks) === 0)) {
+        return [text(`Computer smoke ${marker}: failed. ${failure}`)]
+      }
+      if (action.name === 'computer_key') return [text(`Computer smoke ${marker}: submitted.`)]
+      if (action.name === 'computer_type') return [tool('computer_key', { key: 'return' })]
+      if (action.name === 'computer_observe' && mode === 'input' && x !== undefined) return [tool('computer_click', { x: Number(x), y: Number(y) })]
+      if (mode === 'input') return [tool('computer_type', { text: marker })]
+      return [text(`Computer smoke ${marker}: screenshot received.`)]
+    }
+  }
   // A side-chat question (side.js). The first line is the marker; the reply is
   // fixed and calls nothing. Its count of earlier answers proves follow-ups
   // carry the chat's finished pairs.
@@ -716,8 +743,7 @@ const server = createServer((req, res) => {
   req.on('data', chunk => { raw += chunk })
   req.on('end', () => {
     const body = JSON.parse(raw)
-    const images = (body.messages ?? []).reduce((count, message) => count
-      + (Array.isArray(message.content) ? message.content.filter(block => block?.type === 'image').length : 0), 0)
+    const images = (body.messages ?? []).reduce((count, message) => count + imageCount(message.content), 0)
     const id = ++seq
     if (REJECT_IMAGES && images > 0) {
       appendFileSync(LOG, JSON.stringify({ t: new Date().toISOString(), id, images, rejectedImages: true, messages: body.messages?.length ?? 0, last: textOf(body.messages?.at(-1)?.content).slice(0, LOG_CHARS) }) + '\n')
@@ -748,7 +774,12 @@ const server = createServer((req, res) => {
     // Usage follows the model input's size (about three characters per token, all but
     // the newest tenth cached), so context meters and lines see real growth. Sibling
     // fields such as dsh_session_log are not model input.
-    const tokens = Math.ceil(JSON.stringify([body.system, body.tools, body.messages]).length / 3)
+    // Images consume vision tokens, not one text token per few base64 characters.
+    const inputLength = JSON.stringify([body.system, body.tools, body.messages], (_key, value) =>
+      value?.type === 'image' && value.source?.type === 'base64'
+        ? { type: 'image', source: { media_type: value.source.media_type } }
+        : value).length
+    const tokens = Math.ceil(inputLength / 3) + 1024 * images
     const cached = Math.floor(tokens * 0.9)
     // Hashes of the system prompt and tools show whether two Sessions share a cacheable prefix.
     const digest = value => createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex').slice(0, 12)

@@ -31,7 +31,7 @@ test('settings opens with every navigation icon rendered by React', () => {
   const buttons = [...nav.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)]
   assert.equal(buttons.length, 14)
   for (const [, content] of buttons) assert.match(content, /<svg\b/)
-  assert.match(nav, /Browser/)
+  assert.match(nav, /Computer and browser/)
   assert.match(nav, /Plugin updates/)
 })
 

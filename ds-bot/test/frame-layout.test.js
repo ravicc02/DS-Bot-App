@@ -151,9 +151,9 @@ const bench = (folded, panelYield = false) => {
   const roster = createSource({ byId: { chief: { id: 'chief' }, writer: { id: 'writer' } }, roomsById: {}, sideChats: {} })
   const actions = teamActions({
     call: () => Promise.resolve(null), after: promise => promise, partFor: id => id,
-    roster, ui, panelFolded: () => folded,
+    roster, ui, panelFolded: view => typeof folded === 'function' ? folded(view) : folded,
   })
-  return { ui, actions }
+  return { ui, actions, roster }
 }
 
 test('the folded panel does not resurface when it follows the chat elsewhere', () => {
@@ -192,4 +192,24 @@ test('openers keep a yield already given', () => {
   assert.equal(ui.getSnapshot().panelYield, true)
   actions.setPanelView('side')
   assert.equal(ui.getSnapshot().panelYield, true)
+})
+
+test('the computer tab asks for sufficient room without opening a new panel', () => {
+  const { ui, actions } = bench(view => view === 'computer')
+  actions.setDetailsTab('chief', 'computer')
+  assert.equal(ui.getSnapshot().view, 'details')
+  assert.equal(ui.getSnapshot().tab, 'computer')
+  assert.equal(ui.getSnapshot().panelYield, true)
+})
+
+test('the computer tab survives a session identifier change for the same Bot', () => {
+  const { ui, actions, roster } = bench(false)
+  roster.set(state => ({ ...state, byId: { ...state.byId, 'chief-part': state.byId.chief } }))
+  actions.setDetailsTab('chief', 'computer')
+  actions.followPanel('chief-part')
+  assert.equal(ui.getSnapshot().tab, 'computer')
+  assert.equal(ui.getSnapshot().details, 'chief')
+  actions.followPanel('writer')
+  assert.equal(ui.getSnapshot().details, 'writer')
+  assert.equal(ui.getSnapshot().tab, null)
 })

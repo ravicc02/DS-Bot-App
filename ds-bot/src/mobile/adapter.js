@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { createTextAccumulator, detail, projectEvent, projectQueue, projectRecords } from './projection.js'
 import { projectPendingView, projectSideChats } from './view-projection.js'
 import { createManagement, MANAGEMENT_ACTIONS } from './management.js'
+import { isComputerImage } from '../host/computer/images.js'
 
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 const AUDIO_TYPES = new Set(['audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/m4a', 'audio/aac', 'audio/mpeg', 'audio/webm', 'audio/ogg'])
@@ -308,7 +309,7 @@ export function createAdapter(rt) {
           ...(waiting ? { waiting } : {}),
         }}),
       ])),
-      approvals: (value.work?.approvals ?? []).filter(entry => botIds.has(entry.botId) && (!entry.roomId || roomIds.has(entry.roomId))).map(entry => ({
+      approvals: (value.work?.approvals ?? []).filter(entry => !String(entry.tool ?? '').startsWith('computer_') && botIds.has(entry.botId) && (!entry.roomId || roomIds.has(entry.roomId))).map(entry => ({
         id: entry.id, botId: entry.botId, sessionId: entry.sessionId, roomId: entry.roomId, answerable: entry.answerable === true,
         tool: redact(String(entry.tool ?? '')), reason: redact(String(entry.reason ?? '')), at: entry.at,
         detail: { text: redact(String(entry.detail?.text ?? '')), code: redact(String(entry.detail?.code ?? '')) },
@@ -1064,7 +1065,10 @@ export function createAdapter(rt) {
       throw error(404, 'mobile/not-found', 'This file is not referenced by that visible message')
     }
     // The public controller also checks that the image occurs in this Session.
-    return publicCall(() => ctx.sessionController.attachment({ sessionId, attachmentId }, signalFor(signal)))
+    const result = await publicCall(() => ctx.sessionController.attachment({ sessionId, attachmentId }, signalFor(signal)))
+    if (isComputerImage(result.attachment)) throw error(404, 'mobile/not-found', 'This image is unavailable on mobile')
+    requireSession(await conversation(id), sessionId)
+    return result
   }
   return { state, conversations, history, target, submit, cancel, follow, upload, transcribe, attachment, action, reconcile, queue, conversationForSession,
     setApprovalBroker(broker, options = {}) { approvalBroker = broker; authorizeApprovalDevice = options.authorizeDevice },

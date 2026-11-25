@@ -8,7 +8,7 @@ import { createElement as h, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom'
 import { BotMark } from './mark.js'
 import { STORAGE } from './storage.js'
-import { MIN_CHAT } from './frame-layout.js'
+import { MIN_CHAT, PANEL_MIN, panelLayoutView } from './frame-layout.js'
 import { chatRoom } from './frame-watch.js'
 import { SPRING_SHAPE, springEasing } from './motion.js'
 import { DetailsDrawer } from './details-drawer.js'
@@ -26,7 +26,7 @@ const WIDTH_KEY = STORAGE.browserWidth
 const DEFAULT_WIDTH = 520
 const DETAILS_WIDTH = 320
 const DETAILS_MAX = 520
-const MIN_WIDTH = 360
+const DEFAULT_COMPUTER_WIDTH = 760
 // How long the Bot's mark shows that it read the page.
 const READ_FLASH_MS = 2400
 const EMPTY_PAGE = { url: '', title: '', favicon: null, loading: false, canGoBack: false, canGoForward: false, error: null, excerpt: '' }
@@ -70,9 +70,10 @@ const savedWidth = () => {
 // `room` is what the panel and the conversation share: the viewport minus the
 // left column's footprint (frame-layout.js). The panel never takes the last
 // MIN_CHAT px of it; below that it covers the conversation instead.
-const widthRange = (view, room) => (view === 'browser'
-  ? [MIN_WIDTH, room - MIN_CHAT]
-  : [DETAILS_WIDTH, Math.min(DETAILS_MAX, room - MIN_CHAT)])
+const widthRange = (view, room) => {
+  if (view === 'browser' || view === 'computer') return [PANEL_MIN[view], room - MIN_CHAT]
+  return [DETAILS_WIDTH, Math.min(DETAILS_MAX, room - MIN_CHAT)]
+}
 const fitWidth = (width, [low, high]) => Math.round(Math.max(low, Math.min(width, high)))
 // The address as the bar shows it while not editing: no scheme, no trailing slash.
 const shortAddress = url => String(url ?? '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
@@ -354,7 +355,7 @@ function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, ho
 
   const go = (event) => {
     event.preventDefault()
-    const text = draft ?? ''
+    const text = input.current?.value ?? ''
     if (text.trim() === '') return
     setDraft(null)
     input.current?.blur()
@@ -389,7 +390,11 @@ function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, ho
           onFocus: (event) => { setDraft(page.url); const target = event.target; requestAnimationFrame(() => target.select()) },
           onBlur: () => setDraft(null),
           onChange: event => setDraft(event.target.value),
-          onKeyDown: (event) => { if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); event.currentTarget.blur() } },
+          onKeyDown: (event) => {
+            if (event.nativeEvent?.isComposing || event.isComposing || event.keyCode === 229) return
+            if (event.key === 'Enter') { event.stopPropagation(); go(event) }
+            if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); event.currentTarget.blur() }
+          },
         })),
       h('button', {
         type: 'button', className: 'bt-icon-btn', 'aria-label': t('New browser tab'), title: t('New browser tab'),
@@ -522,7 +527,7 @@ function ImportCard({ flow, page, busy, onApply, onCancel, onCloseAndImport, onD
  * Session id the panel follows and `side` the open chat's id. Without the
  * Desktop bridge the browser view never shows; side chats need no bridge.
  */
-export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages, useBrowserHolds }) {
+export function BotPanel({ pane, leaving, room, overlay, roster, actions, desktopConversation, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages, useBrowserHolds }) {
   const bot = roster.byId[pane.id]
   const canBrowse = Boolean(bot && roster.browser === true && actions.browserShow)
   const sideChats = bot ? sideChatsOf(roster, bot.id) : []
@@ -537,13 +542,17 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
   const [landed, setLanded] = useState(false)
   const [settling, setSettling] = useState(false)
   const [width, setWidth] = useState(savedWidth)
+  const [computerWidth, setComputerWidth] = useState(DEFAULT_COMPUTER_WIDTH)
   // While dragging or while the window resizes, width changes land at once.
   const [dragging, setDragging] = useState(false)
   const [resizing, setResizing] = useState(false)
   const instant = dragging || resizing
   const [reading, setReading] = useState(false)
 
-  const panelWidth = fitWidth(width ?? (view === 'browser' ? DEFAULT_WIDTH : DETAILS_WIDTH), widthRange(view, room))
+  const layoutView = panelLayoutView(view, pane.tab)
+  const preferredWidth = layoutView === 'computer' ? computerWidth
+    : width ?? (view === 'browser' ? DEFAULT_WIDTH : DETAILS_WIDTH)
+  const panelWidth = fitWidth(preferredWidth, widthRange(layoutView, room))
   // Once the browser has shown, the Bot page keeps its width (up to DETAILS_MAX).
   useLayoutEffect(() => { if (view === 'browser' && width === null) setWidth(DEFAULT_WIDTH) }, [view, width])
   useLayoutEffect(() => { chatRoom.hold(instant) }, [instant])
@@ -551,10 +560,10 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
   // the final width until the panel edge has settled. It is set while rendering, so the
   // switch's own commit is already pinned and the flying mark measures where its target
   // ends up, not where it sits before the pin.
-  const [last, setLast] = useState({ view, width: panelWidth })
-  if (last.view !== view || last.width !== panelWidth) {
-    setLast({ view, width: panelWidth })
-    if (last.view !== view) setSettling(last.width !== panelWidth && !instant)
+  const [last, setLast] = useState({ view: layoutView, width: panelWidth })
+  if (last.view !== layoutView || last.width !== panelWidth) {
+    setLast({ view: layoutView, width: panelWidth })
+    if (last.view !== layoutView) setSettling(last.width !== panelWidth && !instant)
   }
   // Such a switch gives the conversation its new width at once, so it reflows once
   // instead of every frame of the glide. Opening and closing glide it with the panel.
@@ -682,7 +691,7 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
     const panel = root.current
     const grip = event.currentTarget
     grip.setPointerCapture?.(event.pointerId)
-    const range = widthRange(view, room)
+    const range = widthRange(layoutView, room)
     const from = { x: event.clientX, width: panelWidth }
     let next = panelWidth
     setDragging(true)
@@ -708,6 +717,7 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
       panel.style.removeProperty('width')
       setDragging(false)
       if (next === from.width) return
+      if (layoutView === 'computer') { setComputerWidth(next); return }
       setWidth(next)
       try { localStorage.setItem(WIDTH_KEY, String(next)) } catch { /* storage unavailable */ }
     }
@@ -717,9 +727,9 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
 
   const hasStrip = panelHasStrip(canBrowse, tabState.ids.length, sideChats.length)
   return h('aside', {
-    ref: root, className: 'bt-panel', 'data-view': view,
+    ref: root, className: 'bt-panel', 'data-view': layoutView,
     'aria-label': view === 'browser' && bot ? t("{name}'s browser", { name: bot.name }) : view === 'side' ? t('Side chat') : t('Conversation details'),
-    'data-leaving': leaving || undefined, 'aria-hidden': leaving || undefined, 'data-settling': settling || undefined,
+    'data-leaving': leaving || undefined, 'aria-hidden': leaving || undefined, inert: leaving || undefined, 'data-settling': settling || undefined,
     'data-instant': instant || undefined, 'data-dragging': dragging || undefined, 'data-overlay': overlay || undefined, style: { '--bt-panel-w': `${panelWidth}px` },
     onAnimationEnd: (event) => { if (event.target === event.currentTarget) setLanded(true) },
   },
@@ -732,10 +742,10 @@ export function BotPanel({ pane, leaving, room, overlay, roster, actions, useSes
       ? h(BrowserView, { key: `browser:${active}`, bot: { ...bot, mobileControl: tabState.mobileControl }, tabId: active, leaving, landed: landed && !settling, actions, useBrowserPages, hold })
       : view === 'side' && sideChat
         ? h('div', { key: `side:${sideChat.id}`, className: 'bt-panel-view' }, h(SideChatView, { subject: pane.id, chat: sideChat, actions: panelActions }))
-        : h('div', { key: `details:${pane.id}:${pane.renaming ? 'rename' : ''}:${pane.tab ?? ''}`, className: 'bt-panel-view' },
+        : h('div', { key: `details:${pane.id}:${pane.renaming ? 'rename' : ''}:${pane.tab === 'settings' ? 'settings' : ''}`, className: 'bt-panel-view' },
             h(DetailsDrawer, {
               sessionId: pane.id, startRenaming: pane.renaming, startTab: pane.tab, hasStrip,
-              roster, actions: panelActions, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages,
+              roster, actions: panelActions, desktopConversation, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages,
             })))
 }
 

@@ -17,6 +17,7 @@ export const paths = {
   // The folder of the app itself: the Host's pnpm lives in it.
   appPath: join(root, 'app'),
 }
+process.resourcesPath = join(root, 'resources')
 for (const folder of [paths.userData, paths.downloads]) mkdirSync(folder, { recursive: true })
 
 export const state = {

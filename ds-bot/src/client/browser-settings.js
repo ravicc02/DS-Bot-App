@@ -1,3 +1,4 @@
+import { ComputerSettings } from './computer-settings.js'
 import { createElement as h, useEffect, useState } from 'react'
 import { BotAvatar } from './mark.js'
 import { dateLocale, t } from './i18n.js'
@@ -25,7 +26,7 @@ function grantKinds(grant) {
   return ACTIONS.filter(([kind]) => grant.kinds.includes(kind)).map(([, label]) => t(label))
 }
 
-export function BrowserPage({ roster, actions, run, Section, Row }) {
+export function BrowserPage({ roster, actions, run, Section, Row, privateSetup = false, onPrivateContinue }) {
   const bots = roster.bots ?? []
   const [botId, setBotId] = useState(bots[0]?.id ?? '')
   const [site, setSite] = useState('')
@@ -69,6 +70,7 @@ export function BrowserPage({ roster, actions, run, Section, Row }) {
   }
 
   return h('div', { className: 'bt-browser-settings' },
+    h(ComputerSettings, { key: Number(privateSetup), Section, Row, bots, privateSetup, onContinue: onPrivateContinue }),
     h(Section, { title: t('Browser access') },
       h('p', { className: 'bt-browser-note' }, t('Bots browse, click and fill in forms freely. Posting, uploading, downloading and deleting ask you first unless you allow them here. Payments are always yours: the Bot hands the page to you.'))),
     h(Section, { title: t('Allowed actions') },

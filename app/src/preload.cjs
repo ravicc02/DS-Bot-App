@@ -15,6 +15,13 @@ if (host !== undefined && location.origin === host) {
     // The Bot browsers, in the shape of DSH Desktop's browser bridge so that ds-bot drives both
     // alike; `forget` clears a key's storage, which here outlives the app.
     browser: browserBridge(),
+    ...(process.platform === 'win32' && process.arch === 'x64' ? { computer: {
+      choose: (conversation, target, operator) => ipcRenderer.invoke('ds-bot:computer-choose', conversation, target, operator),
+      setup: rebuild => ipcRenderer.invoke('ds-bot:computer-setup', rebuild),
+      settings: (op, value) => ipcRenderer.invoke('ds-bot:computer-settings', op, value),
+      view: (conversation, op, input, display) => ipcRenderer.invoke('ds-bot:computer-view', conversation, op, input, display),
+      reset: () => ipcRenderer.send('ds-bot:computer-reset'),
+    } } : {}),
     // The app's own updater, for the About row's state and buttons.
     updates: updatesBridge(),
   })

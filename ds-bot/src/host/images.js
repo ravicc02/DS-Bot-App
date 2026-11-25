@@ -8,6 +8,7 @@ import { BlockAssembler } from '@deepseek-ai/dsh-llm'
 import { OCR_CACHE_MAX, OCR_PROMPT, OCR_RETRY_MS, OCR_TIMEOUT_MS } from './constants.js'
 import { replaceFile } from './files.js'
 import { splitRef } from './text.js'
+import { isComputerImage, scopeComputerImages } from './computer/images.js'
 
 export function offloadTargets(session, beforeSeq) {
   const targets = []
@@ -148,6 +149,7 @@ export function install(rt) {
   async function imagesForGroup(attachments, sessionId) {
     await loadOcr()
     return Promise.all(attachments.map(async (attachment) => {
+      if (isComputerImage(attachment)) return '[Computer screenshot omitted from the group message.]'
       const reading = await imageReading(attachment, sessionId)
       const label = imageLabel(attachment)
       return reading === null
@@ -162,7 +164,7 @@ export function install(rt) {
     for (const message of messages) {
       if (!liveImages(message)) continue
       for (const block of message.content) {
-        if (block?.type === 'image' && !block.offloaded) images.set(String(block.attachment.attachmentId), block.attachment)
+        if (block?.type === 'image' && !block.offloaded && !isComputerImage(block.attachment)) images.set(String(block.attachment.attachmentId), block.attachment)
       }
     }
     const readings = new Map(await Promise.all([...images].map(async ([id, attachment]) => [id, await imageReading(attachment, sessionId)])))
@@ -170,13 +172,17 @@ export function install(rt) {
       ? {
           ...message,
           content: message.content.map(block => (block?.type === 'image' && !block.offloaded
-            ? imageAsText(block.attachment, readings.get(String(block.attachment.attachmentId)))
+            ? (isComputerImage(block.attachment)
+                ? { type: 'text', text: '[Computer screenshot requires the authorized vision model.]' }
+                : imageAsText(block.attachment, readings.get(String(block.attachment.attachmentId))))
             : block)),
         }
       : message))
   }
 
   ctx.on('llm/stream', (options, next) => {
+    const messages = scopeComputerImages(options.messages ?? [], rt.ownRequest(options) ? undefined : rt.computerImageForRequest?.(options))
+    if (options.messages !== undefined && messages !== options.messages) return ctx.llm.stream({ ...options, messages })
     if (options.sessionId === undefined || rt.ownRequest(options) || !(options.messages ?? []).some(liveImages)) return next()
     return (async function* imagesAsTextOrPass() {
       await rt.load()

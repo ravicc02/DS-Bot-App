@@ -1,4 +1,5 @@
 import { countCards, heldCardKey } from './sources.js'
+import { panelLayoutView } from './frame-layout.js'
 import { noteClientError } from './diagnostics.js'
 
 // The actions every window that draws the Bot views shares: dialogs and panels (the `ui`
@@ -27,10 +28,12 @@ export function teamActions({ call, after, partFor, roster, ui, live, cards, hel
     closeVoice: () => { ui.set(state => (state.voice ? { ...state, voice: null } : state)) },
     toggleDetails: (id, force) => {
       ui.set((state) => {
-        const details = force || state.details !== id || state.view !== 'details' ? id : null
+        const snap = roster.getSnapshot()
+        const owner = key => snap.byId[key]?.id ?? snap.roomsById[key]?.id ?? key
+        const details = force || owner(state.details) !== owner(id) || state.view !== 'details' ? id : null
         // A folded panel is open but not shown: its opener then means "show it"
         // (the column yields it room), not "close it".
-        if (details === null && panelFolded?.('details') === true) return { ...state, renaming: false, tab: null, details: id, view: 'details', panelYield: true }
+        if (details === null && panelFolded?.() === true) return { ...state, details: id, panelYield: true }
         return { ...state, renaming: false, tab: null, details, view: 'details' }
       })
     },
@@ -41,24 +44,43 @@ export function teamActions({ call, after, partFor, roster, ui, live, cards, hel
       ui.set((state) => {
         if (!state.details || state.details === id) return state
         const snap = roster.getSnapshot()
+        const bot = snap.byId[id]
+        const room = snap.roomsById[id]
+        if (bot && bot.id === snap.byId[state.details]?.id) return state
+        if (room && room.id === snap.roomsById[state.details]?.id) return state
         const view = state.view === 'browser' && snap.byId[id] === undefined ? 'details'
           : state.view === 'side' && !(snap.sideChats?.[snap.byId[id]?.id] ?? []).some(chat => chat?.id === state.side) ? 'details'
             : state.view
         return { ...state, details: id, view, renaming: false, tab: null }
       })
     },
-    showDetails: (id, tab = null) => { ui.set(state => ({ ...state, details: id, view: 'details', renaming: false, tab, panelYield: yieldTo(state, 'details') })) },
+    showDetails: (id, tab = null) => { ui.set(state => ({ ...state, details: id, view: 'details', renaming: false, tab, panelYield: yieldTo(state, panelLayoutView('details', tab)) })) },
+    setDetailsTab: (id, tab) => {
+      if (tab !== 'details' && tab !== 'browser' && tab !== 'computer') return
+      ui.set(state => {
+        if (state.details !== id || state.view !== 'details') return state
+        return { ...state, tab, panelYield: yieldTo(state, panelLayoutView('details', tab)) }
+      })
+    },
     // Opening the conversation would move focus to its composer and blur the name field.
     renameBot: (id) => { ui.set(state => ({ ...state, details: id, view: 'details', renaming: true, tab: null, panelYield: yieldTo(state, 'details') })) },
     // `id` opens one Bot (page 'bots') or one group chat (page 'groups').
-    openSettings: (page = 'general', id = null) => { ui.set(state => ({ ...state, settings: { page, id }, menu: null, palette: null, newChat: null })) },
+    openSettings: (page = 'general', id = null, resume) => {
+      ui.set(state => {
+        const onContinue = resume && (() => {
+          const current = ui.getSnapshot()
+          if (current.details === state.details && current.view === state.view && current.tab === state.tab) resume()
+        })
+        return { ...state, settings: { page, id, ...(onContinue && { onContinue }) }, menu: null, palette: null, newChat: null }
+      })
+    },
     closeSettings: () => { ui.set(state => (state.settings ? { ...state, settings: null } : state)) },
     openMemory: (id) => { ui.set(state => ({ ...state, memory: id, menu: null, palette: null })) },
     closeMemory: () => { ui.set(state => (state.memory ? { ...state, memory: null } : state)) },
     openConnectors: () => { ui.set(state => ({ ...state, settings: { page: 'connectors', id: null }, menu: null, palette: null, newChat: null })) },
     setPanelView: (view) => {
       if (view !== 'details' && view !== 'browser' && view !== 'side') return
-      ui.set(state => (state.details && state.view !== view ? { ...state, view, panelYield: yieldTo(state, view) } : state))
+      ui.set(state => (state.details && state.view !== view ? { ...state, view, panelYield: yieldTo(state, panelLayoutView(view, state.tab)) } : state))
     },
     // A side chat on the panel's own view, opened from the strip, the `···`
     // menus or `/side`. Closing the panel keeps the chats; only a tab's × deletes.

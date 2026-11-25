@@ -35,27 +35,27 @@ function settings(bot, { main = false, rooms = [] } = {}) {
 }
 const bot = { id: 'b', name: 'Writer', role: 'Writer', instructions: '', capabilities: [] }
 
-test('the Private switch is enabled only for a state the host accepts', () => {
-  const noFolder = settings(bot).find(node => node.props?.label === 'Private')
+test('the Privacy switch is enabled only for a state the host accepts', () => {
+  const noFolder = settings(bot).find(node => node.props?.label === 'Privacy')
   assert.equal(noFolder.props.disabled, true)
   assert.equal(noFolder.props.hint, 'Choose a working folder of its own first.')
 
-  const grouped = settings({ ...bot, workDir: '/work' }, { rooms: [{ id: 'r', members: ['b'] }] }).find(node => node.props?.label === 'Private')
+  const grouped = settings({ ...bot, workDir: '/work' }, { rooms: [{ id: 'r', members: ['b'] }] }).find(node => node.props?.label === 'Privacy')
   assert.equal(grouped.props.disabled, true)
   assert.equal(grouped.props.hint, 'Leave its group chats before making it private.')
 
-  const main = settings({ ...bot, workDir: '/work' }, { main: true }).find(node => node.props?.label === 'Private')
+  const main = settings({ ...bot, workDir: '/work' }, { main: true }).find(node => node.props?.label === 'Privacy')
   assert.equal(main.props.disabled, true)
   assert.equal(main.props.hint, 'A Main Bot cannot be private.')
 
-  const allowed = settings({ ...bot, workDir: '/work' }).find(node => node.props?.label === 'Private')
+  const allowed = settings({ ...bot, workDir: '/work' }).find(node => node.props?.label === 'Privacy')
   assert.equal(allowed.props.disabled, false)
   assert.equal(allowed.props.on, false)
 })
 
 test('a private Bot can always turn privacy off, and cannot become Main or be duplicated', () => {
   const tree = settings({ ...bot, workDir: '/work', private: true })
-  const privacy = tree.find(node => node.props?.label === 'Private')
+  const privacy = tree.find(node => node.props?.label === 'Privacy')
   assert.equal(privacy.props.on, true)
   assert.equal(privacy.props.disabled, false)
   assert.equal(tree.find(node => node.props?.label === 'Main Bot').props.disabled, true)

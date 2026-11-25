@@ -1,14 +1,14 @@
 import { call } from './api.js'
 import { isHex, inkText, paintCss } from './inks.js'
 import { DEFAULT_MASK, SHAPES, markupCache, maskOf } from './characters.js'
-import { createSource, EMPTY_ROSTER, indexRoster, isAgentSession } from './sources.js'
+import { createSource, EMPTY_ROSTER, indexRoster, isAgentSession, trackDesktopConversation } from './sources.js'
 import { teamActions } from './team-actions.js'
 import { themeCss, shellTokens, registry, registerShape, registerTheme, allThemes, layoutOf, widthOf, flatWidthOf } from './themes.js'
 import { MENTION_ORIGIN, currentPart } from './text.js'
 import { SHELL_CSS, CONVERSATION_CSS, installStyles, installCompiledStyles } from './styles.js'
 import { lookOf } from './mark.js'
 import { TeamSidebar, YouAvatar, AccountLauncher, FooterAccount, BrandMark, BrandName, BotReturn, SIDEBAR_CSS, RETURN_CSS, holdShellShortcuts, openHarnessOnboarding, openHarnessSettings } from './sidebar.js'
-import { frameLayout, readSidebar, writeSidebar, toggledPref, DSH_NARROW } from './frame-layout.js'
+import { frameLayout, panelLayoutView, readSidebar, writeSidebar, toggledPref, DSH_NARROW } from './frame-layout.js'
 import { installFrameWatch } from './frame-watch.js'
 import { HeaderPill } from './header.js'
 import { ComposerPlus, ComposerVoice, menuIcons } from './composer.js'
@@ -54,6 +54,7 @@ export const inject = ['sessions', 'uiWorkspace', 'uiConversation', 'slots', 'th
 export function apply(ctx) {
   ctx.effect(() => installLocale(ctx.get('locale')), 'ds-bot: interface copy')
   const roster = createSource(EMPTY_ROSTER)
+  const desktop = trackDesktopConversation(() => window.dsBotApp?.computer?.reset?.())
   const mobileApprovals = createMobileApprovals((endpoint, payload, signal) => call('mobile', { endpoint, payload }, signal))
   ctx.effect(() => {
     mobileApprovals.start()
@@ -436,7 +437,7 @@ export function apply(ctx) {
     const state = ui.getSnapshot()
     if (state.details === null) return false
     const f = frame.getSnapshot()
-    return frameLayout({ viewport: f.viewport, sidebarWidth: f.sidebarWidth, pref: sidebarPref.getSnapshot(), drawer: state.leftDrawer, panel: { view: view ?? state.view, yielded: state.panelYield === true } }).panel === 'folded'
+    return frameLayout({ viewport: f.viewport, sidebarWidth: f.sidebarWidth, pref: sidebarPref.getSnapshot(), drawer: state.leftDrawer, panel: { view: view ?? panelLayoutView(state.view, state.tab), yielded: state.panelYield === true } }).panel === 'folded'
   }
   const yieldBrowser = state => state.panelYield === true || panelFolded('browser')
   // Bot mode's view must hold a team conversation; an outside Session wears the
@@ -565,6 +566,7 @@ export function apply(ctx) {
       }
       show.cancel()
       if (mode === 'agent') {
+        desktop.revoke()
         ui.set(state => ({ ...state, details: null, view: 'details', settings: null, palette: null, newChat: null, menu: null, voice: null, exchange: null, memory: null, toast: null }))
       }
       writeMode(mode)
@@ -573,6 +575,7 @@ export function apply(ctx) {
       // shell's own view gets it back (below DSH_NARROW the shell decides itself).
       if (mode === 'agent' && window.innerWidth >= DSH_NARROW && frame.getSnapshot().collapsed) ctx.layout.toggleSidebar()
       if (mode !== 'bot') return
+      if (window.dsBotApp?.computer) desktop.sync(roster.getSnapshot(), mainView())
       ensureBotHome()
     },
     markUnread: id => writeUnread(id, true),
@@ -730,7 +733,8 @@ export function apply(ctx) {
   const browserPages = browsers?.pages ?? createSource({})
   const browserTabs = browsers?.tabs ?? createSource({})
   const browserHolds = browsers?.holds ?? createSource({})
-  const face = () => ({ actions, hooks: { roster, ui, activity, work, memoryNews, registry, turnClock, live, cards, heldCards, browserPages, browserTabs, browserHolds, surface, update, frame, sidebarPref } })
+  const desktopConversation = desktop.source
+  const face = () => ({ actions, hooks: { roster, ui, activity, work, memoryNews, registry, turnClock, live, cards, heldCards, browserPages, browserTabs, browserHolds, surface, update, frame, sidebarPref, desktopConversation } })
   ctx.effect(() => noticeApprovals({
     work,
     roster,
@@ -913,7 +917,7 @@ export function apply(ctx) {
       // team-actions carry the yield themselves.
       const opened = s.details !== null && lastDetails === null
       lastDetails = s.details
-      const layout = frameLayout({ viewport: f.viewport, sidebarWidth: f.sidebarWidth, pref: sidebarPref.getSnapshot(), drawer: s.leftDrawer === true, panel: s.details === null ? null : { view: s.view, yielded: false } })
+      const layout = frameLayout({ viewport: f.viewport, sidebarWidth: f.sidebarWidth, pref: sidebarPref.getSnapshot(), drawer: s.leftDrawer === true, panel: s.details === null ? null : { view: panelLayoutView(s.view, s.tab), yielded: false } })
       if (s.details === null) {
         if (s.panelYield) actions.setPanelYield(false)
       } else if (!s.panelYield && opened && layout.panel === 'folded') actions.setPanelYield(true)
@@ -1018,6 +1022,7 @@ export function apply(ctx) {
     const sync = () => {
       const list = ctx.sessions.list.getSnapshot()
       const main = Object.values(list.byId ?? {}).find(session => (session?.retainedBy?.mainView ?? 0) > 0)?.id
+      if (window.dsBotApp?.computer && surface.getSnapshot().mode === 'bot') desktop.sync(roster.getSnapshot(), main)
       const plain = isAgentSessionId(main)
       setPlain(plain)
       if (plain) dropPanels()
@@ -1066,7 +1071,7 @@ export function apply(ctx) {
     const offList = ctx.sessions.list.subscribe(sync)
     const offRoster = roster.subscribe(sync)
     sync()
-    return () => { offList(); offRoster() }
+    return () => { desktop.dispose(); offList(); offRoster() }
   }, 'ds-bot: agent surface')
 
   ctx.effect(() => {
