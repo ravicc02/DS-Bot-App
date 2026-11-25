@@ -234,6 +234,23 @@ test('an idle Bot\'s own chat moves to its new folder at once, and back', async 
   assert.match(handoffOf(agentOf('s2')), new RegExp(`because your working folder changed to ${escapeRegExp(team)}\\.`))
 })
 
+test('a folder change during the last step moves the Bot when that turn ends', async (t) => {
+  const { call, created, agentOf, project, state, stop } = await start()
+  t.after(stop)
+  const agent = agentOf('b')
+  agent.status = 'running'
+  const idle = Promise.withResolvers()
+  agent.whenIdle = () => idle.promise
+  assert.equal((await call('update-bot', { id: 'b', workDir: project })).ok, true)
+  assert.equal(state().bots.b.sessionId, 'b')
+  assert.deepEqual(created, [])
+  agent.status = 'idle'
+  idle.resolve()
+  await until(() => state().bots.b.sessionId === 's1')
+  await until(() => handoffOf(agentOf('s1')) !== undefined)
+  assert.deepEqual(created, [{ cwd: project }])
+})
+
 for (const failDelete of [false, true]) test(`part switches retain scheduled tasks when deletion ${failDelete ? 'fails' : 'works'}`, async t => {
   const original = { sessionId: 'b', record: { id: 'reminder', kind: 'every', title: 'Check in', prompt: 'Report status', everySeconds: 3600, scheduledAt: '2030-01-01T01:00:00.000Z' } }
   const tasks = new Map([[original.record.id, original]])
@@ -282,7 +299,11 @@ test('a running Bot moves at its next step and carries that step\'s input along'
   const { requests, services } = approvalServices('allowed-once')
   const { tool, preStep, agentOf, created, project, state, stop } = await start({ services })
   t.after(stop)
-  agentOf('b').status = 'running'
+  const agent = agentOf('b')
+  agent.status = 'running'
+  const idle = Promise.withResolvers()
+  agent.whenIdle = () => idle.promise
+  t.after(() => idle.resolve())
   assert.equal(await tool('update_bot', { work_dir: project }, 'b'), `Updated Writer. From your next step on, you work in ${project}.`)
   assert.equal(requests.length, 1)
   assert.equal(requests[0].reason, `Let Writer work in ${project}? Files there can then be changed.`)
@@ -292,6 +313,8 @@ test('a running Bot moves at its next step and carries that step\'s input along'
 
   const input = { id: 'm1', role: 'user', content: [{ type: 'text', text: 'Now build it' }], source: { kind: 'user' } }
   assert.deepEqual(await preStep('b', [input]), { kind: 'enter', messages: [] })
+  agent.status = 'idle'
+  idle.resolve()
   await until(() => state().bots.b.sessionId === 's1')
   assert.deepEqual(created, [{ cwd: project }])
   await until(() => agentOf('s1').calls.length >= 2)
