@@ -10,6 +10,11 @@ const installCommands = {
   podman: 'winget install --exact --id RedHat.Podman-Desktop',
 }
 
+const OPERATION_PROGRESS = {
+  start: 'Checking desktop runtime…', prepare: 'Preparing the private desktop…',
+  create: 'Loading desktop…', desktop: 'Loading desktop…', restart: 'Loading desktop…',
+}
+
 const PHASES = {
   'preparing-desktop': 'Preparing the private desktop…', 'restarting-desktop': 'Restarting the private desktop…',
   'checking-runtime': 'Checking desktop runtime…', 'initializing-runtime': 'Initializing the Podman machine…',
@@ -308,19 +313,21 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
         : 'Finish Docker Desktop setup and wait for the Linux engine.') : undefined,
       extra: busy === 'start' && podman ? progressView('Checking desktop runtime…') : null },
     { label: 'Desktop preparation', done: prepared,
-      action: runtimeRunning && !prepared ? button(stage === 'rebuild' ? 'Rebuild desktop' : 'Prepare desktop', () => prepare(stage === 'rebuild')) : null,
+      action: runtimeRunning && !prepared && busy !== 'prepare'
+        ? button(stage === 'rebuild' ? 'Rebuild desktop' : 'Prepare desktop', () => prepare(stage === 'rebuild')) : null,
       hint: stage === 'prepare' && busy !== 'prepare' ? 'The first setup may take several minutes.' : undefined,
       extra: busy === 'prepare' ? progressView('Preparing the private desktop…') : null },
     { label: 'Start the private desktop', done: setupReady,
       hint: prepared && perBot && !startupBot ? 'Add a Bot to check its private desktop.' : undefined,
-      action: prepared && !setupReady ? h(Fragment, null, selectStartupDesktop(),
+      action: prepared && !setupReady && busy !== 'create' ? h(Fragment, null, selectStartupDesktop(),
         button(setupInstance?.id ? 'Start desktop' : 'Create desktop', createDesktop, !!busy || (perBot && !startupBot))) : null,
-      extra: busy === 'create' ? progressView('Loading desktop…') : setupReady ? previewImage(setupFrame) : null },
+      extra: busy === 'create' ? progressView(OPERATION_PROGRESS.create) : setupReady ? previewImage(setupFrame) : null },
   ]
-  const feedback = busy || notice || error ? h('div', { className: 'bt-computer-feedback' },
-    busy === 'desktop' || busy === 'restart' || ((busy === 'prepare' || busy === 'create') && shown === 'manage') ? progressView('Loading desktop…')
-      : busy === 'prepare' || busy === 'create' || (busy === 'start' && podman) ? null
-        : busy || notice ? h('span', { className: 'bt-muted', role: 'status' }, t(busy ? 'Working…' : notice)) : null,
+  const progressOutsideSteps = busy && (busy !== 'start' || podman) ? OPERATION_PROGRESS[busy] : undefined
+  const progressInSteps = shown === 'setup' && progressOutsideSteps && ['start', 'prepare', 'create'].includes(busy)
+  const feedback = (busy && !progressInSteps) || notice || error ? h('div', { className: 'bt-computer-feedback' },
+    progressInSteps ? null : progressOutsideSteps ? progressView(progressOutsideSteps)
+      : busy || notice ? h('span', { className: 'bt-muted', role: 'status' }, t(busy ? 'Working…' : notice)) : null,
     error ? h('p', { className: 'bt-error', role: 'alert' }, error) : null) : null
 
   const management = h(Section, { title: t('Private desktop'), className: 'bt-computer-setup-details' },

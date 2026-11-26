@@ -37,10 +37,10 @@ entry.bind("<Control-a>", select_all)
 entry.bind("<Return>", lambda _: Path(${JSON.stringify(join(work, 'local-input.txt'))}).write_text(entry.get(), encoding="utf-8"))
 repaint = Path(${JSON.stringify(join(work, 'local-repaint'))})
 def check_repaint():
-    if repaint.exists():
-        entry.config(bg="#ff00ff")
-    else:
-        window.after(100, check_repaint)
+    color = "#ff00ff" if repaint.exists() else "#00ffff"
+    if entry.cget("bg") != color:
+        entry.config(bg=color)
+    window.after(100, check_repaint)
 window.after(100, check_repaint)
 marker = ${JSON.stringify(marker)}
 if marker:
@@ -249,7 +249,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     console.log('check-packed: primary screen rendered in the app after authorization')
     if (mode !== 'live') {
       const { x, y } = JSON.parse(readFileSync(join(work, 'local-click.json'), 'utf8'))
-      const repainted = `(() => {
+      const hasFixtureColor = red => `(() => {
         const image = ${screen};
         if (!image?.complete || !image.naturalWidth) return false;
         const canvas = document.createElement('canvas');
@@ -257,15 +257,18 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
         const context = canvas.getContext('2d');
         context.drawImage(image, ${x + 10}, ${y}, 1, 1, 0, 0, 1, 1);
         const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
-        return r > 230 && g < 32 && b > 230;
+        return b > 230 && ${red ? 'r > 230 && g < 32' : 'r < 32 && g > 230'};
       })()`
-      assert.equal(await evaluate(repainted), false)
+      await until(hasFixtureColor(false), 'the initial Windows fixture color')
       writeFileSync(join(work, 'local-repaint'), '')
-      await until(repainted, 'the next primary desktop screenshot after updating the fixture', 30_000)
+      await until(hasFixtureColor(true), 'the next primary desktop screenshot after updating the fixture', 30_000)
       console.log('check-packed: the primary screen updated without manual refresh')
       await capture(process.env.DS_BOT_PACKED_LOCAL_SCREENSHOT)
       await click(pane, 'Take control', '接管')
       await until(byText(`${livePanel} .bt-computer [role=status]`, ['Use your mouse and keyboard on this computer.', '请直接使用这台电脑的鼠标和键盘。']), 'physical input takeover on this computer')
+      unlinkSync(join(work, 'local-repaint'))
+      await until(hasFixtureColor(false), 'the primary screen updating during physical input takeover', 20_000)
+      console.log('check-packed: the primary screen kept updating during physical input takeover')
       await click(pane, 'Hand back', '交还')
       await until(`${frameReady} && (${byText(pane, ['Take control', '接管'])})?.disabled === false`, 'this computer after hand-back')
       console.log('check-packed: this computer can be reserved for physical input and handed back')
@@ -448,10 +451,15 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await sleep(1200)
       assert.equal(await evaluate(`Boolean(${progress}?.querySelector('progress, time'))`), false)
     }
-    const checkProgress = async (step, screenshot) => {
+    const checkProgress = async (step, screenshot, mustAdvance = false) => {
       const progress = setupProgress(step)
       await until(`${progress}?.querySelector('progress') && /[0-9]+:[0-9]{2}/.test(${progress}.querySelector('time')?.textContent ?? '')`,
         `setup progress for step ${step}`)
+      if (mustAdvance) {
+        const initial = await evaluate(`${progress}?.querySelector('time')?.textContent`)
+        await until(`${progress}?.querySelector('time') && ${progress}.querySelector('time').textContent !== ${JSON.stringify(initial)}`,
+          `the timer advancing for step ${step}`, 6_000)
+      }
       await capture(screenshot)
     }
     if (setupStage === 'start') {
@@ -523,7 +531,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     assert.deepEqual(await evaluate("window.dsBotApp.computer.settings('inventory', [])"), [])
     const startupBegan = performance.now()
     await click(settings, 'Create desktop', '创建桌面')
-    await checkProgress(4, process.env.DS_BOT_PACKED_CREATE_PROGRESS_SCREENSHOT)
+    await checkProgress(4, process.env.DS_BOT_PACKED_CREATE_PROGRESS_SCREENSHOT, true)
     const startupAlert = `document.querySelector('.bt-computer-settings [role="alert"]')?.textContent?.trim()`
     await until(`(${settingsFrame}) || Boolean(${startupAlert})`, 'the desktop creation result', 75_000)
     const container = await registerDesktop(name)
@@ -875,6 +883,10 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await waitFor(async () => (await groupStatus()).status === 'bot', 'the first group member acquiring the desktop', 15_000)
       await approveMember('Computer QA')
       await waitFor(async () => (await groupStatus()).waiting === 1, 'the second group member entering the desktop queue', 7_500)
+      await openPane()
+      const groupScreenStatus = `document.querySelector('${livePanel} .bt-computer-status')?.textContent ?? ''`
+      await until(`/(?:Bots waiting|\u6392\u961f\u4e2d\u7684 Bot): 1/.test(${groupScreenStatus})`, 'the queue count in the group desktop pane', 5_000)
+      await capture(process.env.DS_BOT_PACKED_GROUP_QUEUE_SCREENSHOT)
       const submitted = async () => runDocker('exec', container, 'cat', file).then(({ stdout }) => stdout.trim().split('\n'), () => [])
       const transitions = []
       const began = performance.now()

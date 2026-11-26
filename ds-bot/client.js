@@ -16616,6 +16616,13 @@ var installCommands = {
   docker: "winget install --exact --id Docker.DockerDesktop",
   podman: "winget install --exact --id RedHat.Podman-Desktop"
 };
+var OPERATION_PROGRESS = {
+  start: "Checking desktop runtime…",
+  prepare: "Preparing the private desktop…",
+  create: "Loading desktop…",
+  desktop: "Loading desktop…",
+  restart: "Loading desktop…"
+};
 var PHASES = {
   "preparing-desktop": "Preparing the private desktop…",
   "restarting-desktop": "Restarting the private desktop…",
@@ -16977,7 +16984,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
     {
       label: "Desktop preparation",
       done: prepared,
-      action: runtimeRunning && !prepared ? button(stage === "rebuild" ? "Rebuild desktop" : "Prepare desktop", () => prepare(stage === "rebuild")) : null,
+      action: runtimeRunning && !prepared && busy !== "prepare" ? button(stage === "rebuild" ? "Rebuild desktop" : "Prepare desktop", () => prepare(stage === "rebuild")) : null,
       hint: stage === "prepare" && busy !== "prepare" ? "The first setup may take several minutes." : void 0,
       extra: busy === "prepare" ? progressView("Preparing the private desktop…") : null
     },
@@ -16985,19 +16992,21 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       label: "Start the private desktop",
       done: setupReady,
       hint: prepared && perBot && !startupBot ? "Add a Bot to check its private desktop." : void 0,
-      action: prepared && !setupReady ? (0, import_react42.createElement)(
+      action: prepared && !setupReady && busy !== "create" ? (0, import_react42.createElement)(
         import_react42.Fragment,
         null,
         selectStartupDesktop(),
         button(setupInstance?.id ? "Start desktop" : "Create desktop", createDesktop, !!busy || perBot && !startupBot)
       ) : null,
-      extra: busy === "create" ? progressView("Loading desktop…") : setupReady ? previewImage(setupFrame) : null
+      extra: busy === "create" ? progressView(OPERATION_PROGRESS.create) : setupReady ? previewImage(setupFrame) : null
     }
   ];
-  const feedback = busy || notice || error ? (0, import_react42.createElement)(
+  const progressOutsideSteps = busy && (busy !== "start" || podman) ? OPERATION_PROGRESS[busy] : void 0;
+  const progressInSteps = shown === "setup" && progressOutsideSteps && ["start", "prepare", "create"].includes(busy);
+  const feedback = busy && !progressInSteps || notice || error ? (0, import_react42.createElement)(
     "div",
     { className: "bt-computer-feedback" },
-    busy === "desktop" || busy === "restart" || (busy === "prepare" || busy === "create") && shown === "manage" ? progressView("Loading desktop…") : busy === "prepare" || busy === "create" || busy === "start" && podman ? null : busy || notice ? (0, import_react42.createElement)("span", { className: "bt-muted", role: "status" }, t(busy ? "Working…" : notice)) : null,
+    progressInSteps ? null : progressOutsideSteps ? progressView(progressOutsideSteps) : busy || notice ? (0, import_react42.createElement)("span", { className: "bt-muted", role: "status" }, t(busy ? "Working…" : notice)) : null,
     error ? (0, import_react42.createElement)("p", { className: "bt-error", role: "alert" }, error) : null
   ) : null;
   const management = (0, import_react42.createElement)(
@@ -23382,7 +23391,9 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
     setState((previous) => ({ ...value, lastFrame: value.preview ?? (previous.display === value.display && value.display ? previous.lastFrame : void 0) }));
   }
   async function refreshPreview(value, current, force = false) {
-    if (!value.display || value.status !== "idle" || value.waiting) return;
+    const idle = value.status === "idle" && !value.waiting;
+    const localTakeover = value.target === "local-desktop" && value.status === "user";
+    if (!value.display || !idle && !localTakeover) return;
     const scope = lifetime.current;
     const schedule = scope.preview;
     if (!force && schedule?.display === value.display && performance.now() < schedule.after) return;

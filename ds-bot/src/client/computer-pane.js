@@ -59,7 +59,9 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
   }
 
   async function refreshPreview(value, current, force = false) {
-    if (!value.display || value.status !== 'idle' || value.waiting) return
+    const idle = value.status === 'idle' && !value.waiting
+    const localTakeover = value.target === 'local-desktop' && value.status === 'user'
+    if (!value.display || (!idle && !localTakeover)) return
     const scope = lifetime.current
     const schedule = scope.preview
     if (!force && schedule?.display === value.display && performance.now() < schedule.after) return
