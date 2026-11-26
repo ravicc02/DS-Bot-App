@@ -69,6 +69,33 @@ test('shared members wait in turn order across conversations and cancellation ad
   assert.equal(await another.action('fourth'), image)
 })
 
+test('reopening the group panel during a queued turn shows only its own last frame', async t => {
+  const captured = controllable()
+  const nextImage = { ...image, data: 'next-frame' }
+  let captures = 0
+  const service = fixture(t, { run: () => ++captures === 1 ? image : captured.promise })
+  const room = await select(service, 'room-one')
+  const other = await select(service, 'room-two')
+  const { display } = await service.inline(room.conversation, 'status')
+  const status = () => service.inline(room.conversation, 'status')
+  assert.equal((await service.inline(room.conversation, 'observe', undefined, display)).preview, image)
+  await service.inline(room.conversation, 'hand-back', undefined, display)
+  assert.equal((await status()).preview, image)
+
+  const running = room.action('first', observe, 'member-one')
+  captured.resolve(nextImage)
+  assert.deepEqual(await room.action('second', observe, 'member-two'), { waiting: true, position: 1 })
+  const reopened = await status()
+  assert.equal(reopened.preview, undefined)
+  assert.equal(reopened.lastPreview, image)
+  assert.equal(reopened.waiting, 1)
+  assert.equal((await service.inline(other.conversation, 'status')).lastPreview, undefined)
+  assert.equal(await running, nextImage)
+  assert.equal((await status()).preview, nextImage)
+  await service.request({ op: 'stop', conversation: room.conversation })
+  assert.equal((await status()).lastPreview, undefined)
+})
+
 test('private desktop scope follows the Bot across conversations and policy changes revoke granted and pending access', async t => {
   let privateMode = 'per-bot'
   let confirmation

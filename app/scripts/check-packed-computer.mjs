@@ -886,6 +886,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await openPane()
       const groupScreenStatus = `document.querySelector('${livePanel} .bt-computer-status')?.textContent ?? ''`
       await until(`/(?:Bots waiting|\u6392\u961f\u4e2d\u7684 Bot): 1/.test(${groupScreenStatus})`, 'the queue count in the group desktop pane', 5_000)
+      await until(frameReady, 'the group preview during a queued turn', 5_000)
       await capture(process.env.DS_BOT_PACKED_GROUP_QUEUE_SCREENSHOT)
       const submitted = async () => runDocker('exec', container, 'cat', file).then(({ stdout }) => stdout.trim().split('\n'), () => [])
       const transitions = []

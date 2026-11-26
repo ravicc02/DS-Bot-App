@@ -55,7 +55,7 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
   function show(value) {
     if (display.current !== value.display) setPreviewError('')
     display.current = value.display
-    setState(previous => ({ ...value, lastFrame: value.preview ?? (previous.display === value.display && value.display ? previous.lastFrame : undefined) }))
+    setState(previous => ({ ...value, lastFrame: value.preview ?? value.lastPreview ?? (previous.display === value.display && value.display ? previous.lastFrame : undefined) }))
   }
 
   async function refreshPreview(value, current, force = false) {
@@ -258,7 +258,9 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
             return state.target === 'private-desktop' && ['idle', 'bot'].includes(state.status)
               ? h('button', { type: 'button', className: 'bt-computer-preview-button', disabled: busy,
                 'aria-label': t('Take control'), onClick: () => desktop('take') }, preview) : preview
-          })() : h('div', { className: 'bt-computer-empty', role: 'status' }, t(status))),
+          })() : h('div', { className: 'bt-computer-empty', role: 'status' },
+            t(state.target && !previewError && ['bot', 'viewer', 'idle'].includes(state.status)
+              ? 'Waiting for the desktop image…' : status))),
       state.target ? h('div', { className: 'bt-computer-actions bt-computer-screen-actions' },
         state.status === 'user' ? button('Hand back', () => desktop('hand-back'), pending === 'hand-back' || pending === 'off', 'bt-computer-primary') : null,
         state.status !== 'user' ? button('Take control', () => desktop('take'), busy || !['idle', 'bot'].includes(state.status), 'bt-computer-primary') : null,

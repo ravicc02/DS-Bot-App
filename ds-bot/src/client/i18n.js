@@ -18,6 +18,7 @@ const ZH = {
   "This computer": "这台电脑",
   "Choose a work location to show its screen.": "选择工作位置以显示画面。",
   "Loading desktop…": "正在加载桌面…",
+  "Waiting for the desktop image…": "正在等待桌面画面…",
   "Last screenshot": "上一张截图",
   "Off": "关闭",
   "Take control": "接管",

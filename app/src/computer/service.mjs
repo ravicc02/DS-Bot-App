@@ -42,7 +42,13 @@ export function createComputerService(backends, confirm, { privateMode = () => '
   }
 
   function setPreview(grant, image) {
-    grant.preview = { image, until: Date.now() + PREVIEW_LIFETIME }
+    grant.preview = { image, until: Date.now() + PREVIEW_LIFETIME, revision: grant.previewRevision }
+  }
+
+  function inlinePreview(grant) {
+    const frame = previewOf(grant)
+    if (!frame) return {}
+    return grant.preview.revision === grant.previewRevision ? { preview: frame } : { lastPreview: frame }
   }
 
   function release(grant) {
@@ -128,7 +134,9 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     if (grant.target === 'private-desktop' && privateMaintenance?.(grant.slot.scope)) throw new Error('The private desktop is unavailable while it is being prepared.')
     const id = control.acquire(grant.slot, owner, type, grant.instance)
     const lease = { id, owner, type }
-    clearPreview(grant)
+    // Keep the existing frame while the Bot's first capture is pending.
+    if (type === 'bot') grant.previewRevision = Symbol()
+    else clearPreview(grant)
     grant.lease = lease
     return lease
   }
@@ -361,7 +369,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         if (closed || !key(conversation)) throw changed()
         const state = view(conversation)
         const grant = grants.get(conversation)
-        return { ...state, preview: previewOf(grant), display: grant?.display }
+        return { ...state, ...inlinePreview(grant), display: grant?.display }
       }
       if (!['observe', 'take', 'hand-back', 'input'].includes(op)) throw changed()
       const grant = grants.get(conversation)
@@ -371,7 +379,12 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         throw changed()
       }
       try {
-        return { ...await this.local(conversation, op, input, grant.token), display }
+        // Tab changes release interactive control, but an idle frame can outlive the tab.
+        if (op === 'hand-back' && !grant.lease && !grant.draining && !grant.transition) {
+          return { ...view(conversation), ...inlinePreview(grant), display }
+        }
+        const { preview: _preview, ...state } = await this.local(conversation, op, input, grant.token)
+        return { ...state, ...inlinePreview(grant), display }
       } catch (error) {
         if (passive && grants.get(conversation) !== grant) return null
         throw error

@@ -55,6 +55,7 @@ var ZH = {
   "This computer": "这台电脑",
   "Choose a work location to show its screen.": "选择工作位置以显示画面。",
   "Loading desktop…": "正在加载桌面…",
+  "Waiting for the desktop image…": "正在等待桌面画面…",
   "Last screenshot": "上一张截图",
   "Off": "关闭",
   "Take control": "接管",
@@ -23388,7 +23389,7 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
   function show2(value) {
     if (display.current !== value.display) setPreviewError("");
     display.current = value.display;
-    setState((previous) => ({ ...value, lastFrame: value.preview ?? (previous.display === value.display && value.display ? previous.lastFrame : void 0) }));
+    setState((previous) => ({ ...value, lastFrame: value.preview ?? value.lastPreview ?? (previous.display === value.display && value.display ? previous.lastFrame : void 0) }));
   }
   async function refreshPreview(value, current, force = false) {
     const idle = value.status === "idle" && !value.waiting;
@@ -23611,7 +23612,11 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
             "aria-label": t("Take control"),
             onClick: () => desktop("take")
           }, preview) : preview;
-        })() : (0, import_react52.createElement)("div", { className: "bt-computer-empty", role: "status" }, t(status))
+        })() : (0, import_react52.createElement)(
+          "div",
+          { className: "bt-computer-empty", role: "status" },
+          t(state.target && !previewError && ["bot", "viewer", "idle"].includes(state.status) ? "Waiting for the desktop image…" : status)
+        )
       ),
       state.target ? (0, import_react52.createElement)(
         "div",
