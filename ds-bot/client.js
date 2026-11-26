@@ -202,6 +202,13 @@ var ZH = {
   "Desktop per Bot": "按 Bot 隔离",
   "Desktop pool": "桌面池",
   "Pool desktop": "池内桌面",
+  "Memory (GiB)": "内存（GiB）",
+  "CPU cores": "CPU 核数",
+  "Save resource limits": "保存资源限制",
+  "Resource limits apply to each private desktop on its next start.": "资源限制在各私有桌面下次启动时生效。",
+  "Applying desktop resource limits…": "正在应用桌面资源限制…",
+  "Enter 2 to 128 GiB of memory and 1 to 64 CPUs.": "请输入 2–128 GiB 内存和 1–64 个 CPU 核。",
+  "Could not apply the desktop resource limits. Check the available CPU and memory in the desktop runtime.": "无法应用桌面资源限制，请检查运行环境可用的 CPU 和内存。",
   "Pool size": "桌面池大小",
   "Reducing the pool size stops the pooled desktops. Their files are kept.": "缩小桌面池会停止池内桌面并保留文件。",
   "Maximum running desktops": "最多同时运行的桌面",
@@ -16609,6 +16616,7 @@ var PHASES = {
   "checking-image": "Verifying desktop image…",
   "checking-container": "Checking desktop instance…",
   "creating-container": "Creating desktop instance…",
+  "updating-resources": "Applying desktop resource limits…",
   "starting-container": "Starting desktop instance…",
   "waiting-desktop": "Waiting for the desktop to load…",
   "connecting-driver": "Connecting to the desktop…",
@@ -16684,6 +16692,8 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
   const bridge = globalThis.window?.dsBotApp?.computer;
   const [stage, setStage] = (0, import_react42.useState)(null);
   const [idle, setIdle] = (0, import_react42.useState)("");
+  const [memory, setMemory] = (0, import_react42.useState)("");
+  const [cpuCount, setCpuCount] = (0, import_react42.useState)("");
   const [settings, setSettings] = (0, import_react42.useState)(null);
   const [instances, setInstances] = (0, import_react42.useState)(null);
   const botIds = JSON.stringify(bots.map((bot) => bot.id).sort());
@@ -16710,6 +16720,8 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       if (active) {
         setSettings(result);
         setIdle(String(result.idleMinutes));
+        setMemory(String(result.limits.memoryGb));
+        setCpuCount(String(result.limits.cpus));
       }
     }, report);
     void readStatus(bridge, botIds).then((result) => {
@@ -16796,6 +16808,9 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       return true;
     }, "Saved");
   }
+  const memoryGb = Number(memory);
+  const cpus = Number(cpuCount);
+  const canSaveLimits = settings && Number.isInteger(memoryGb) && memoryGb >= 2 && memoryGb <= 128 && Number.isInteger(cpus) && cpus >= 1 && cpus <= 64 && (memoryGb !== settings.limits.memoryGb || cpus !== settings.limits.cpus);
   const runtimeRunning = ["prepare", "rebuild", "prepared"].includes(stage);
   const runtimeInstalled = stage === "start" || runtimeRunning;
   const running = instances?.filter((instance) => instance.running).length;
@@ -17050,6 +17065,40 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       },
       Array.from({ length: 8 }, (_, index) => (0, import_react42.createElement)("option", { key: index + 1, value: index + 1 }, index + 1))
     )) : null,
+    (0, import_react42.createElement)(
+      Row3,
+      { label: t("Memory (GiB)"), hint: t("Resource limits apply to each private desktop on its next start.") },
+      (0, import_react42.createElement)("input", {
+        type: "number",
+        className: "bt-select",
+        min: 2,
+        max: 128,
+        step: 1,
+        value: memory,
+        "aria-label": t("Memory (GiB)"),
+        disabled: !!busy || !settings,
+        onChange: (event) => setMemory(event.target.value)
+      })
+    ),
+    (0, import_react42.createElement)(
+      Row3,
+      { label: t("CPU cores") },
+      (0, import_react42.createElement)("input", {
+        type: "number",
+        className: "bt-select",
+        min: 1,
+        max: 64,
+        step: 1,
+        value: cpuCount,
+        "aria-label": t("CPU cores"),
+        disabled: !!busy || !settings,
+        onChange: (event) => setCpuCount(event.target.value)
+      }),
+      button("Save resource limits", () => void run2("save", async () => {
+        setSettings(await bridge.settings("limits", { memoryGb, cpus }));
+        return true;
+      }, "Saved"), !!busy || !canSaveLimits)
+    ),
     (0, import_react42.createElement)(
       Row3,
       { label: t("Stop when idle"), hint: t("Minutes. Set to 0 to keep the desktop running.") },

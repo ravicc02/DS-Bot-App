@@ -162,3 +162,7 @@ DS Bot adds the namespace and chroot operations required by Chromium's sandbox.
 Private desktop pool seat selection adapts OpenMausBot
 (server/local-vm-seat-pool.ts), Copyright 2026 Milind Soni and OpenMausBot
 contributors, Apache License, Version 2.0.
+
+Private desktop resource arguments and updates on start adapt OpenMausBot
+(server/container-limits.ts and server/local-vm-settings.ts), Copyright 2026
+Milind Soni and OpenMausBot contributors, Apache License, Version 2.0.

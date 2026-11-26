@@ -16,7 +16,7 @@ const config = () => ({
   Id: id, Name: `/${name}`, Image: image,
   Config: { Labels: { 'io.github.qingj01.dsbot.cua-instance': instance }, User: '1000:1000', Entrypoint: ['/usr/local/bin/ds-bot-desktop'] },
   HostConfig: {
-    NetworkMode: 'none', Privileged: false, PublishAllPorts: false, AutoRemove: false, Memory: 2 * 1024 ** 3,
+    NetworkMode: 'none', Privileged: false, PublishAllPorts: false, AutoRemove: false, Memory: 2 * 1024 ** 3, MemorySwap: 4 * 1024 ** 3,
     NanoCpus: 2 * 10 ** 9, PidsLimit: 384, Init: true, CapDrop: ['ALL'], RestartPolicy: { Name: 'no' },
     SecurityOpt: ['no-new-privileges', `seccomp=${JSON.stringify(seccomp)}`],
     Tmpfs: { '/tmp': 'rw,nosuid,nodev,noexec,size=256m,mode=1777' }, IpcMode: 'private', PidMode: '', UTSMode: '',
@@ -29,6 +29,17 @@ test('a managed desktop must have its recorded image and container IDs', () => {
   assert.equal(verifyContainer(container, image, instance, id), container)
   assert.throws(() => verifyContainer(container, `sha256:${'3'.repeat(64)}`, instance, id), /configuration changed/u)
   assert.throws(() => verifyContainer(container, image, instance, '3'.repeat(64)), /configuration changed/u)
+})
+
+test('resource settings preserve legacy desktops and require bounded limits without extra swap', () => {
+  const container = config()
+  const limits = { Memory: 3 * 1024 ** 3, MemorySwap: 3 * 1024 ** 3, NanoCpus: 10 ** 9 }
+  Object.assign(container.HostConfig, limits)
+  assert.equal(verifyContainer(container, image, instance, id), container)
+  for (const change of [{ Memory: 0 }, { NanoCpus: 0 }, { NanoCpus: 1.5 * 10 ** 9 }, { MemorySwap: -1 }, { MemorySwap: 6 * 1024 ** 3 }]) {
+    Object.assign(container.HostConfig, limits, change)
+    assert.throws(() => verifyContainer(container, image, instance, id), /configuration changed/u)
+  }
 })
 
 test('a foreign container cannot be used just because its name matches', () => {

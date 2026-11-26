@@ -14,6 +14,7 @@ const PHASES = {
   'checking-runtime': 'Checking desktop runtime…', 'building-image': 'Building desktop image…',
   'downloading-image': 'Downloading desktop image…', 'checking-image': 'Verifying desktop image…',
   'checking-container': 'Checking desktop instance…', 'creating-container': 'Creating desktop instance…',
+  'updating-resources': 'Applying desktop resource limits…',
   'starting-container': 'Starting desktop instance…', 'waiting-desktop': 'Waiting for the desktop to load…',
   'connecting-driver': 'Connecting to the desktop…', 'capturing-frame': 'Getting the first frame…',
 }
@@ -59,6 +60,8 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   const bridge = globalThis.window?.dsBotApp?.computer
   const [stage, setStage] = useState(null)
   const [idle, setIdle] = useState('')
+  const [memory, setMemory] = useState('')
+  const [cpuCount, setCpuCount] = useState('')
   const [settings, setSettings] = useState(null)
   const [instances, setInstances] = useState(null)
   const botIds = JSON.stringify(bots.map(bot => bot.id).sort())
@@ -81,7 +84,12 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
     let active = true
     const report = failure => { if (active) setError(computerError(failure)) }
     void bridge.settings('read').then(result => {
-      if (active) { setSettings(result); setIdle(String(result.idleMinutes)) }
+      if (active) {
+        setSettings(result)
+        setIdle(String(result.idleMinutes))
+        setMemory(String(result.limits.memoryGb))
+        setCpuCount(String(result.limits.cpus))
+      }
     }, report)
     void readStatus(bridge, botIds).then(result => {
       if (active) applyStatus(result)
@@ -163,6 +171,11 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
       return true
     }, 'Saved')
   }
+  const memoryGb = Number(memory)
+  const cpus = Number(cpuCount)
+  const canSaveLimits = settings && Number.isInteger(memoryGb) && memoryGb >= 2 && memoryGb <= 128
+    && Number.isInteger(cpus) && cpus >= 1 && cpus <= 64
+    && (memoryGb !== settings.limits.memoryGb || cpus !== settings.limits.cpus)
   const runtimeRunning = ['prepare', 'rebuild', 'prepared'].includes(stage)
   const runtimeInstalled = stage === 'start' || runtimeRunning
   const running = instances?.filter(instance => instance.running).length
@@ -343,6 +356,16 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
     }, h('select', { className: 'bt-select', 'aria-label': t(pooled ? 'Pool size' : 'Maximum running desktops'), 'data-computer-limit': true, value: settings.maxInstances,
       disabled: !!busy, onChange: event => savePolicy(settings.privateMode, Number(event.target.value)) },
     Array.from({ length: 8 }, (_, index) => h('option', { key: index + 1, value: index + 1 }, index + 1)))) : null,
+    h(Row, { label: t('Memory (GiB)'), hint: t('Resource limits apply to each private desktop on its next start.') },
+      h('input', { type: 'number', className: 'bt-select', min: 2, max: 128, step: 1, value: memory,
+        'aria-label': t('Memory (GiB)'), disabled: !!busy || !settings, onChange: event => setMemory(event.target.value) })),
+    h(Row, { label: t('CPU cores') },
+      h('input', { type: 'number', className: 'bt-select', min: 1, max: 64, step: 1, value: cpuCount,
+        'aria-label': t('CPU cores'), disabled: !!busy || !settings, onChange: event => setCpuCount(event.target.value) }),
+      button('Save resource limits', () => void run('save', async () => {
+        setSettings(await bridge.settings('limits', { memoryGb, cpus }))
+        return true
+      }, 'Saved'), !!busy || !canSaveLimits)),
     h(Row, { label: t('Stop when idle'), hint: t('Minutes. Set to 0 to keep the desktop running.') },
       h('input', { type: 'number', className: 'bt-select', min: 0, max: 1440, step: 1, value: idle,
         'aria-label': t('Idle minutes'), disabled: !!busy || !settings, onChange: event => setIdle(event.target.value) }),

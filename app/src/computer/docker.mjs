@@ -5,6 +5,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { isDeepStrictEqual } from 'node:util'
 import { desktopRuntime, podmanProfilePath } from './docker-installation.mjs'
 import { createDriver, pngFrame } from './driver.mjs'
+import { defaultDesktopLimits, inspectDesktopLimits, resourceArgs, validDesktopLimits } from './limits.mjs'
 import { openLiveDesktop } from './live.mjs'
 import { openMcp } from './mcp.mjs'
 import seccomp from './seccomp.json' with { type: 'json' }
@@ -74,7 +75,7 @@ export function verifyContainer(info, imageId, instance, id, version = imageVers
   if (!imageVersions.includes(version) || (podman && version !== imageVersion) || info?.Name !== (podman ? name : `/${name}`) || !containerIdPattern.test(info.Id) || (id !== undefined && info.Id !== id) || (podman ? canonicalImageId(info.Image) : info.Image) !== imageId || c?.Labels?.[label] !== instance
     || c.User !== '1000:1000' || !same(c.Entrypoint, ['/usr/local/bin/ds-bot-desktop']) || !noValues(c.Cmd)
     || h?.NetworkMode !== 'none' || h.Privileged !== false || h.PublishAllPorts !== false || h.AutoRemove !== false
-    || h.Memory !== 2 * 1024 ** 3 || h.NanoCpus !== 2 * 10 ** 9 || h.PidsLimit !== 384 || h.Init !== true
+    || !inspectDesktopLimits(h, podman) || h.PidsLimit !== 384 || h.Init !== true
     || (podman ? !noValues(info.EffectiveCaps) || !noValues(info.BoundingCaps) : !same(h.CapDrop, ['ALL']))
     || !validSecurity(h.SecurityOpt, version, podmanProfile) || h.RestartPolicy?.Name !== 'no'
     || (podman ? !same(h.Binds, binds) : !noValues(h.Binds))
@@ -100,7 +101,7 @@ function resources(instance, scope) {
   ] }
 }
 
-export function dockerBackend(instance, { imageDir, imageFile, runtime = desktopRuntime('docker'), idleMinutes = () => 480, maxInstances = () => 2 }) {
+export function dockerBackend(instance, { imageDir, imageFile, runtime = desktopRuntime('docker'), idleMinutes = () => 480, maxInstances = () => 2, desktopLimits = () => defaultDesktopLimits }) {
   const { name: sharedName } = resources(instance)
   const podman = runtime.name === 'podman'
   const seccompPath = join(dirname(imageDir), 'seccomp.json')
@@ -230,24 +231,49 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
       throw new Error('All private desktops are in use. Stop an idle desktop or increase the instance limit in Settings.')
     }
     signal.throwIfAborted()
+    const desired = desktopLimits()
+    if (!validDesktopLimits(desired)) throw unsafe()
     if (!existing) report?.('creating-container')
     await verifyVolumes(scope, !existing)
     if (!isDeepStrictEqual(JSON.parse(await readFile(seccompPath, 'utf8')), seccomp)) throw unsafe()
     const id = existing ?? await command('container', 'create', '--name', name, '--label', `${label}=${instance}`,
       '--network', 'none', '--ipc', 'private', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
       '--security-opt', `seccomp=${seccompPath}`,
-      '--tmpfs', `/tmp:${temporaryFiles}${podman ? ',notmpcopyup' : ''}`, '--memory', '2g', '--cpus', '2', '--pids-limit', '384', '--init', '--restart', 'no',
+      '--tmpfs', `/tmp:${temporaryFiles}${podman ? ',notmpcopyup' : ''}`, ...resourceArgs(desired), '--pids-limit', '384', '--init', '--restart', 'no',
       ...mounts.flatMap(volume => ['--mount', `type=volume,source=${volume.name},target=${volume.path}`]), imageId)
     const selected = { id, imageId, scope }
-    const checked = await verify(selected)
-    if (checked.State.Running) state.desktop = selected
+    let checked = await verify(selected)
     signal.throwIfAborted()
-    state.desktop = selected
     if (!checked.State.Running) {
       if (runningOnly) throw new Error('The private desktop is stopped.')
+      const matches = config => isDeepStrictEqual(inspectDesktopLimits(config, podman), { ...desired, noSwap: true })
+      const updating = existing && !matches(checked.HostConfig)
+      if (updating) {
+        report?.('updating-resources')
+        await command('update', ...resourceArgs(desired), id).catch(cause => {
+          throw new Error('Could not apply the desktop resource limits. Check the available CPU and memory in the desktop runtime.', { cause })
+        })
+        checked = await verify(selected)
+        if (checked.State.Running) throw unsafe()
+      }
+      // Podman reports the previous limits for an exited container until it starts again.
+      if (!(podman && updating) && !matches(checked.HostConfig)) throw unsafe()
+      signal.throwIfAborted()
+      state.desktop = selected
       report?.('starting-container')
       await command('container', 'start', id)
+      try {
+        const started = await verify(selected)
+        if (!started.State.Running || !matches(started.HostConfig)) {
+          throw new Error('The desktop runtime did not apply the requested resource limits.')
+        }
+      } catch (error) {
+        await command('container', 'stop', '--time', '3', id)
+        state.desktop = undefined
+        throw error
+      }
     }
+    state.desktop = selected
     return selected
   }
 

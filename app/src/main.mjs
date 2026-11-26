@@ -20,6 +20,7 @@ import { dockerBackend, newComputerInstance, privateDesktopScope } from './compu
 import { desktopRuntime, privateDesktopRuntime } from './computer/docker-installation.mjs'
 import { windowsBackend } from './computer/driver.mjs'
 import { createComputerService } from './computer/service.mjs'
+import { defaultDesktopLimits, validDesktopLimits } from './computer/limits.mjs'
 import { isPoolOperator, poolOperator } from './computer/seat-pool.mjs'
 import { canonicalExecPath } from './canonical-path.mjs'
 import { chooseLocations, localeText, programFolder, saveLocations, text } from './first-run.mjs'
@@ -203,12 +204,16 @@ async function start() {
     const validLimit = value => Number.isSafeInteger(value) && value >= 1 && value <= 8
     const validMode = value => value === 'shared' || value === 'per-bot' || value === 'pool'
     const validDesktopOperator = value => isBotId(value) || isPoolOperator(value)
-    let computerSettings = { idleMinutes: 480, privateMode: 'shared', maxInstances: 2 }
+    let computerSettings = { idleMinutes: 480, privateMode: 'shared', maxInstances: 2, limits: defaultDesktopLimits }
     try {
       const saved = JSON.parse(readFileSync(settingsFile, 'utf8'))
       if (validIdle(saved?.idleMinutes)) computerSettings.idleMinutes = saved.idleMinutes
       if (validMode(saved?.privateMode)) computerSettings.privateMode = saved.privateMode
       if (validLimit(saved?.maxInstances)) computerSettings.maxInstances = saved.maxInstances
+      if (validDesktopLimits(saved?.limits)) {
+        const { memoryGb, cpus } = saved.limits
+        computerSettings.limits = { memoryGb, cpus }
+      }
     } catch { /* Use defaults when settings are absent or unreadable. */ }
     function saveComputerSettings(update) {
       const next = { ...computerSettings, ...update }
@@ -224,6 +229,7 @@ async function start() {
       'private-desktop': dockerBackend(readFileSync(idFile, 'utf8').trim(), {
         imageDir: join(runtimeDir, 'computer', 'image'), imageFile, runtime,
         idleMinutes: () => computerSettings.idleMinutes, maxInstances: () => computerSettings.maxInstances,
+        desktopLimits: () => computerSettings.limits,
       }),
     }
     computer = createComputerService(backends, async target => {
@@ -284,6 +290,11 @@ async function start() {
         const saved = saveComputerSettings({ idleMinutes: value })
         backends['private-desktop'].scheduleIdle()
         return saved
+      }
+      if (op === 'limits') {
+        if (!validDesktopLimits(value)) throw new Error('Enter 2 to 128 GiB of memory and 1 to 64 CPUs.')
+        const { memoryGb, cpus } = value
+        return saveComputerSettings({ limits: { memoryGb, cpus } })
       }
       if (op === 'policy') {
         if (!validMode(value?.privateMode) || !validLimit(value?.maxInstances)) throw new Error('Invalid private desktop isolation settings.')

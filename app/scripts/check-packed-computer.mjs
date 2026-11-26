@@ -923,6 +923,11 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
         await openPane()
       }
       const waitSaved = () => until(`document.querySelector('.bt-computer-settings [role=status]')?.textContent.match(/^(Saved|已保存)$/)`, 'desktop settings saved')
+      const resourceLimits = async desktop => {
+        const { stdout } = await runDocker('container', 'inspect', '--format', '{{json .HostConfig}}', desktop)
+        const { Memory, MemorySwap, NanoCpus } = JSON.parse(stdout)
+        return [Memory / 1024 ** 3, MemorySwap / 1024 ** 3, NanoCpus / 10 ** 9]
+      }
       const setLimit = async value => {
         await until(`(() => {
           const select = document.querySelector('[data-computer-limit]');
@@ -979,7 +984,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await waitView(settingsFrame, 'the selected Bot startup check screenshot')
       assert.equal(await running(scopedName(other.id)), 'false', 'The startup check must stop its selected test instance.')
       assert.equal(await running(container), 'false', 'A scoped startup check must not start the shared desktop.')
-      assert.deepEqual(JSON.parse(readFileSync(settingsFile, 'utf8')), { idleMinutes: 480, privateMode: 'per-bot', maxInstances: 1 })
+      assert.deepEqual(JSON.parse(readFileSync(settingsFile, 'utf8')), { idleMinutes: 480, privateMode: 'per-bot', maxInstances: 1, limits: { memoryGb: 2, cpus: 2 } })
       await closeSettings()
       await authorizePrivate()
       await waitView(frameReady, 'the second Bot desktop frame')
@@ -1019,10 +1024,26 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await evaluate(`(${start}).click()`)
       await until(`!!(${restart}) && !(${restart}).disabled`, 'the second Bot desktop started from settings')
       assert.equal(await running(second), 'true', 'Start desktop must leave the selected instance running.')
+      assert.deepEqual(await resourceLimits(second), [2, 2, 2])
+      for (const [labels, value] of [[['Memory (GiB)', '内存（GiB）'], '3'], [['CPU cores', 'CPU 核数'], '1']]) {
+        await evaluate(`(() => {
+          const input = Array.from(document.querySelectorAll('.bt-computer-settings input')).find(input =>
+            ${JSON.stringify(labels)}.includes(input.getAttribute('aria-label')));
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)});
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        })()`)
+      }
+      await click(settings, 'Save resource limits', '保存资源限制')
+      await waitSaved()
+      assert.deepEqual(JSON.parse(readFileSync(settingsFile, 'utf8')).limits, { memoryGb: 3, cpus: 1 })
+      assert.deepEqual(await resourceLimits(second), [2, 2, 2], 'Saving limits must not interrupt a running desktop.')
       const beforeRestart = await startedAt(second)
       await Promise.all([nativeButton(python, pid, ['Restart', '重启']), evaluate(`(${restart}).click()`)])
       await until(`!!(${restart}) && !(${restart}).disabled && /is running|正在运行/.test(document.querySelector('.bt-computer-settings [role=status]')?.textContent ?? '')`, 'the second Bot desktop restarted from settings')
       assert.notEqual(await startedAt(second), beforeRestart)
+      assert.deepEqual(await resourceLimits(second), [3, 3, 1])
+      assert.deepEqual(await resourceLimits(first), [2, 2, 2])
+      console.log('check-packed: edited memory and CPU limits applied only when the selected desktop restarted')
       assert.equal((await authorization(state.mainBotId)).target, 'private-desktop')
       assert.equal((await runDocker('exec', second, 'cat', '/home/cua/workspace/scope-check.txt')).stdout.trim(), 'isolation')
       const beforePreview = await startedAt(second)
