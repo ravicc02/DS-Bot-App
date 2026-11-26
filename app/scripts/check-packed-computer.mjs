@@ -728,25 +728,105 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
         await sleep(200)
       }
     }
+    const desktopControls = `${livePanel} .bt-computer-live-controls`
+    // Grab the guest keyboard briefly so XFCE cannot handle this combination as logout.
+    const keys = '/tmp/ds-bot-packed-key-events'
+    await runDocker('exec', '-d', container, '/usr/bin/python3', '-c', `
+import ctypes as c
+from pathlib import Path
+import time
+
+class KeyEvent(c.Structure):
+    _fields_ = [('type', c.c_int), ('serial', c.c_ulong), ('send_event', c.c_int),
+                ('display', c.c_void_p), ('window', c.c_ulong), ('root', c.c_ulong),
+                ('subwindow', c.c_ulong), ('time', c.c_ulong), ('x', c.c_int), ('y', c.c_int),
+                ('x_root', c.c_int), ('y_root', c.c_int), ('state', c.c_uint), ('keycode', c.c_uint)]
+
+x11 = c.CDLL('libX11.so.6')
+for name, args, result in [
+    ('XOpenDisplay', [c.c_char_p], c.c_void_p),
+    ('XDefaultRootWindow', [c.c_void_p], c.c_ulong),
+    ('XGrabKeyboard', [c.c_void_p, c.c_ulong, c.c_int, c.c_int, c.c_int, c.c_ulong], c.c_int),
+    ('XPending', [c.c_void_p], c.c_int),
+    ('XNextEvent', [c.c_void_p, c.c_void_p], c.c_int),
+    ('XkbKeycodeToKeysym', [c.c_void_p, c.c_ubyte, c.c_int, c.c_int], c.c_ulong),
+    ('XCloseDisplay', [c.c_void_p], c.c_int),
+]:
+    fn = getattr(x11, name)
+    fn.argtypes = args
+    fn.restype = result
+
+display = x11.XOpenDisplay(None)
+path = Path('${keys}')
+assert display
+received = []
+try:
+    assert x11.XGrabKeyboard(display, x11.XDefaultRootWindow(display), 0, 1, 1, 0) == 0
+    path.with_suffix('.ready').touch()
+    deadline = time.monotonic() + 10
+    data = (c.c_long * 24)()
+    event = KeyEvent.from_buffer(data)
+    while len(received) < 6 and time.monotonic() < deadline:
+        if not x11.XPending(display):
+            time.sleep(0.01)
+            continue
+        x11.XNextEvent(display, c.byref(data))
+        if event.type in (2, 3):
+            key = x11.XkbKeycodeToKeysym(display, event.keycode, 0, 0)
+            received.append(f'{event.type}:{key:x}')
+finally:
+    x11.XCloseDisplay(display)
+path.write_text(' '.join(received))
+`)
+    await waitFor(() => runDocker('exec', container, 'test', '-f', `${keys}.ready`).then(() => true, () => false),
+      'the guest keyboard fixture to grab input', 8_000)
+    await click(`${desktopControls} button`, 'Keyboard', '\u952e\u76d8')
+    await click(`${desktopControls} .bt-computer-keyboard-panel button`, 'Ctrl+Alt+Del')
+    let keyEvents
+    await waitFor(async () => {
+      keyEvents = await runDocker('exec', container, 'cat', keys).then(({ stdout }) => stdout, () => undefined)
+      return keyEvents !== undefined
+    }, 'the guest keyboard event sequence', 12_000)
+    assert.equal(keyEvents.trim(), '2:ffe3 2:ffe9 2:ffff 3:ffff 3:ffe9 3:ffe3')
+    console.log('check-packed: the private desktop received all Ctrl+Alt+Del press and release events')
     const fullscreenBar = '.bt-computer-viewport:fullscreen .bt-computer-fullscreen-toolbar'
     const enterFullscreen = async () => {
       const button = byText(pane, ['Full screen', '\u5168\u5c4f'])
-      await evaluate(`(${button}).scrollIntoView({ block: 'nearest' })`)
-      const point = await evaluate(`(() => {
-        const { x, y, width, height } = (${button}).getBoundingClientRect()
-        return { x: x + width / 2, y: y + height / 2 }
-      })()`)
+      await cdp.call('Page.bringToFront')
+      let point
+      await waitFor(async () => {
+        point = await evaluate(`(() => {
+          const control = ${button}
+          if (!control || control.disabled) return null
+          control.scrollIntoView({ block: 'nearest' })
+          const { x, y, width, height } = control.getBoundingClientRect()
+          const center = { x: x + width / 2, y: y + height / 2 }
+          return control.contains(document.elementFromPoint(center.x, center.y)) ? center : null
+        })()`)
+        return Boolean(point)
+      }, 'the visible full-screen button', 10_000)
       for (const type of ['mousePressed', 'mouseReleased']) {
         await cdp.call('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 })
       }
-      await waitView(`!!document.querySelector('${fullscreenBar}') && ${activeFrame}`, 'full screen with live controls')
+      try {
+        await waitView(`!!document.querySelector('${fullscreenBar}') && ${activeFrame}`, 'full screen with live controls')
+      } catch (error) {
+        const state = await evaluate(`({
+          fullscreen: document.fullscreenElement?.className,
+          allowed: document.fullscreenEnabled,
+          focused: document.hasFocus(),
+          activeElement: document.activeElement?.className,
+          connected: ${activeFrame},
+          errors: [...document.querySelectorAll('.bt-computer .bt-error')].map(node => node.textContent),
+        })`)
+        throw new Error(`${error.message}: ${JSON.stringify(state)}`, { cause: error })
+      }
     }
     await enterFullscreen()
     await evaluate(`document.querySelector('${fullscreenBar} input').focus()`)
     await cdp.call('Input.insertText', { text: ' \u4e2d\u6587' })
     await click(`${fullscreenBar} button`, 'Send to desktop', '\u53d1\u9001\u5230\u684c\u9762')
     await verifyInput('Text entry verified')
-    const desktopControls = `${livePanel} .bt-computer-live-controls`
     const keyboardButton = byText(`${desktopControls} button`, ['Keyboard', '\u952e\u76d8'])
     await evaluate(`document.querySelector('${desktopControls} [role=group] button').click()`)
     await waitView(`!(${keyboardButton}) && ${activeFrame}`, 'the desktop tools collapsed while input stayed connected')
