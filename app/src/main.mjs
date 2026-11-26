@@ -373,6 +373,17 @@ async function start() {
       }
       throw new Error('Unknown computer operation.')
     })
+    ipcMain.handle('ds-bot:computer-workspace', (event, op, id, value) => {
+      if (op === 'close') {
+        assertWindow(event)
+        return computer.closeWorkspace(id)
+      }
+      assertComputerWindow(event)
+      if (op === 'open' && Array.isArray(value) && value.every(entry => isBotId(entry?.operator))) return computer.openWorkspace(value, id)
+      if (op === 'frame') return computer.workspaceFrame(id, value)
+      if (op === 'take' || op === 'hand-back') return computer.workspaceControl(id, value, op)
+      throw new Error('Unknown computer operation.')
+    })
     ipcMain.on('ds-bot:computer-live', (event, message) => {
       const [port] = event.ports
       for (const extra of event.ports.slice(1)) extra.close()

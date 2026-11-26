@@ -1,5 +1,5 @@
 import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
-import { computerError } from './computer-pane.js'
+import { computerError } from './computer-error.js'
 import { writeClipboard } from './dsh-primitives.js'
 import { CheckIcon, CloseIcon } from './icons.js'
 import { Segmented, useLinger } from './motion.js'

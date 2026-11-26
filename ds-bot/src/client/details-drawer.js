@@ -299,6 +299,7 @@ export function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, ro
       tab === 'computer' && inMainView ? h(ComputerPane, {
         key: conversation,
         subject: bot?.id ?? room.id,
+        bots: roster.bots,
         sessionId: part,
         workDir: (bot ?? room).workDir,
         actions,

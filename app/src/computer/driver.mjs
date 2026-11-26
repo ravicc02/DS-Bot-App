@@ -75,7 +75,10 @@ export function checkedAction(action) {
 
 function imageFrom(result) {
   const image = result.content?.find(item => item?.type === 'image')
-  const { data, mimeType } = image ?? {}
+  return pngFrame(image?.data, image?.mimeType ?? null)
+}
+
+export function pngFrame(data, mimeType = 'image/png') {
   if (mimeType !== 'image/png' || typeof data !== 'string' || data.length > 8 * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/u.test(data)) throw new Error('The computer driver returned no usable PNG screenshot.')
   const header = Buffer.from(data.slice(0, 32), 'base64')
   if (header.length !== 24 || header.subarray(0, 16).toString('hex') !== '89504e470d0a1a0a0000000d49484452') throw new Error('The computer driver returned an invalid screenshot.')

@@ -477,3 +477,70 @@ test('private desktop pool binds each grant to its seat and preserves that affin
   const restarted = await select(service, 'bot-two')
   assert.equal(await restarted.action('new-turn'), 'pool-seat-1')
 })
+
+test('two desktops provide read-only frames during Bot use and wait for the previous input driver to drain', async t => {
+  const draining = controllable()
+  const started = controllable()
+  const secondReady = controllable()
+  const entries = ['first', 'second'].map((operator, index) => ({ operator, id: String(index + 1).repeat(64) }))
+  const calls = []
+  const backend = {
+    async watchFrame(operator, id) { return { operator, id } },
+    async open(_selection, _signal, operator, runningOnly, _report, id) {
+      calls.push({ operator, runningOnly, id })
+      if (id === entries[1].id) {
+        started.resolve()
+        await secondReady.promise
+      }
+      return { run: async () => image, close: () => id === entries[0].id ? draining.promise : undefined }
+    },
+  }
+  const service = createComputerService({ 'private-desktop': backend }, async () => true, { privateMode: () => 'per-bot' })
+  t.after(async () => { draining.resolve(); secondReady.resolve(); await service.close() })
+  const bot = await select(service, 'bot-first', 'first')
+  assert.deepEqual(await bot.action('turn'), image)
+  service.openWorkspace(entries, 'workspace')
+  assert.deepEqual(await service.workspaceFrame('workspace', 0), entries[0])
+  assert.deepEqual(await service.workspaceFrame('workspace', 1), entries[1])
+  assert.equal((await service.request({ op: 'status', conversation: bot.conversation })).status, 'bot')
+  const first = await service.workspaceControl('workspace', 0, 'take')
+  await assert.rejects(bot.action('turn'), /control ended/u)
+  await assert.rejects(service.inline(first.conversation, 'observe', undefined, first.display), /control ended/u)
+  const releasing = service.workspaceControl('workspace', 0, 'hand-back')
+  await assert.rejects(service.workspaceControl('workspace', 1, 'take'), /Hand back/u)
+  draining.resolve()
+  await releasing
+  const taking = service.workspaceControl('workspace', 1, 'take')
+  await started.promise
+  assert.deepEqual(await Promise.race([taking, Promise.resolve('connecting')]), 'connecting')
+  secondReady.resolve()
+  await taking
+  await service.closeWorkspace('workspace')
+  assert.deepEqual(calls, [
+    { operator: 'first', runningOnly: false, id: undefined },
+    ...entries.map(({ operator, id }) => ({ operator, runningOnly: true, id })),
+  ])
+})
+
+test('workspace rejects a failed driver and waits for cancelled captures before reopening', async t => {
+  const frame = controllable()
+  const capturing = controllable()
+  const entries = ['first', 'second'].map((operator, index) => ({ operator, id: String(index + 1).repeat(64) }))
+  const service = createComputerService({ 'private-desktop': {
+    async watchFrame(_operator, _id, signal) { capturing.resolve(signal); return frame.promise },
+    async open() { throw new Error('The private desktop is stopped.') },
+  } }, async () => true, { privateMode: () => 'per-bot' })
+  t.after(async () => { frame.resolve(image); await service.close() })
+  service.openWorkspace(entries, 'workspace')
+  await assert.rejects(service.workspaceControl('workspace', 0, 'take'), /desktop is stopped/u)
+  await assert.rejects(service.workspaceControl('workspace', 1, 'take'), /desktop is stopped/u)
+  const preview = service.workspaceFrame('workspace', 0)
+  const signal = await capturing.promise
+  const closing = service.closeWorkspace('workspace')
+  assert.equal(signal.aborted, true)
+  assert.throws(() => service.openWorkspace(entries, 'next'), /control ended/u)
+  frame.resolve(image)
+  await assert.rejects(preview, { name: 'AbortError' })
+  await closing
+  service.openWorkspace(entries, 'next')
+})

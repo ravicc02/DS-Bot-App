@@ -30,6 +30,7 @@ if (host !== undefined && location.origin === host) {
         ipcRenderer.on('ds-bot:computer-window-shown', receive)
         return () => ipcRenderer.off('ds-bot:computer-window-shown', receive)
       },
+      workspace: (op, id, value) => ipcRenderer.invoke('ds-bot:computer-workspace', op, id, value),
       view: (conversation, op, input, display) => ipcRenderer.invoke('ds-bot:computer-view', conversation, op, input, display),
       live(conversation, display, receive, disconnected) {
         const { port1, port2 } = new MessageChannel()

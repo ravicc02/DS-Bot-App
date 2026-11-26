@@ -466,6 +466,19 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-computer-empty{aspect-ratio:16 / 10;max-height:48vh;width:100%;display:grid;place-content:center;text-align:center;color:var(--bt-ink-2);padding:12px;box-sizing:border-box}
 .bt-computer-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;color:var(--bt-ink-2)}
 .bt-computer-status{flex:none;font-size:12px}
+.bt-computer-workspace{width:min(1200px,calc(100vw - 36px));max-width:none;max-height:calc(100dvh - 36px);padding:0;box-sizing:border-box;overflow:auto;background:var(--bt-main);color:var(--bt-ink);font:13px/18px var(--bt-font);border:1px solid var(--bt-line);border-radius:12px}
+.bt-computer-workspace::backdrop{background:rgba(0,0,0,.35)}
+.bt-computer-workspace header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.bt-computer-workspace>header{padding:10px 16px;border-bottom:1px solid var(--bt-line)}
+.bt-computer-workspace h3{font-size:14px;margin:0}
+.bt-computer-workspace-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:12px}
+.bt-computer-workspace-grid section{display:grid;gap:8px;min-width:0}
+.bt-computer-workspace-grid .bt-select{min-width:0;max-width:65%;text-overflow:ellipsis}
+.bt-computer-workspace-grid .bt-computer-viewport{width:100%;aspect-ratio:1280 / 900}
+.bt-computer-workspace-grid .bt-computer-preview{width:100%;height:100%;object-fit:contain}
+.bt-computer-workspace-grid .bt-computer-live{height:100%;max-height:none;min-height:0}
+.bt-computer-workspace>.bt-error,.bt-computer-workspace-message{margin:14px 16px}
+@media(max-width:640px){.bt-computer-workspace-grid{grid-template-columns:minmax(0,1fr)}}
 .bt-computer-places{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .bt-computer-places button{display:grid;min-height:52px;justify-items:center;align-content:center;gap:4px;font:inherit;color:var(--bt-ink);background:var(--bt-main);border:1px solid var(--bt-line);border-radius:6px;padding:6px 4px;cursor:pointer}
 .bt-computer-places button[aria-pressed=true]{color:var(--bt-accent);border-color:var(--bt-accent);background:color-mix(in srgb,var(--bt-accent) 9%,var(--bt-main))}

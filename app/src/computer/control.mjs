@@ -60,14 +60,14 @@ export function createComputerControl(backends) {
     slot.waiters = queue(slot).filter(entry => entry.grant !== grant || (owner && !sameOwner(entry.owner, owner)))
   }
 
-  function acquire(slot, owner, type, selection) {
+  function acquire(slot, owner, type, runningInstance) {
     if (closed || !slot || slot.failed || slot.draining || slot.lease) throw new Error(BUSY)
     if (!owner || typeof owner.session !== 'string' || typeof owner.turn !== 'string') throw new Error(EXPIRED)
     const signal = new AbortController()
     const lease = { id: randomUUID(), owner: { ...owner }, type, signal, tail: Promise.resolve() }
     slot.lease = lease
     lease.expiresAt = Date.now() + TURN_LIFETIME
-    lease.done = Promise.resolve().then(() => slot.backend.open(selection, signal.signal, slot.scope))
+    lease.done = Promise.resolve().then(() => slot.backend.open(undefined, signal.signal, slot.scope, Boolean(runningInstance), undefined, runningInstance))
     lease.done.catch(() => { if (slot.lease === lease) void stop(slot).catch(() => {}) })
     lease.timer = setTimeout(() => { if (slot.lease === lease) void stop(slot).catch(() => {}) }, TURN_LIFETIME)
     lease.timer.unref()
@@ -105,6 +105,11 @@ export function createComputerControl(backends) {
 
   return {
     slotFor, acquire, run, release, wait, cancelWaiting,
+    async ready(slot, id, owner, type) {
+      const lease = requireLease(slot, id, owner, type)
+      await lease.done
+      requireLease(slot, id, owner, type)
+    },
     async live(slot, id, owner, port) {
       const lease = requireLease(slot, id, owner, 'user')
       const driver = await lease.done

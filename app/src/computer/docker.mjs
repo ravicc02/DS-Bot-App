@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { isDeepStrictEqual } from 'node:util'
 import { desktopRuntime, podmanProfilePath } from './docker-installation.mjs'
-import { createDriver } from './driver.mjs'
+import { createDriver, pngFrame } from './driver.mjs'
 import { openLiveDesktop } from './live.mjs'
 import { openMcp } from './mcp.mjs'
 import seccomp from './seccomp.json' with { type: 'json' }
@@ -20,6 +20,7 @@ const scopePattern = /^[a-f0-9]{32}$/u
 export const privateDesktopScope = operator => operator === undefined ? null : createHash('sha256').update(operator).digest('hex').slice(0, 32)
 const noValues = value => value == null || Object.keys(value).length === 0
 const same = (values, expected) => Array.isArray(values) && values.length === expected.length && expected.every(value => values.includes(value))
+const desktopChanged = () => new Error('The private desktop changed. Refresh the desktop list and try again.')
 const missingImage = () => Object.assign(new Error('Prepare the private desktop first.'), { code: 'CUA_IMAGE_MISSING' })
 const unsafe = () => new Error('The private desktop configuration changed. Review the desktop runtime resources before starting it again.')
 // X can accept connections before XFCE maps the desktop, yielding a valid but black PNG.
@@ -215,13 +216,14 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     }
   }
 
-  async function start(state, signal, runningOnly, report) {
+  async function start(state, signal, runningOnly, report, expectedId) {
     report?.('checking-container')
     const { scope } = state
     const { name, mounts } = resources(instance, scope)
     await verifyDaemon()
     const imageId = await currentImage()
     const existing = (await containers()).find(entry => entry.scope === scope)?.id
+    if (expectedId && existing !== expectedId) throw desktopChanged()
     const info = existing && verifyContainer(await inspect('container', existing), imageId, instance, existing, imageVersion, scope, podmanProfile)
     if (runningOnly && !info?.State.Running) throw new Error('The private desktop is stopped.')
     if (scope !== undefined && !info?.State.Running && (await containers(true)).filter(entry => entry.scope !== undefined).length >= maxInstances()) {
@@ -315,7 +317,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
   async function deleteInstance(scope, id) {
     const key = scope ?? undefined
     const selected = (await managedDesktops(false)).find(entry => entry.scope === key && entry.id === id)
-    if (!selected) throw new Error('The private desktop changed. Refresh the desktop list and try again.')
+    if (!selected) throw desktopChanged()
     const state = desktops.get(key)
     if (state?.active || (state?.desktop && state.desktop.id !== id)) throw unsafe()
     if (state?.desktop || state?.stopping) await stop(state)
@@ -326,7 +328,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     desktops.delete(key)
   }
 
-  async function open(_selection, signal, operator, runningOnly = false, report) {
+  async function open(_selection, signal, operator, runningOnly = false, report, expectedId) {
     const scope = privateDesktopScope(operator) ?? undefined
     if (!desktops.has(scope)) desktops.set(scope, { scope })
     const state = desktops.get(scope)
@@ -335,7 +337,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     state.active = true
     try {
       await state.stopping
-      const initializing = starting.then(() => start(state, signal, runningOnly, report))
+      const initializing = starting.then(() => start(state, signal, runningOnly, report, expectedId))
       starting = initializing.catch(() => {})
       const selected = await initializing
       const { id } = selected
@@ -377,6 +379,27 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     }
   }
 
+  async function watchFrame(operator, id, signal) {
+    if (closed || building || !containerIdPattern.test(id)) throw desktopChanged()
+    signal.throwIfAborted()
+    await verifyDaemon()
+    const record = await imageRecord()
+    if (!record) throw desktopChanged()
+    const selected = { id, scope: privateDesktopScope(operator) ?? undefined, imageId: record.id, version: record.version }
+    if (!(await verify(selected)).State.Running) throw desktopChanged()
+    signal.throwIfAborted()
+    // The capture process has no input channel and does not compete with the Bot's driver lease.
+    const { stdout } = await runtime.command(['exec', id, '/usr/bin/ffmpeg', '-v', 'error', '-nostdin', '-f', 'x11grab',
+      '-video_size', '1280x900', '-i', ':1', '-frames:v', '1', '-c:v', 'png', '-threads', '1', '-f', 'image2pipe', 'pipe:1'], {
+      signal, encoding: 'buffer', maxBuffer: 6 * 1024 * 1024, timeout: 8000,
+    }).catch(() => {
+      signal.throwIfAborted()
+      throw new Error('The desktop screen could not be captured. Try again in a moment.')
+    })
+    signal.throwIfAborted()
+    return pngFrame(stdout.toString('base64'))
+  }
+
   async function startAndObserve(operator, { checkOnly = false, runningOnly = false, report } = {}) {
     if (closed || checking || building) throw new Error('The private desktop is unavailable while it is being prepared.')
     const abort = new AbortController()
@@ -400,7 +423,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
   }
 
   return {
-    open, stopManaged, stopInstance, deleteInstance,
+    open, stopManaged, stopInstance, deleteInstance, watchFrame,
     inventory: async () => (await managedDesktops(false)).map(({ scope, running, id }) => ({ scope: scope ?? null, running, id })),
     scheduleIdle: () => { for (const state of desktops.values()) scheduleIdle(state) },
     async readiness() {

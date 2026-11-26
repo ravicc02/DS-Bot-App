@@ -865,6 +865,44 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       console.log('check-packed: the second approved group member waited and both members submitted input in order')
     }
 
+    async function checkTwoDesktops(first, second) {
+      const workspace = '.bt-computer-workspace'
+      const panel = index => `${workspace} [data-desktop-pane="${index}"]`
+      const watcher = index => `document.querySelector(${JSON.stringify(`${panel(index)} img`)})`
+      const liveView = index => `document.querySelector(${JSON.stringify(`${panel(index)} .bt-computer-live[data-connected] canvas`)})`
+      await click(pane, 'Open two desktops', '打开双桌面')
+      await waitView(`${watcher(1)}?.naturalWidth === 1280 && ${watcher(2)}?.naturalWidth === 1280`, 'both private desktop frames')
+      assert.equal(await evaluate(`document.querySelector('${panel(1)} select').value`), state.mainBotId)
+      await capture(process.env.DS_BOT_PACKED_TWO_DESKTOPS_SCREENSHOT)
+      const write = async (index, target, letter, keyCode) => {
+        const file = `/home/cua/workspace/workspace-input-${index}.txt`
+        const title = `DS Bot workspace input ${index}`
+        await runDocker('exec', '-d', target, '/usr/bin/xfce4-terminal', '--disable-server',
+          `--title=${title}`, '-x', 'sh', '-c', 'IFS= read -r line && printf "%s" "$line" > "$1"', 'fixture', file)
+        await waitFor(async () => {
+          const { stdout } = await runDocker('exec', target, 'xprop', '-root', '_NET_ACTIVE_WINDOW')
+          const active = stdout.match(/0x[\da-f]+/u)?.[0]
+          if (!active || active === '0x0') return false
+          return (await runDocker('exec', target, 'xprop', '-id', active, '_NET_WM_NAME')).stdout.includes(title)
+        }, `input fixture in desktop ${index}`, 12_000)
+        await click(`${panel(index)} button`, 'Take control', '接管')
+        await waitView(`Boolean(${liveView(index)}?.width) && !${liveView(3 - index)}`, `control switched to desktop ${index}`)
+        await evaluate(`${liveView(index)}.focus()`)
+        await press(cdp, letter, `Key${letter.toUpperCase()}`, keyCode)
+        await press(cdp, 'Enter', 'Enter', 13)
+        await waitFor(async () => (await runDocker('exec', target, 'cat', file).catch(() => ({}))).stdout?.trim() === letter,
+          `keyboard input in desktop ${index}`, 12_000)
+        await assert.rejects(runDocker('exec', index === 1 ? second : first, 'test', '-e', file))
+      }
+      await write(1, first, 'a', 65)
+      await write(2, second, 'b', 66)
+      await evaluate(`document.querySelector('${workspace} > header button').click()`)
+      await until(`!document.querySelector('${workspace}')`, 'both workspace viewers closed')
+      assert.equal(await running(first), 'true')
+      assert.equal(await running(second), 'true')
+      console.log('check-packed: two private desktops displayed, and control switched between the two input fixtures')
+    }
+
     async function checkIsolation(groupRow) {
       const firstRow = `document.querySelector(${JSON.stringify(`[data-bot-id="${state.mainBotId}"]`)})`
       const settingsFile = join(work, 'shell', 'computer-settings.json')
@@ -960,6 +998,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       assert.notEqual(first, second)
       await assert.rejects(runDocker('exec', first, 'test', '-e', '/home/cua/workspace/scope-check.txt'))
       await checkBotDesktop('per-bot')
+      await checkTwoDesktops(first, second)
       await openSettings()
       await until(`!(${byText(settings, ['Stop desktops', '停止桌面'])})?.disabled`, 'running desktop inventory')
       const rows = '.bt-computer-settings .bt-computer-instance'

@@ -16,6 +16,8 @@ export function createComputerService(backends, confirm, { privateMode = () => '
   let closed = false
   let privateMaintenance
   let takingControl = false
+  let workspace
+  let workspaceClosing
   const underMaintenance = operator => privateMaintenance && (privateMode() === 'pool' || privateMaintenance(operatorFor(operator)))
   const validOperator = operator => {
     if (privateMode() === 'shared') return operator === undefined
@@ -84,7 +86,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
   async function choose(conversation, target, operator) {
     const group = typeof conversation === 'string' && conversation.startsWith('room-')
     if (group ? operator !== undefined || target !== 'private-desktop' || privateMode() !== 'shared' : !key(operator)) throw changed()
-    if (closed || !key(conversation) || !Object.hasOwn(backends, target) || selecting || (target === 'private-desktop' && underMaintenance(operator))) throw changed()
+    if (closed || !key(conversation) || grants.get(conversation)?.instance || !Object.hasOwn(backends, target) || selecting || (target === 'private-desktop' && underMaintenance(operator))) throw changed()
     const pending = { conversation, target, operator, token: randomUUID() }
     selecting = pending
     choice = undefined
@@ -124,7 +126,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
 
   function claim(grant, owner, type) {
     if (grant.target === 'private-desktop' && privateMaintenance?.(grant.slot.scope)) throw new Error('The private desktop is unavailable while it is being prepared.')
-    const id = control.acquire(grant.slot, owner, type)
+    const id = control.acquire(grant.slot, owner, type, grant.instance)
     const lease = { id, owner, type }
     clearPreview(grant)
     grant.lease = lease
@@ -197,6 +199,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     privateMaintenance = matches
     try {
       if (revokeGrants) {
+        await closeWorkspace()
         if (choice?.target === 'private-desktop' && matches(operatorFor(choice.operator))) choice = undefined
         if (selecting?.target === 'private-desktop' && matches(operatorFor(selecting.operator))) selecting = undefined
         const conversations = [...grants].filter(([, grant]) => grant.target === 'private-desktop' && matches(grant.slot.scope))
@@ -208,9 +211,79 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     } finally { privateMaintenance = undefined }
   }
 
+  function closeWorkspace() {
+    if (!workspace) return workspaceClosing ?? Promise.resolve()
+    const previous = workspace
+    workspace = undefined
+    previous.signal.abort()
+    const panes = [...previous.panes.values()]
+    workspaceClosing = Promise.all([
+      Promise.allSettled(panes.map(pane => pane.capture)),
+      Promise.allSettled(panes.map(pane => revoke(pane.conversation))),
+    ]).then(([, releases]) => {
+      const failed = releases.find(result => result.status === 'rejected')
+      if (failed) throw failed.reason
+    }).finally(() => { workspaceClosing = undefined })
+    return workspaceClosing
+  }
+
+  function workspacePane(id, index) {
+    if (closed || workspace?.id !== id || privateMode() !== 'per-bot') throw changed()
+    const pane = workspace.panes.get(index)
+    if (!pane || privateMaintenance?.(pane.operator)) throw changed()
+    return pane
+  }
+
   const sameOwner = (a, b) => Boolean(a && b && a.session === b.session && a.turn === b.turn)
   return {
     choose,
+    openWorkspace(entries, id) {
+      if (closed || !key(id) || !backends['private-desktop']?.watchFrame || workspace || workspaceClosing || privateMaintenance || privateMode() !== 'per-bot'
+        || !Array.isArray(entries) || entries.length !== 2 || !entries.every(entry => validOperator(entry?.operator) && /^[a-f0-9]{64}$/u.test(entry?.id ?? ''))
+        || entries[0].operator === entries[1].operator || entries[0].id === entries[1].id) throw changed()
+      const panes = new Map(entries.map(({ operator, id: instance }, index) => {
+        const conversation = `desktop-${randomUUID()}`
+        const target = 'private-desktop'
+        const grant = { conversation, instance, operator, target, token: randomUUID(), display: randomUUID(),
+          slot: control.slotFor(target, operator), finishedTurns: new Set() }
+        grants.set(conversation, grant)
+        return [index, { grant, conversation, operator, instance }]
+      }))
+      workspace = { id, signal: new AbortController(), panes }
+    },
+    async workspaceFrame(id, index) {
+      const pane = workspacePane(id, index)
+      if (pane.capture) return pane.capture
+      const signal = workspace.signal.signal
+      pane.capture = Promise.resolve().then(() => backends['private-desktop'].watchFrame(pane.operator, pane.instance, signal)).then(frame => {
+        signal.throwIfAborted()
+        workspacePane(id, index)
+        return frame
+      }).finally(() => { pane.capture = undefined })
+      return pane.capture
+    },
+    async workspaceControl(id, index, op) {
+      if (!['take', 'hand-back'].includes(op)) throw changed()
+      const { grant, conversation } = workspacePane(id, index)
+      await this.local(conversation, op, undefined, grant.token)
+      workspacePane(id, index)
+      if (op === 'take') {
+        const lease = grant.lease
+        if (lease?.type !== 'user') throw changed()
+        try {
+          await control.ready(grant.slot, lease.id, lease.owner, 'user')
+          workspacePane(id, index)
+        } catch (error) {
+          if (grant.lease === lease) await release(grant)
+          throw error
+        }
+      }
+      return { conversation, display: grant.display }
+    },
+    closeWorkspace(id) {
+      if (workspace?.id === id) return closeWorkspace()
+      return workspaceClosing ?? Promise.resolve()
+    },
     async checkStartup(operator) {
       const backend = backends['private-desktop']
       if (!backend?.checkStartup || !validOperator(operator)) throw changed()
@@ -257,6 +330,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     },
     async request({ op, conversation, token, operator, owner, action: input } = {}) {
       if (closed || !key(conversation)) throw changed()
+      if (grants.get(conversation)?.instance) throw changed()
       if (op === 'status') return view(conversation)
       if (op === 'select') return select(conversation, token, operator)
       if (op === 'stop') { await revoke(conversation); return view(conversation) }
@@ -282,6 +356,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
       return action(grant, owner, 'bot', input)
     },
     async inline(conversation, op, input, display) {
+      if (grants.get(conversation)?.instance) throw changed()
       if (op === 'status') {
         if (closed || !key(conversation)) throw changed()
         const state = view(conversation)
@@ -318,7 +393,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     },
     viewerBinding(conversation) {
       const grant = current(conversation)
-      if (grant.target !== 'private-desktop') throw changed()
+      if (grant.target !== 'private-desktop' || grant.instance) throw changed()
       return grant.token
     },
     async local(conversation, op, input, binding) {
@@ -362,14 +437,16 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     async reset() {
       selecting = undefined
       choice = undefined
-      await Promise.all([...grants.keys()].map(revoke))
+      await Promise.all([closeWorkspace(), ...[...grants.keys()].map(revoke)])
     },
     async close() {
       closed = true
       selecting = undefined
       choice = undefined
-      grants.clear()
-      await control.close()
+      try { await closeWorkspace() } finally {
+        grants.clear()
+        await control.close()
+      }
     },
   }
 }

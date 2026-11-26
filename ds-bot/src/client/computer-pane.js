@@ -1,8 +1,10 @@
 import { createElement as h, useLayoutEffect, useRef, useState } from 'react'
 import { LiveDesktop } from './computer-live.js'
+import { DesktopWorkspace } from './computer-workspace.js'
 import { ComputerFiles } from './computer-files.js'
 import { call } from './api.js'
-import { hostText, t } from './i18n.js'
+import { computerError } from './computer-error.js'
+import { t } from './i18n.js'
 import { AutoLocationIcon, LocalDesktopIcon, PowerIcon, PrivateDesktopIcon } from './icons.js'
 
 const PLACES = [
@@ -19,11 +21,7 @@ const OBSERVABLE = ['idle', 'user']
 const PREVIEW_INTERVAL = 3000
 const PREVIEW_RETRY_INTERVAL = 5000
 
-export function computerError(failure) {
-  return hostText(failure.message.replace(/^Error invoking remote method '[^']+': Error: /u, ''))
-}
-
-export function ComputerPane({ subject, conversation, members, openSettings, sessionId, workDir, actions, run, onPickFolder }) {
+export function ComputerPane({ subject, conversation, members, bots, openSettings, sessionId, workDir, actions, run, onPickFolder }) {
   const [files, setFiles] = useState(false)
   return h('div', { className: 'bt-computer-panel' },
     h('div', { className: 'bt-computer-actions', role: 'group', 'aria-label': t('Computer') },
@@ -32,10 +30,10 @@ export function ComputerPane({ subject, conversation, members, openSettings, ses
         onClick: () => setFiles(value),
       }, t(label)))),
     files ? h(ComputerFiles, { key: sessionId, sessionId, workDir, group: Array.isArray(members), actions, run, onPickFolder })
-      : h(ComputerScreen, { subject, conversation, members, openSettings }))
+      : h(ComputerScreen, { subject, conversation, members, bots, openSettings }))
 }
 
-function ComputerScreen({ subject, conversation, members, openSettings }) {
+function ComputerScreen({ subject, conversation, members, bots, openSettings }) {
   const bridge = window.dsBotApp?.computer
   const [state, setState] = useState({})
   const group = Array.isArray(members)
@@ -44,9 +42,15 @@ function ComputerScreen({ subject, conversation, members, openSettings }) {
   const [error, setError] = useState('')
   const [previewError, setPreviewError] = useState('')
   const [place, setPlace] = useState(null)
+  const [workspace, setWorkspace] = useState(false)
   const display = useRef()
   const lifetime = useRef()
   const viewport = useRef(null)
+
+  function showWorkspace(open) {
+    if (lifetime.current) lifetime.current.workspace = open
+    setWorkspace(open)
+  }
 
   function show(value) {
     if (display.current !== value.display) setPreviewError('')
@@ -87,7 +91,7 @@ function ComputerScreen({ subject, conversation, members, openSettings }) {
         if (!current()) return
         show(value)
         setError(previous => previous === t('Restore the app window to use computer control.') ? '' : previous)
-        await refreshPreview(value, current)
+        if (!scope.workspace) await refreshPreview(value, current)
       })
     }
     const visibility = shown => {
@@ -257,7 +261,9 @@ function ComputerScreen({ subject, conversation, members, openSettings }) {
         state.status === 'user' ? button('Hand back', () => desktop('hand-back'), pending === 'hand-back' || pending === 'off', 'bt-computer-primary') : null,
         state.status !== 'user' ? button('Take control', () => desktop('take'), busy || !['idle', 'bot'].includes(state.status), 'bt-computer-primary') : null,
         button('Full screen', toggleFullscreen, !state.lastFrame && !live),
-        live ? null : button('Refresh preview', () => desktop('observe'), busy || !OBSERVABLE.includes(state.status))) : null,
+        live ? null : button('Refresh preview', () => desktop('observe'), busy || !OBSERVABLE.includes(state.status)),
+        !group && bridge?.workspace && state.privateMode === 'per-bot' && state.target === 'private-desktop'
+          ? button('Open two desktops', () => showWorkspace(true), busy || live) : null) : null,
       state.target === 'local-desktop' && state.status === 'user'
         ? h('p', { className: 'bt-set-hint', role: 'status' }, t('Use your mouse and keyboard on this computer.')) : null),
     h('section', { className: 'bt-computer-location', 'aria-label': t(group ? 'Shared group desktop' : 'Work location') },
@@ -272,5 +278,6 @@ function ComputerScreen({ subject, conversation, members, openSettings }) {
           ...PLACES.map(({ id, label, Icon }) => h('button', { key: id, type: 'button', 'aria-pressed': activePlace === id,
             disabled: id === 'off' ? pending === 'off' || (!state.target && !pending) : busy,
             onClick: () => selectPlace(id) }, h(Icon), t(label)))),
-      error || previewError ? h('p', { className: 'bt-error', role: 'alert' }, error || previewError) : null))
+      error || previewError ? h('p', { className: 'bt-error', role: 'alert' }, error || previewError) : null),
+    workspace ? h(DesktopWorkspace, { bridge, bots: bots ?? [], primary: subject, onClose: () => showWorkspace(false) }) : null)
 }
