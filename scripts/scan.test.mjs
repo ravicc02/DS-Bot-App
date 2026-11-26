@@ -74,7 +74,11 @@ test('known private desktop paths stay accepted while personal paths still fail'
   const home = '/home/'
   const workspace = home + 'cua/workspace'
   const profile = home + 'cua/.config/chromium'
-  const known = scan({ [dockerfile]: [workspace, profile + '/.ds-bot-profile'].join(' ') })
+  const packedCheck = 'app/scripts/check-packed-computer.mjs'
+  const known = scan({
+    [dockerfile]: [workspace, profile + '/.ds-bot-profile'].join(' '),
+    [packedCheck]: [workspace + '/group-queue.txt', workspace + '/pool-check.txt'].join(' '),
+  })
   assert.equal(known.status, 0, known.stdout + known.stderr)
 
   for (const [file, text] of [
@@ -82,6 +86,7 @@ test('known private desktop paths stay accepted while personal paths still fail'
     [dockerfile, workspace + '/personal.txt'],
     [dockerfile, profile + '-backup/data'],
     ['notes.txt', workspace],
+    [packedCheck, workspace + '/local-notes.txt'],
   ]) {
     const result = scan({ [file]: text })
     assert.equal(result.status, 1, result.stdout + result.stderr)

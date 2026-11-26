@@ -31,7 +31,7 @@ const LEGACY_FILES = /(^|\/)(src\/client\/storage\.js|test\/legacy[\w-]*\.test\.
 
 // The private desktop image creates this service account and these mount points.
 const CUA_PATH_FILES = /^(app\/(src\/computer\/(Dockerfile|docker\.mjs)|scripts\/check-packed-computer\.mjs|test\/computer-docker\.test\.mjs)|ds-bot\/(client\.js|src\/client\/computer-settings\.js))$/
-const CUA_PATH = /^\/home\/cua\/(?:workspace(?:\/(?:\.ds-bot-workspace|(?:live-bot|bot|viewer|scope)-check\.txt|scroll\.html))?|\.config\/chromium(?:\/\.ds-bot-profile)?)(?![\w./-])/
+const CUA_PATH = /^\/home\/cua\/(?:workspace(?:\/(?:\.ds-bot-workspace|(?:live-bot|bot|viewer|scope|pool)-check\.txt|group-queue\.txt|scroll\.html))?|\.config\/chromium(?:\/\.ds-bot-profile)?)(?![\w./-])/
 
 const extra = extraPatterns()
 
