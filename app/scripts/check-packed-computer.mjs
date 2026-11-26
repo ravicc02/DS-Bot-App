@@ -176,7 +176,7 @@ async function press(cdp, key, code, windowsVirtualKeyCode) {
   for (const type of ['keyDown', 'keyUp']) await cdp.call('Input.dispatchKeyEvent', { type, key, code, windowsVirtualKeyCode })
 }
 
-export async function checkComputer({ cdp, until, evaluate, work, python, pid, mode, windowState, onDesktop, onGrant, fixture }) {
+export async function checkComputer({ cdp, until, evaluate, work, python, pid, mode, windowState, onDesktop, onGrant, fixture, legacyDockerImage }) {
   const click = async (selector, ...labels) => {
     const find = byText(selector, labels)
     await until(`(() => { const button = ${find}; if (!button || button.disabled) return false; button.click(); return true })()`, labels[0], 25_000)
@@ -409,11 +409,14 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     await until("document.querySelector('.bt-computer-setup')?.open === true", 'the private desktop setup dialog')
     assert.equal(await evaluate("document.querySelectorAll('.bt-computer-steps li').length"), 4)
     assert.equal(await evaluate("document.querySelector('.bt-computer-setup-details') === null"), true)
-    assert.equal(existsSync(join(work, 'shell', 'computer-image.json')), false, 'Use a fresh app profile for setup.')
+    const imageRecord = join(work, 'shell', 'computer-image.json')
+    if (legacyDockerImage) assert.equal(JSON.parse(readFileSync(imageRecord, 'utf8')).id, legacyDockerImage)
+    else assert.equal(existsSync(imageRecord), false, 'Use a fresh app profile for setup.')
     await click(settings, 'Refresh status', '重新检测')
     await until("document.querySelector('.bt-computer-setup footer button:last-child')?.disabled === false", 'setup status refreshed')
     const setupStage = await evaluate("window.dsBotApp.computer.settings('readiness')")
-    console.log(`check-packed: fresh setup opened at stage ${setupStage}`)
+    console.log(`check-packed: ${legacyDockerImage ? 'legacy Docker' : 'fresh'} setup opened at stage ${setupStage}`)
+    if (legacyDockerImage) assert.equal(setupStage, 'prepare')
     if (process.env.DS_BOT_PACKED_FRESH_MACHINE === '1') assert.equal(setupStage, 'start', 'Start this test with no running DS Bot Podman machine.')
     if (setupStage === 'start') {
       await click(settings, 'Start Podman machine', '启动 Podman 虚拟机')
@@ -436,7 +439,6 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     ])
     await checkProgress(3, process.env.DS_BOT_PACKED_PREPARE_PROGRESS_SCREENSHOT)
     const preparedButton = byText(settings, ['Create desktop', '创建桌面'])
-    const imageRecord = join(work, 'shell', 'computer-image.json')
     const setupEnd = Date.now() + 16 * 60_000
     let setupState
     let prepared = false
@@ -449,6 +451,10 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       if (setupState.ready && existsSync(imageRecord)) {
         const image = JSON.parse(readFileSync(imageRecord, 'utf8'))
         assert.match(image.id, /^sha256:[a-f0-9]{64}$/u)
+        if (legacyDockerImage) {
+          assert.equal(image.runtime, 'docker')
+          assert.notEqual(image.id, legacyDockerImage)
+        }
         prepared = true
         break
       }

@@ -12,6 +12,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { hostExecutable } from '../src/host-process.mjs'
+import { desktopRuntime } from '../src/computer/docker-installation.mjs'
 import { windowsBackend } from '../src/computer/driver.mjs'
 import { checkComputer, startComputerWindow } from './check-packed-computer.mjs'
 import { stringify } from 'yaml'
@@ -23,6 +24,7 @@ const computerMode = process.env.DS_BOT_PACKED_COMPUTER
 const computerCheck = ['1', 'windows', 'linux', 'browser', 'files', 'live'].includes(computerMode)
 const liveCheck = computerMode === 'live'
 const linuxCheck = ['linux', '1', 'live'].includes(computerMode)
+const legacyDockerImage = process.env.DS_BOT_PACKED_LEGACY_DOCKER_IMAGE
 
 function packedExecutable() {
   const out = join(root, 'dist-pack')
@@ -372,6 +374,21 @@ try {
       - { id: deepseek-v4-pro, contextWindow: 100000, maxTokens: 8000 }
 ${liveRoute}`)
   }
+  if (legacyDockerImage) {
+    if (process.platform !== 'win32' || computerMode !== 'linux' || !/^sha256:[a-f0-9]{64}$/u.test(legacyDockerImage)) {
+      throw new Error('Set DS_BOT_PACKED_LEGACY_DOCKER_IMAGE to a full Docker image ID with DS_BOT_PACKED_COMPUTER=linux on Windows.')
+    }
+    const runtime = desktopRuntime('docker')
+    const daemon = await runtime.verify()
+    if (!daemon) throw new Error('The legacy desktop check needs Docker Desktop with its Linux engine running.')
+    const { stdout } = await runtime.command(['image', 'inspect', '--format', '{{json .}}', legacyDockerImage])
+    const image = JSON.parse(stdout)
+    const version = image.Config?.Labels?.['io.github.qingj01.dsbot.cua-image']
+    if (image.Id !== legacyDockerImage || image.Os !== 'linux' || image.Architecture !== 'amd64' || !['2', '3', '4'].includes(version)) {
+      throw new Error('Use a DS Bot Docker desktop image from image version 2, 3, or 4.')
+    }
+    writeFileSync(join(work, 'shell', 'computer-image.json'), JSON.stringify({ daemon, id: image.Id, version }))
+  }
   const port = await freePort()
   const mainPort = await freePort()
   // A terminal inside an Electron-based editor may set ELECTRON_RUN_AS_NODE, which turns the app into plain Node.
@@ -413,6 +430,7 @@ ${liveRoute}`)
     return { visible: win.isVisible(), minimized: win.isMinimized() };
   })()`) : undefined
   const chatError = await chat(cdp, computerCheck && { fixture, port, work, python, pid: app.pid, problems, mode: computerMode, windowState,
+    legacyDockerImage,
     onDesktop: value => desktops.set(value.name, value),
     onGrant: subject => grantSubjects.add(subject),
   }).then(() => undefined, error => error)
