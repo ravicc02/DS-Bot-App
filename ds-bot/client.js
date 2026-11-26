@@ -72,7 +72,10 @@ var ZH = {
   "Start Podman machine": "启动 Podman 虚拟机",
   "The Podman machine could not enable resource limits for the private desktop.": "无法为私有桌面启用资源限制。",
   "The first start may download the WSL 2 environment.": "首次启动可能需要下载 WSL 2 环境。",
+  "Initializing the Podman machine…": "正在初始化 Podman 虚拟机…",
   "Starting the Podman machine…": "正在启动 Podman 虚拟机…",
+  "Enabling desktop resource limits…": "正在启用桌面资源限制…",
+  "Starting the Podman machine timed out. Refresh status before trying again.": "启动 Podman 虚拟机超时。请先重新检测状态，再试一次。",
   "Start the Podman machine to use the private desktop.": "请先启动 Podman 虚拟机，然后使用私有桌面。",
   "The private desktop needs a rootless Podman machine using WSL 2.": "私有桌面需要以非 root 模式运行的 WSL 2 Podman 虚拟机。",
   "The private desktop needs an app installed on a local drive.": "请将应用安装到本机磁盘以使用私有桌面。",
@@ -16611,6 +16614,9 @@ var installCommands = {
 };
 var PHASES = {
   "checking-runtime": "Checking desktop runtime…",
+  "initializing-runtime": "Initializing the Podman machine…",
+  "starting-runtime": "Starting the Podman machine…",
+  "enabling-runtime-limits": "Enabling desktop resource limits…",
   "building-image": "Building desktop image…",
   "downloading-image": "Downloading desktop image…",
   "checking-image": "Verifying desktop image…",
@@ -16817,8 +16823,8 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
   const prepared = stage === "prepared";
   const podman = settings?.runtime === "podman";
   const installCommand = podman ? installCommands.podman : installCommands.docker;
-  const startRuntime = () => void run2("start", async () => {
-    await bridge.settings("start");
+  const startRuntime = () => void run2("start", async (id) => {
+    await bridge.settings("start", null, id);
     return recheck();
   });
   const perBot = settings?.privateMode === "per-bot";
@@ -16952,7 +16958,8 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       label: "Start the desktop runtime",
       done: runtimeRunning,
       action: stage === "start" && settings ? button(podman ? "Start Podman machine" : "Open Docker Desktop", startRuntime) : null,
-      hint: stage === "start" && settings ? podman ? "The first start may download the WSL 2 environment." : "Finish Docker Desktop setup and wait for the Linux engine." : void 0
+      hint: stage === "start" && settings ? podman ? "The first start may download the WSL 2 environment." : "Finish Docker Desktop setup and wait for the Linux engine." : void 0,
+      extra: busy === "start" && podman ? progressView("Checking desktop runtime…") : null
     },
     {
       label: "Desktop preparation",
@@ -16977,7 +16984,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
   const feedback = busy || notice || error ? (0, import_react42.createElement)(
     "div",
     { className: "bt-computer-feedback" },
-    busy === "desktop" || (busy === "prepare" || busy === "create") && shown === "manage" ? progressView("Loading desktop…") : busy === "prepare" || busy === "create" ? null : busy || notice ? (0, import_react42.createElement)("span", { className: "bt-muted", role: "status" }, t(busy === "start" && podman ? "Starting the Podman machine…" : busy ? "Working…" : notice)) : null,
+    busy === "desktop" || (busy === "prepare" || busy === "create") && shown === "manage" ? progressView("Loading desktop…") : busy === "prepare" || busy === "create" || busy === "start" && podman ? null : busy || notice ? (0, import_react42.createElement)("span", { className: "bt-muted", role: "status" }, t(busy ? "Working…" : notice)) : null,
     error ? (0, import_react42.createElement)("p", { className: "bt-error", role: "alert" }, error) : null
   ) : null;
   const management = (0, import_react42.createElement)(

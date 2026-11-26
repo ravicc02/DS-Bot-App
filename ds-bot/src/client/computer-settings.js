@@ -11,7 +11,9 @@ const installCommands = {
 }
 
 const PHASES = {
-  'checking-runtime': 'Checking desktop runtime…', 'building-image': 'Building desktop image…',
+  'checking-runtime': 'Checking desktop runtime…', 'initializing-runtime': 'Initializing the Podman machine…',
+  'starting-runtime': 'Starting the Podman machine…', 'enabling-runtime-limits': 'Enabling desktop resource limits…',
+  'building-image': 'Building desktop image…',
   'downloading-image': 'Downloading desktop image…', 'checking-image': 'Verifying desktop image…',
   'checking-container': 'Checking desktop instance…', 'creating-container': 'Creating desktop instance…',
   'updating-resources': 'Applying desktop resource limits…',
@@ -182,7 +184,7 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   const prepared = stage === 'prepared'
   const podman = settings?.runtime === 'podman'
   const installCommand = podman ? installCommands.podman : installCommands.docker
-  const startRuntime = () => void run('start', async () => { await bridge.settings('start'); return recheck() })
+  const startRuntime = () => void run('start', async id => { await bridge.settings('start', null, id); return recheck() })
   const perBot = settings?.privateMode === 'per-bot'
   const pooled = settings?.privateMode === 'pool'
   const startupBot = perBot ? (bots.find(bot => bot.id === checkBot) ?? bots[0]) : undefined
@@ -298,7 +300,8 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
     { label: 'Start the desktop runtime', done: runtimeRunning,
       action: stage === 'start' && settings ? button(podman ? 'Start Podman machine' : 'Open Docker Desktop', startRuntime) : null,
       hint: stage === 'start' && settings ? (podman ? 'The first start may download the WSL 2 environment.'
-        : 'Finish Docker Desktop setup and wait for the Linux engine.') : undefined },
+        : 'Finish Docker Desktop setup and wait for the Linux engine.') : undefined,
+      extra: busy === 'start' && podman ? progressView('Checking desktop runtime…') : null },
     { label: 'Desktop preparation', done: prepared,
       action: runtimeRunning && !prepared ? button(stage === 'rebuild' ? 'Rebuild desktop' : 'Prepare desktop', () => prepare(stage === 'rebuild')) : null,
       hint: stage === 'prepare' && busy !== 'prepare' ? 'The first setup may take several minutes.' : undefined,
@@ -311,7 +314,8 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   ]
   const feedback = busy || notice || error ? h('div', { className: 'bt-computer-feedback' },
     busy === 'desktop' || ((busy === 'prepare' || busy === 'create') && shown === 'manage') ? progressView('Loading desktop…')
-      : busy === 'prepare' || busy === 'create' ? null : busy || notice ? h('span', { className: 'bt-muted', role: 'status' }, t(busy === 'start' && podman ? 'Starting the Podman machine…' : busy ? 'Working…' : notice)) : null,
+      : busy === 'prepare' || busy === 'create' || (busy === 'start' && podman) ? null
+        : busy || notice ? h('span', { className: 'bt-muted', role: 'status' }, t(busy ? 'Working…' : notice)) : null,
     error ? h('p', { className: 'bt-error', role: 'alert' }, error) : null) : null
 
   const management = h(Section, { title: t('Private desktop'), className: 'bt-computer-setup-details' },

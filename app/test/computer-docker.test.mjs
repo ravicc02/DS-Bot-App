@@ -187,3 +187,71 @@ test('Podman preserves isolation checks and lets a timed-out probe be retried', 
   result = podmanInfo()
   assert.equal((await runtime.connect()).id, result.Created)
 })
+
+const missingPodmanMachine = () => Object.assign(new Error('machine missing'), {
+  code: 125, stderr: 'Error: ds-bot-cua: VM does not exist\n',
+})
+const podmanHost = (controllers = ['cpu', 'memory', 'pids']) => ({
+  os: 'linux', arch: 'amd64', security: { rootless: true, seccompEnabled: true }, cgroupVersion: 'v2',
+  remoteSocket: { path: 'unix:///run/user/1000/podman/podman.sock' }, cgroupControllers: controllers,
+})
+
+test('Podman initializes a missing machine once and reports each phase', async () => {
+  const calls = []
+  const progress = []
+  let machine
+  const runtime = podmanRuntime(async (_binary, args) => {
+    calls.push(args)
+    if (args[1] === 'inspect') {
+      if (!machine) throw missingPodmanMachine()
+      return { stdout: JSON.stringify([machine]) }
+    }
+    if (args[1] === 'init') machine = podmanInfo({ State: 'stopped' })
+    else if (args[1] === 'start') machine = podmanInfo()
+    else if (args.at(-3) === 'info') return { stdout: JSON.stringify({ host: podmanHost() }) }
+    else assert.fail('Unexpected Podman command')
+    return { stdout: '' }
+  })
+  const open = () => assert.fail('Podman starts through the CLI')
+  await Promise.all([runtime.start(open, phase => progress.push(phase)), runtime.start(open)])
+  assert.deepEqual(calls.filter(args => ['init', 'start'].includes(args[1])), [
+    ['machine', 'init', '--provider=wsl', '--rootful=false', '--update-connection=false', 'ds-bot-cua'],
+    ['machine', 'start', '--update-connection=false', 'ds-bot-cua'],
+  ])
+  assert.deepEqual(progress, ['checking-runtime', 'initializing-runtime', 'starting-runtime', 'checking-runtime'])
+  assert.equal(await runtime.verify(), machine.Created)
+})
+
+test('Podman startup surfaces WSL errors and timeouts and resumes a partial setup', async () => {
+  const progress = []
+  let machine
+  let initialize = true
+  let fail = Object.assign(new Error('WSL unavailable'), { stderr: 'Wsl/Service/CreateInstance/0x80370102' })
+  const runtime = podmanRuntime(async (_binary, args) => {
+    if (args[1] === 'inspect') {
+      if (!machine) throw missingPodmanMachine()
+      return { stdout: JSON.stringify([machine]) }
+    }
+    if (args[1] === 'init') {
+      assert.equal(initialize, true)
+      if (fail) throw fail
+      machine = podmanInfo({ State: 'stopped' })
+    } else if (args[1] === 'start') {
+      if (fail) throw fail
+      machine = podmanInfo()
+    } else if (args.at(-3) === 'info') return { stdout: JSON.stringify({ host: podmanHost() }) }
+    else assert.fail('Unexpected Podman command')
+    return { stdout: '' }
+  })
+  const start = () => runtime.start(undefined, phase => progress.push(phase))
+  await assert.rejects(start(), /Enable or update WSL 2/u)
+  assert.deepEqual(progress.splice(0), ['checking-runtime', 'initializing-runtime'])
+  machine = podmanInfo({ State: 'stopped' })
+  initialize = false
+  fail = Object.assign(new Error('timed out'), { killed: true })
+  await assert.rejects(start(), /Podman machine timed out/u)
+  assert.deepEqual(progress.splice(0), ['checking-runtime', 'starting-runtime'])
+  fail = null
+  await start()
+  assert.deepEqual(progress, ['checking-runtime', 'starting-runtime', 'checking-runtime'])
+})

@@ -136,7 +136,7 @@ export function desktopRuntime(name, { run = exec, locatePodman = findPodman } =
       activeMachine = id
       return id
     },
-    async start(open) {
+    async start(open, progress = () => {}) {
       if (!podman) {
         const installation = await findDockerDesktop()
         if (!installation || await open(installation.desktop)) throw new Error('Could not open Docker Desktop. Check its installation.')
@@ -144,15 +144,23 @@ export function desktopRuntime(name, { run = exec, locatePodman = findPodman } =
       }
       if (starting) return starting
       starting = (async () => {
+        progress('checking-runtime')
         const binary = await find()
         if (!binary) throw stopped(name)
         const current = await machine(binary)
         if (activeMachine && activeMachine !== current?.id) throw invalidMachine()
         const machineOptions = { ...options, timeout: 10 * 60_000 }
         try {
-          if (!current) await run(binary, ['machine', 'init', '--provider=wsl', '--rootful=false', '--update-connection=false', machineName], machineOptions)
-          if (!current?.running) await run(binary, ['machine', 'start', '--update-connection=false', machineName], machineOptions)
+          if (!current) {
+            progress('initializing-runtime')
+            await run(binary, ['machine', 'init', '--provider=wsl', '--rootful=false', '--update-connection=false', machineName], machineOptions)
+          }
+          if (!current?.running) {
+            progress('starting-runtime')
+            await run(binary, ['machine', 'start', '--update-connection=false', machineName], machineOptions)
+          }
         } catch (error) {
+          if (error.killed) throw new Error('Starting the Podman machine timed out. Refresh status before trying again.')
           const details = error.stderr ?? ''
           if (/WSL_E_WSL_OPTIONAL_COMPONENT_REQUIRED|WSL_E_WSL2_KERNEL_FILE_NOT_FOUND|WSL_E_DISTRO_NOT_FOUND|0x80370102|0x800701bc/iu.test(details)) {
             throw new Error('Enable or update WSL 2 and restart this PC before starting the Podman machine.')
@@ -160,8 +168,10 @@ export function desktopRuntime(name, { run = exec, locatePodman = findPodman } =
           if (/already running|another.*running/iu.test(details)) throw new Error('Stop the other Podman machine before starting the private desktop.')
           throw new Error('Could not start the Podman machine. Check WSL 2 and Podman Desktop.')
         }
+        progress('checking-runtime')
         const connection = await connect()
         if (hasResourceLimits(await podmanHost(connection))) return
+        progress('enabling-runtime-limits')
         const script = Buffer.from(enableDelegation).toString('base64')
         try {
           await run(binary, ['machine', 'ssh', machineName, `printf %s ${script} | base64 -d | /bin/sh`], options)

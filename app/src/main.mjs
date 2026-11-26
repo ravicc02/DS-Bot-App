@@ -371,7 +371,7 @@ async function start() {
         return true
       }
       if (op === 'start') {
-        await runtime.start(file => electronShell.openPath(file))
+        await runtime.start(file => electronShell.openPath(file), progressTo(event, id))
         return true
       }
       if (op === 'startup') {

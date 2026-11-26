@@ -437,20 +437,21 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     console.log(`check-packed: ${legacyDockerImage ? 'legacy Docker' : 'fresh'} setup opened at stage ${setupStage}`)
     if (legacyDockerImage) assert.equal(setupStage, 'prepare')
     if (process.env.DS_BOT_PACKED_FRESH_MACHINE === '1') assert.equal(setupStage, 'start', 'Start this test with no running DS Bot Podman machine.')
-    if (setupStage === 'start') {
-      await click(settings, 'Start Podman machine', '启动 Podman 虚拟机')
-      const prepareButton = byText(settings, ['Prepare desktop', '准备桌面'])
-      const setupAlert = `document.querySelector('.bt-computer-settings [role="alert"]')?.innerText`
-      await until(`${prepareButton}?.disabled === false || Boolean(${setupAlert})`, 'desktop runtime started', 10 * 60_000)
-      assert.equal(await evaluate(`${prepareButton}?.disabled`), false, await evaluate(setupAlert))
-      console.log('check-packed: the setup guide started the Podman machine')
-    }
     const setupProgress = step => `document.querySelector('.bt-computer-steps li:nth-child(${step}) .bt-computer-progress')`
     const checkProgress = async (step, screenshot) => {
       const progress = setupProgress(step)
       await until(`${progress}?.querySelector('progress') && /[0-9]+:[0-9]{2}/.test(${progress}.querySelector('time')?.textContent ?? '')`,
         `setup progress for step ${step}`)
       await capture(screenshot)
+    }
+    if (setupStage === 'start') {
+      await click(settings, 'Start Podman machine', '启动 Podman 虚拟机')
+      await checkProgress(2, process.env.DS_BOT_PACKED_RUNTIME_PROGRESS_SCREENSHOT)
+      const prepareButton = byText(settings, ['Prepare desktop', '准备桌面'])
+      const setupAlert = `document.querySelector('.bt-computer-settings [role="alert"]')?.innerText`
+      await until(`${prepareButton}?.disabled === false || Boolean(${setupAlert})`, 'desktop runtime started', 10 * 60_000)
+      assert.equal(await evaluate(`${prepareButton}?.disabled`), false, await evaluate(setupAlert))
+      console.log('check-packed: the setup guide started the Podman machine')
     }
     await Promise.all([
       nativeButton(python, pid, ['Prepare', '准备']),
