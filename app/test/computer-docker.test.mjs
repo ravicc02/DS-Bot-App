@@ -147,8 +147,18 @@ const podmanInfo = (overrides = {}) => ({
   ...overrides,
 })
 
-function podmanRuntime(run) {
-  return desktopRuntime('podman', { locatePodman: async () => 'podman.exe', run })
+function podmanRuntime(run, { distros = '', pause = async () => {} } = {}) {
+  return desktopRuntime('podman', {
+    locatePodman: async () => 'podman.exe', pause,
+    run: (binary, args, options) => {
+      if (binary.endsWith('wsl.exe')) {
+        assert.deepEqual(args, ['--list', '--running', '--quiet'])
+        assert.equal(options.encoding, 'utf16le')
+        return Promise.resolve({ stdout: distros })
+      }
+      return run(binary, args, options)
+    },
+  })
 }
 
 test('Podman probes only the named machine and shares an in-flight inspection', async () => {
@@ -218,7 +228,7 @@ test('Podman initializes a missing machine once and reports each phase', async (
     ['machine', 'init', '--provider=wsl', '--rootful=false', '--update-connection=false', 'ds-bot-cua'],
     ['machine', 'start', '--update-connection=false', 'ds-bot-cua'],
   ])
-  assert.deepEqual(progress, ['checking-runtime', 'initializing-runtime', 'starting-runtime', 'checking-runtime'])
+  assert.deepEqual(progress, ['checking-runtime', 'initializing-runtime', 'starting-runtime', 'waiting-runtime'])
   assert.equal(await runtime.verify(), machine.Created)
 })
 
@@ -253,5 +263,46 @@ test('Podman startup surfaces WSL errors and timeouts and resumes a partial setu
   assert.deepEqual(progress.splice(0), ['checking-runtime', 'starting-runtime'])
   fail = null
   await start()
-  assert.deepEqual(progress, ['checking-runtime', 'starting-runtime', 'checking-runtime'])
+  assert.deepEqual(progress, ['checking-runtime', 'starting-runtime', 'waiting-runtime'])
+})
+
+test('Podman waits for its rootless desktop service and bounds an unsuccessful wait', async () => {
+  let probes = 0
+  let pauses = 0
+  let readyOn = 3
+  const runtime = podmanRuntime(async (_binary, args, options) => {
+    if (args[1] === 'inspect') return { stdout: JSON.stringify([podmanInfo()]) }
+    assert.equal(args.at(-3), 'info')
+    assert.equal(options.timeout, 3_000)
+    if (++probes < readyOn) throw new Error('missing socket')
+    return { stdout: JSON.stringify({ host: podmanHost() }) }
+  }, {
+    distros: 'docker-desktop\r\npodman-ds-bot-cua\r\n',
+    pause: ms => { assert.equal(ms, 1_000); pauses++ },
+  })
+  await runtime.start()
+  assert.equal(probes, 3)
+  assert.equal(pauses, 2)
+  probes = pauses = 0
+  readyOn = Infinity
+  await assert.rejects(runtime.start(), /is running, but its desktop service did not become ready/u)
+  assert.equal(probes, 6)
+  assert.equal(pauses, 5)
+})
+
+test('Podman reports another running Podman guest without changing either machine', async () => {
+  for (const running of [false, true]) {
+    const commands = []
+    const runtime = podmanRuntime(async (_binary, args) => {
+      commands.push(args)
+      if (args[1] === 'inspect') {
+        if (running) return { stdout: JSON.stringify([podmanInfo()]) }
+        throw missingPodmanMachine()
+      }
+      assert.equal(args.at(-3), 'info')
+      throw new Error('missing socket')
+    }, { distros: 'docker-desktop\r\npodman-machine-default\r\n' })
+    await assert.rejects(runtime.start(), /Stop the other Podman machine/u)
+    assert.deepEqual(commands.map(args => args.at(-3)), running ? ['machine', 'machine', 'info'] : ['machine'])
+  }
 })

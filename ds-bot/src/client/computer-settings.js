@@ -12,7 +12,8 @@ const installCommands = {
 
 const PHASES = {
   'checking-runtime': 'Checking desktop runtime…', 'initializing-runtime': 'Initializing the Podman machine…',
-  'starting-runtime': 'Starting the Podman machine…', 'enabling-runtime-limits': 'Enabling desktop resource limits…',
+  'starting-runtime': 'Starting the Podman machine…', 'waiting-runtime': 'Waiting for the desktop service…',
+  'enabling-runtime-limits': 'Enabling desktop resource limits…',
   'building-image': 'Building desktop image…',
   'downloading-image': 'Downloading desktop image…', 'checking-image': 'Verifying desktop image…',
   'checking-container': 'Checking desktop instance…', 'creating-container': 'Creating desktop instance…',

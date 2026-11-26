@@ -93,9 +93,10 @@ Apache License, Version 2.0, Copyright (c) Microsoft Corporation
   The license is the same Apache License, Version 2.0 that covers this
   repository; see LICENSE for the text.
 
-The desktop queue, preview scheduling, viewer focus/clipboard handling, and
-workspace pane selection and hand-back ordering adapt OpenMausBot
-(server/turn-resources.ts, src/components/ComputerPanel.tsx,
+The desktop queue, preview scheduling, viewer focus/clipboard handling,
+workspace pane selection and hand-back ordering, and Podman readiness polling
+adapt OpenMausBot (server/turn-resources.ts, server/podman-machine.ts,
+src/components/ComputerPanel.tsx,
 src/components/LiveDesktop.tsx, src/components/LocalVmWorkspace.tsx, and
 src/lib/local-vm-workspace.ts), Copyright 2026 Milind Soni and OpenMausBot
 contributors, Apache License, Version 2.0.

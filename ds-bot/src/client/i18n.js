@@ -35,6 +35,8 @@ const ZH = {
   "Start Podman machine": "启动 Podman 虚拟机",
   "The Podman machine could not enable resource limits for the private desktop.": "无法为私有桌面启用资源限制。",
   "The first start may download the WSL 2 environment.": "首次启动可能需要下载 WSL 2 环境。",
+  "Waiting for the desktop service…": "正在等待桌面服务就绪…",
+  "The Podman machine is running, but its desktop service did not become ready. Restart the Podman machine and try again.": "Podman 虚拟机已启动，但桌面服务未能就绪。请重启 Podman 虚拟机后再试。",
   "Initializing the Podman machine…": "正在初始化 Podman 虚拟机…",
   "Starting the Podman machine…": "正在启动 Podman 虚拟机…",
   "Enabling desktop resource limits…": "正在启用桌面资源限制…",

@@ -1,11 +1,18 @@
 import { execFile } from 'node:child_process'
 import { readFile, stat } from 'node:fs/promises'
 import { isAbsolute, join, win32 } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { promisify } from 'node:util'
 
 const exec = promisify(execFile)
 const machineName = 'ds-bot-cua'
 const podmanSocket = '/run/user/1000/podman/podman.sock'
+const machineDistro = `podman-${machineName}`
+const wsl = win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'wsl.exe')
+const apiProbeTimeout = 3_000
+const apiProbeAttempts = 6
+const runtimeConflict = () => new Error('Stop the other Podman machine before starting the private desktop.')
+const apiNotReady = () => new Error('The Podman machine is running, but its desktop service did not become ready. Restart the Podman machine and try again.')
 const dockerPipe = 'npipe:////./pipe/dockerDesktopLinuxEngine'
 const cgroupUnavailable = 'The Podman machine could not enable resource limits for the private desktop.'
 // The rootless API service can start in app.slice without delegated controllers after WSL boots.
@@ -54,7 +61,7 @@ export function podmanProfilePath(file) {
   return `/mnt/${path[0].toLowerCase()}${path.slice(2)}`
 }
 
-export function desktopRuntime(name, { run = exec, locatePodman = findPodman } = {}) {
+export function desktopRuntime(name, { run = exec, locatePodman = findPodman, pause = sleep } = {}) {
   const podman = name === 'podman'
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(?:DOCKER_|BUILDKIT_|CONTAINER_|CONTAINERS_|PODMAN_|HTTP_PROXY$|HTTPS_PROXY$|ALL_PROXY$)/iu.test(key)))
   if (podman) env.CONTAINERS_MACHINE_PROVIDER = 'wsl'
@@ -111,12 +118,33 @@ export function desktopRuntime(name, { run = exec, locatePodman = findPodman } =
     return task
   }
 
-  async function podmanHost({ binary, prefix }) {
-    const { stdout } = await run(binary, [...prefix, 'info', '--format', 'json'], options).catch(() => { throw stopped(name) })
+  async function otherPodmanRunning() {
+    const { stdout } = await run(wsl, ['--list', '--running', '--quiet'], { ...options, encoding: 'utf16le' })
+      .catch(() => ({ stdout: '' }))
+    return stdout.split(/\r?\n/u).map(line => line.trim().toLowerCase())
+      .some(distro => distro.startsWith('podman-') && distro !== machineDistro)
+  }
+
+  async function podmanHost({ binary, prefix }, timeout = options.timeout) {
+    const { stdout } = await run(binary, [...prefix, 'info', '--format', 'json'], { ...options, timeout })
+      .catch(() => { throw stopped(name) })
     const host = JSON.parse(stdout).host
     if (host?.os !== 'linux' || host.arch !== 'amd64' || host.security?.rootless !== true || host.security?.seccompEnabled !== true
       || host.cgroupVersion !== 'v2' || host.remoteSocket?.path !== `unix://${podmanSocket}`) throw invalidMachine()
     return host
+  }
+
+  async function waitForPodman(connection) {
+    for (let tries = 0; tries < apiProbeAttempts; tries++) {
+      try {
+        return await podmanHost(connection, apiProbeTimeout)
+      } catch (error) {
+        if (error.code !== 'CUA_RUNTIME_STOPPED') throw error
+      }
+      if (tries === 0 && await otherPodmanRunning()) throw runtimeConflict()
+      if (tries + 1 < apiProbeAttempts) await pause(1_000)
+    }
+    throw apiNotReady()
   }
 
   const hasResourceLimits = host => ['cpu', 'memory', 'pids'].every(item => host.cgroupControllers?.includes(item))
@@ -149,6 +177,7 @@ export function desktopRuntime(name, { run = exec, locatePodman = findPodman } =
         if (!binary) throw stopped(name)
         const current = await machine(binary)
         if (activeMachine && activeMachine !== current?.id) throw invalidMachine()
+        if (!current?.running && await otherPodmanRunning()) throw runtimeConflict()
         const machineOptions = { ...options, timeout: 10 * 60_000 }
         try {
           if (!current) {
@@ -165,12 +194,12 @@ export function desktopRuntime(name, { run = exec, locatePodman = findPodman } =
           if (/WSL_E_WSL_OPTIONAL_COMPONENT_REQUIRED|WSL_E_WSL2_KERNEL_FILE_NOT_FOUND|WSL_E_DISTRO_NOT_FOUND|0x80370102|0x800701bc/iu.test(details)) {
             throw new Error('Enable or update WSL 2 and restart this PC before starting the Podman machine.')
           }
-          if (/already running|another.*running/iu.test(details)) throw new Error('Stop the other Podman machine before starting the private desktop.')
+          if (/already running|another.*running/iu.test(details)) throw runtimeConflict()
           throw new Error('Could not start the Podman machine. Check WSL 2 and Podman Desktop.')
         }
-        progress('checking-runtime')
+        progress('waiting-runtime')
         const connection = await connect()
-        if (hasResourceLimits(await podmanHost(connection))) return
+        if (hasResourceLimits(await waitForPodman(connection))) return
         progress('enabling-runtime-limits')
         const script = Buffer.from(enableDelegation).toString('base64')
         try {

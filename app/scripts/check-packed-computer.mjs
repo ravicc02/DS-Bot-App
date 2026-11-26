@@ -436,7 +436,8 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     const setupStage = await evaluate("window.dsBotApp.computer.settings('readiness')")
     console.log(`check-packed: ${legacyDockerImage ? 'legacy Docker' : 'fresh'} setup opened at stage ${setupStage}`)
     if (legacyDockerImage) assert.equal(setupStage, 'prepare')
-    if (process.env.DS_BOT_PACKED_FRESH_MACHINE === '1') assert.equal(setupStage, 'start', 'Start this test with no running DS Bot Podman machine.')
+    const freshMachine = process.env.DS_BOT_PACKED_FRESH_MACHINE === '1'
+    if (freshMachine) assert.equal(setupStage, 'start', 'Start this test with no DS Bot Podman machine.')
     const setupProgress = step => `document.querySelector('.bt-computer-steps li:nth-child(${step}) .bt-computer-progress')`
     const checkProgress = async (step, screenshot) => {
       const progress = setupProgress(step)
@@ -446,6 +447,10 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     }
     if (setupStage === 'start') {
       await click(settings, 'Start Podman machine', '启动 Podman 虚拟机')
+      if (freshMachine) {
+        await until(`/Initializing the Podman machine|正在初始化 Podman/.test(${setupProgress(2)}?.textContent ?? '')`,
+          'fresh Podman machine initialization', 20_000)
+      }
       await checkProgress(2, process.env.DS_BOT_PACKED_RUNTIME_PROGRESS_SCREENSHOT)
       const prepareButton = byText(settings, ['Prepare desktop', '准备桌面'])
       const setupAlert = `document.querySelector('.bt-computer-settings [role="alert"]')?.innerText`
