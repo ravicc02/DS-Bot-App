@@ -12,8 +12,9 @@ import seccomp from './seccomp.json' with { type: 'json' }
 
 const label = 'io.github.qingj01.dsbot.cua-instance'
 const imageLabel = 'io.github.qingj01.dsbot.cua-image'
-const imageVersion = '5'
-const imageVersions = ['2', '3', '4', imageVersion]
+const imageVersion = '6'
+const podmanImageVersions = ['5', imageVersion]
+const imageVersions = ['2', '3', '4', ...podmanImageVersions]
 const temporaryFiles = 'rw,nosuid,nodev,noexec,size=256m,mode=1777'
 const imageIdPattern = /^sha256:[a-f0-9]{64}$/u
 const containerIdPattern = /^[a-f0-9]{64}$/u
@@ -72,7 +73,7 @@ export function verifyContainer(info, imageId, instance, id, version = imageVers
   const c = info?.Config
   const podman = !!podmanProfile
   const binds = mounts.map(mount => `${mount.name}:${mount.path}:rprivate,nosuid,nodev,rbind`)
-  if (!imageVersions.includes(version) || (podman && version !== imageVersion) || info?.Name !== (podman ? name : `/${name}`) || !containerIdPattern.test(info.Id) || (id !== undefined && info.Id !== id) || (podman ? canonicalImageId(info.Image) : info.Image) !== imageId || c?.Labels?.[label] !== instance
+  if (!(podman ? podmanImageVersions : imageVersions).includes(version) || info?.Name !== (podman ? name : `/${name}`) || !containerIdPattern.test(info.Id) || (id !== undefined && info.Id !== id) || (podman ? canonicalImageId(info.Image) : info.Image) !== imageId || c?.Labels?.[label] !== instance
     || c.User !== '1000:1000' || !same(c.Entrypoint, ['/usr/local/bin/ds-bot-desktop']) || !noValues(c.Cmd)
     || h?.NetworkMode !== 'none' || h.Privileged !== false || h.PublishAllPorts !== false || h.AutoRemove !== false
     || !inspectDesktopLimits(h, podman) || h.PidsLimit !== 384 || h.Init !== true

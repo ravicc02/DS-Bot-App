@@ -18,9 +18,15 @@ RUN set -eu; \
     install -d -o cua -g cua -m 0700 /home/cua/workspace /home/cua/.config/chromium; \
     touch /home/cua/workspace/.ds-bot-workspace /home/cua/.config/chromium/.ds-bot-profile; \
     chown cua:cua /home/cua/workspace/.ds-bot-workspace /home/cua/.config/chromium/.ds-bot-profile
+RUN set -eu; \
+    apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 update; \
+    apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 install -y --no-install-recommends fonts-noto-cjk; \
+    fc-cache -f; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 COPY --chmod=755 start-desktop.sh /usr/local/bin/ds-bot-desktop
 USER 1000:1000
 HEALTHCHECK NONE
 ENTRYPOINT ["/usr/local/bin/ds-bot-desktop"]
 CMD []
-LABEL io.github.qingj01.dsbot.cua-image="5"
+LABEL io.github.qingj01.dsbot.cua-image="6"

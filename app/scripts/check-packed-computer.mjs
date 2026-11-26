@@ -660,7 +660,17 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       </style><input aria-label="Desktop input fixture"><script>
       const input = document.querySelector('input');
       document.addEventListener('click', () => { input.focus(); document.title = 'Click verified'; });
-      input.addEventListener('input', () => { if (input.value === 'DS Bot clipboard check') document.title = 'Paste verified'; });
+      input.addEventListener('input', () => {
+        if (input.value === 'DS Bot clipboard check') document.title = 'Paste verified';
+        if (input.value === 'DS Bot clipboard check \u4e2d\u6587') document.title = 'Text entry verified';
+        if (input.value === 'Edited clipboard \u4fee\u6539') document.title = 'Clipboard edit verified';
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Tab' || event.key === 'Escape') {
+          event.preventDefault();
+          document.title = event.key + ' key verified';
+        }
+      });
       document.addEventListener('dblclick', () => { document.title = 'Double click verified'; });
       document.addEventListener('contextmenu', event => { event.preventDefault(); document.title = 'Right click verified'; });
       document.addEventListener('auxclick', event => {
@@ -718,6 +728,102 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
         await sleep(200)
       }
     }
+    const fullscreenBar = '.bt-computer-viewport:fullscreen .bt-computer-fullscreen-toolbar'
+    const enterFullscreen = async () => {
+      const button = byText(pane, ['Full screen', '\u5168\u5c4f'])
+      await evaluate(`(${button}).scrollIntoView({ block: 'nearest' })`)
+      const point = await evaluate(`(() => {
+        const { x, y, width, height } = (${button}).getBoundingClientRect()
+        return { x: x + width / 2, y: y + height / 2 }
+      })()`)
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await cdp.call('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 })
+      }
+      await waitView(`!!document.querySelector('${fullscreenBar}') && ${activeFrame}`, 'full screen with live controls')
+    }
+    await enterFullscreen()
+    await evaluate(`document.querySelector('${fullscreenBar} input').focus()`)
+    await cdp.call('Input.insertText', { text: ' \u4e2d\u6587' })
+    await click(`${fullscreenBar} button`, 'Send to desktop', '\u53d1\u9001\u5230\u684c\u9762')
+    await verifyInput('Text entry verified')
+    const desktopControls = `${livePanel} .bt-computer-live-controls`
+    const keyboardButton = byText(`${desktopControls} button`, ['Keyboard', '\u952e\u76d8'])
+    await evaluate(`document.querySelector('${desktopControls} [role=group] button').click()`)
+    await waitView(`!(${keyboardButton}) && ${activeFrame}`, 'the desktop tools collapsed while input stayed connected')
+    await evaluate(`document.querySelector('${desktopControls} [role=group] button').click()`)
+    await waitView(`!!(${keyboardButton})`, 'the desktop tools expanded')
+    for (const [button, key] of [['Tab', 'Tab'], ['Esc', 'Escape']]) {
+      await click(`${desktopControls} button`, 'Keyboard', '\u952e\u76d8')
+      await click(`${desktopControls} .bt-computer-keyboard-panel button`, button)
+      await verifyInput(key + ' key verified')
+    }
+    console.log('check-packed: the private desktop toolbar collapsed and sent Tab and Esc to Chromium')
+    const clipboardTools = `${desktopControls} button`
+    const clipboardText = `document.querySelector('.bt-computer-clipboard-panel textarea')`
+    const shortcut = async (key, virtualKey) => {
+      const control = { key: 'Control', code: 'ControlLeft', windowsVirtualKeyCode: 17 }
+      await cdp.call('Input.dispatchKeyEvent', { type: 'rawKeyDown', modifiers: 2, ...control })
+      for (const type of ['rawKeyDown', 'keyUp']) {
+        await cdp.call('Input.dispatchKeyEvent', { type, modifiers: 2, key, code: `Key${key.toUpperCase()}`, windowsVirtualKeyCode: virtualKey })
+      }
+      await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', ...control })
+    }
+    await shortcut('a', 65)
+    await shortcut('c', 67)
+    await click(clipboardTools, 'Clipboard', '\u526a\u8d34\u677f')
+    await waitView(`${clipboardText}?.value === 'DS Bot clipboard check \u4e2d\u6587'`, 'Chromium copied Unicode text to the desktop clipboard panel')
+    await capture(process.env.DS_BOT_PACKED_CLIPBOARD_SCREENSHOT)
+    await evaluate(`${clipboardText}.select()`)
+    await cdp.call('Input.insertText', { text: 'Edited clipboard \u4fee\u6539' })
+    await waitView(`${clipboardText}?.value === 'Edited clipboard \u4fee\u6539'`, 'edited desktop clipboard text')
+    const clipboardPrototype = 'Object.getPrototypeOf(navigator.clipboard)'
+    await evaluate(`(() => {
+      const proto = ${clipboardPrototype};
+      window.packedClipboardWrite = proto.writeText;
+      proto.writeText = value => { window.packedClipboardText = value; return Promise.resolve(); };
+    })()`)
+    try {
+      await click(clipboardTools, 'Copy', '\u590d\u5236')
+      await waitView(`window.packedClipboardText === 'Edited clipboard \u4fee\u6539'`, 'Copy sent the edited text to the host clipboard API')
+    } finally {
+      await evaluate(`(() => {
+        ${clipboardPrototype}.writeText = window.packedClipboardWrite;
+        delete window.packedClipboardWrite;
+        delete window.packedClipboardText;
+      })()`)
+    }
+    await click(clipboardTools, 'Paste on desktop', '\u7c98\u8d34\u5230\u684c\u9762')
+    await verifyInput('Clipboard edit verified')
+    await click(clipboardTools, 'Clipboard', '\u526a\u8d34\u677f')
+    await click(clipboardTools, 'Clear clipboard', '\u6e05\u7a7a\u526a\u8d34\u677f')
+    await waitView(`${clipboardText}?.value === ''`, 'the clipboard panel cleared')
+    await press(cdp, 'Escape', 'Escape', 27)
+    await waitView(`!(${clipboardText}) && ${activeFrame}`, 'clipboard panel closed without losing control')
+    // Read the guest X11 selection without synthesizing a host paste event.
+    const guestClipboard = async () => {
+      const { stdout } = await runDocker('exec', container, '/usr/bin/python3', '-c', `
+import ctypes
+from ctypes import c_char_p, c_void_p
+
+gtk = ctypes.CDLL('libgtk-3.so.0')
+gtk.gdk_atom_intern_static_string.argtypes = [c_char_p]
+gtk.gdk_atom_intern_static_string.restype = c_void_p
+gtk.gtk_clipboard_get.argtypes = [c_void_p]
+gtk.gtk_clipboard_get.restype = c_void_p
+gtk.gtk_clipboard_wait_for_text.argtypes = [c_void_p]
+gtk.gtk_clipboard_wait_for_text.restype = c_char_p
+assert gtk.gtk_init_check(None, None)
+selection = gtk.gdk_atom_intern_static_string(b'CLIPBOARD')
+value = gtk.gtk_clipboard_wait_for_text(gtk.gtk_clipboard_get(selection))
+print((value or b'').decode(), end='')
+`)
+      return stdout
+    }
+    await waitFor(async () => await guestClipboard() === '', 'the guest clipboard cleared', 10_000)
+    console.log('check-packed: the private desktop copied, edited, pasted and cleared Unicode clipboard text in full screen')
+    await click(`${fullscreenBar} button`, 'Exit full screen', '\u9000\u51fa\u5168\u5c4f')
+    await waitView(`!document.fullscreenElement && ${activeFrame}`, 'exit full screen without losing input')
+    console.log('check-packed: full screen sent Unicode text to Chromium and exited without losing control')
     const mouse = (type, button, buttons, point = pointer) => cdp.call('Input.dispatchMouseEvent', {
       type, button, buttons, ...point, clickCount: 1,
     })
@@ -748,10 +854,14 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       'the desktop preview after losing the live connection')
     await click(pane, 'Take control', '接管')
     await waitView(activeFrame, 'the reconnected live desktop')
+    await waitView(`!(${clipboardText})`, 'the new connection starts with the clipboard panel closed')
     console.log('check-packed: losing the live connection restored the preview and allowed a new takeover')
-    await click(pane, 'Hand back', '交还')
-    await waitView(`${frameReady} && !(${activeFrame}) && !!(${byText(pane, ['Take control', '接管'])})`,
-      'hand back with a visible desktop')
+    await enterFullscreen()
+    await click(`${fullscreenBar} button`, 'Hand back', '\u4ea4\u8fd8')
+    await waitView(`${frameReady} && !(${activeFrame}) && !!(${byText(`${fullscreenBar} button`, ['Take control', '\u63a5\u7ba1'])})`,
+      'hand back in full screen with a visible desktop')
+    await click(`${fullscreenBar} button`, 'Exit full screen', '\u9000\u51fa\u5168\u5c4f')
+    await waitView(`!document.fullscreenElement && ${frameReady}`, 'the desktop preview after exiting full screen')
     console.log('check-packed: private desktop rendered, accepted input, and handed control back in the main window')
     await closePane()
     const botInput = '/home/cua/workspace/bot-check.txt'

@@ -31,6 +31,24 @@ test('a managed desktop must have its recorded image and container IDs', () => {
   assert.throws(() => verifyContainer(container, image, instance, '3'.repeat(64)), /configuration changed/u)
 })
 
+test('Podman validates version 5 containers for an image upgrade', () => {
+  const container = config()
+  const profile = '/mnt/f/ds-bot/seccomp.json'
+  container.Name = name
+  container.Image = image.slice('sha256:'.length)
+  Object.assign(container.HostConfig, {
+    UTSMode: 'private', CgroupMode: 'private', Cgroups: 'default', UsernsMode: '',
+    SecurityOpt: ['no-new-privileges', `seccomp=${profile}`],
+    Tmpfs: { '/tmp': 'rw,nosuid,nodev,noexec,size=256m,mode=1777,rprivate' },
+    Binds: container.Mounts.map(mount => `${mount.Name}:${mount.Destination}:rprivate,nosuid,nodev,rbind`),
+  })
+  for (const mount of container.Mounts) Object.assign(mount, { Propagation: 'rprivate', Options: ['nosuid', 'nodev', 'rbind'] })
+  for (const version of ['5', '6']) assert.equal(verifyContainer(container, image, instance, id, version, undefined, profile), container)
+  assert.throws(() => verifyContainer(container, image, instance, id, '4', undefined, profile), /configuration changed/u)
+  container.HostConfig.NetworkMode = 'bridge'
+  assert.throws(() => verifyContainer(container, image, instance, id, '5', undefined, profile), /configuration changed/u)
+})
+
 test('resource settings preserve legacy desktops and require bounded limits without extra swap', () => {
   const container = config()
   const limits = { Memory: 3 * 1024 ** 3, MemorySwap: 3 * 1024 ** 3, NanoCpus: 10 ** 9 }

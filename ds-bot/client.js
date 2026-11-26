@@ -115,6 +115,18 @@ var ZH = {
   "Idle minutes": "空闲分钟数",
   "Enter 0 to 1440 minutes.": "请输入 0 到 1440 分钟。",
   "Full screen": "全屏",
+  "Exit full screen": "退出全屏",
+  "Text to type on desktop": "输入桌面文字",
+  "Send to desktop": "发送到桌面",
+  "Desktop controls": "桌面工具",
+  "Hide desktop controls": "收起桌面工具",
+  "Show desktop controls": "展开桌面工具",
+  "Keyboard": "键盘",
+  "Clipboard": "剪贴板",
+  "Desktop clipboard": "桌面剪贴板",
+  "Paste on desktop": "粘贴到桌面",
+  "Clear clipboard": "清空剪贴板",
+  "Select the text and copy it manually.": "请选择文本并手动复制。",
   "Computer control is available in DS Bot App for Windows x64.": "电脑操控适用于 Windows x64 版 DS Bot App。",
   "Bot has control": "Bot 正在操控",
   "You have control": "你正在操控",
@@ -3306,14 +3318,29 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-computer-target{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt-computer-viewport{min-width:0;display:grid;place-items:center;overflow:hidden;background:var(--bt-main);border:1px solid var(--bt-line);border-radius:8px}
 .bt-computer-viewport[data-takeover]{border-color:var(--bt-accent)}
-.bt-computer-viewport:fullscreen{place-content:center}
-.bt-computer-viewport:fullscreen .bt-computer-preview{max-height:100vh;max-width:100vw;width:auto}
+.bt-computer-fullscreen-toolbar{display:none}
+.bt-computer-viewport:fullscreen{grid-template-rows:auto minmax(0,1fr);border:0;border-radius:0;background:var(--bt-main)}
+.bt-computer-viewport:fullscreen .bt-computer-fullscreen-toolbar{display:flex;justify-self:stretch;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:8px 12px;border-bottom:1px solid var(--bt-line);background:var(--bt-card);color:var(--bt-ink);-webkit-app-region:no-drag}
+.bt-computer-fullscreen-toolbar>.bt-computer-actions{margin-left:auto;min-width:0}
+.bt-computer-fullscreen-toolbar .bt-error{flex-basis:100%}
+.bt-computer-text-entry{display:flex;gap:6px;align-items:center;min-width:0}
+.bt-computer-text-entry input{width:clamp(100px,19vw,240px);min-width:0;height:32px;box-sizing:border-box;padding:0 8px;border:1px solid var(--bt-line);border-radius:6px;background:var(--bt-main);color:var(--bt-ink);font:inherit}
+.bt-computer-text-entry input:focus-visible{outline:2px solid var(--bt-accent);outline-offset:-2px}
+.bt-computer-viewport:fullscreen :is(.bt-computer-preview,.bt-computer-preview-button,.bt-computer-live){width:100%;height:100%;min-height:0;max-height:none}
+.bt-computer-viewport:fullscreen .bt-computer-preview{object-fit:contain}
 .bt-computer-preview{display:block;width:auto;height:auto;max-width:100%;max-height:58vh}
 .bt-computer-preview-button{display:block;padding:0;border:0;background:none;max-width:100%;cursor:pointer}
 .bt-computer-preview-button:focus-visible{outline:2px solid var(--bt-accent);outline-offset:-2px}
 .bt-computer-live{position:relative;width:100%;aspect-ratio:1280 / 900;max-height:58vh;min-height:160px}
-.bt-computer-viewport:fullscreen .bt-computer-live{width:100vw;height:100vh;max-height:none}
 .bt-computer-live-screen{position:absolute;inset:0}
+.bt-computer-live-controls{position:absolute;top:50%;left:8px;transform:translateY(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100% - 16px);max-height:calc(100% - 16px);-webkit-app-region:no-drag}
+.bt-computer-live-rail{display:grid;flex:none;gap:4px;padding:4px;border:1px solid var(--bt-line);border-radius:8px;background:var(--bt-card);color:var(--bt-ink)}
+.bt-computer-live-rail>.bt-browser-retry{display:grid;place-items:center;margin:0;height:30px;color:var(--bt-ink)}
+.bt-computer-live-rail>.bt-browser-retry[aria-expanded=true]:not(:first-child){color:var(--bt-accent);background:var(--bt-hover)}
+.bt-computer-live-panel{display:grid;gap:8px;min-width:0;width:320px;max-height:min(300px,45vh);box-sizing:border-box;overflow:auto;padding:10px;border:1px solid var(--bt-line);border-radius:8px;background:var(--bt-card);color:var(--bt-ink)}
+.bt-computer-live-panel form{display:grid;gap:8px}
+.bt-computer-live-panel textarea{width:100%;box-sizing:border-box;resize:vertical;padding:6px;border:1px solid var(--bt-line);border-radius:6px;background:var(--bt-main);color:var(--bt-ink);font:inherit}
+.bt-computer-live-controls :focus-visible{outline:2px solid var(--bt-accent);outline-offset:-2px}
 .bt-computer-live-connecting{position:absolute;inset:0;display:grid;place-content:center;pointer-events:none}
 .bt-computer-settings .bt-set-control{flex-wrap:wrap;justify-content:flex-end;max-width:65%;min-width:0}
 .bt-computer-settings .bt-select{max-width:100%;min-width:0;text-overflow:ellipsis}
@@ -23060,9 +23087,19 @@ function desktopChannel(bridge, conversation, display) {
   }, () => channel.close());
   return channel;
 }
+var CLIPBOARD_LIMIT = 65536;
+var KEYBOARD_LIMIT = 4096;
 var controlKeys = { ControlLeft: 65507, ControlRight: 65508 };
 var commandKeys = { MetaLeft: 65513, MetaRight: 65515 };
-function forwardPaste(screen, client, signal) {
+function pasteOnDesktop(client, text, held) {
+  client.clipboardPasteFrom(text);
+  const ctrl = Object.hasOwn(controlKeys, held) ? held : "ControlLeft";
+  client.sendKey(controlKeys[ctrl], ctrl, true);
+  if (Object.hasOwn(commandKeys, held)) client.sendKey(commandKeys[held], held, false);
+  client.sendKey(118, "KeyV");
+  if (ctrl !== held) client.sendKey(controlKeys[ctrl], ctrl, false);
+}
+function forwardPaste(screen, client, signal, setClipboard) {
   const mac = /Mac/u.test(navigator.platform);
   const modifiers = mac ? commandKeys : controlKeys;
   let held;
@@ -23082,20 +23119,40 @@ function forwardPaste(screen, client, signal) {
     event.preventDefault();
     const text = event.clipboardData?.getData("text/plain");
     if (!text) return;
-    client.clipboardPasteFrom(text);
-    const ctrl = Object.hasOwn(controlKeys, held) ? held : "ControlLeft";
-    client.sendKey(controlKeys[ctrl], ctrl, true);
-    if (Object.hasOwn(commandKeys, held)) client.sendKey(commandKeys[held], held, false);
-    client.sendKey(118, "KeyV");
-    if (ctrl !== held) client.sendKey(controlKeys[ctrl], ctrl, false);
+    const value = text.slice(0, CLIPBOARD_LIMIT);
+    setClipboard(value);
+    pasteOnDesktop(client, value, held);
   }, { signal });
 }
-function LiveDesktop({ bridge, conversation, display, onDisconnect }) {
+function typeOnDesktop(client, text) {
+  for (const char of text) {
+    const code = char.codePointAt(0);
+    client.sendKey(code === 10 ? 65293 : code === 9 ? 65289 : code <= 255 ? code : 16777216 | code, null);
+  }
+}
+function LiveDesktop({ bridge, conversation, display, onDisconnect, renderToolbar }) {
   const screen = (0, import_react50.useRef)(null);
+  const inputClient = (0, import_react50.useRef)(null);
   const disconnected = (0, import_react50.useRef)(onDisconnect);
   disconnected.current = onDisconnect;
   const [connected, setConnected] = (0, import_react50.useState)(false);
+  const [expanded, setExpanded] = (0, import_react50.useState)(true);
+  const [panel, setPanel] = (0, import_react50.useState)(null);
+  const [text, setText] = (0, import_react50.useState)("");
+  const [clipboard, setClipboard] = (0, import_react50.useState)("");
+  const [copyStatus, setCopyStatus] = (0, import_react50.useState)("");
+  const panelId = (0, import_react50.useId)();
+  const editor = (0, import_react50.useRef)(null);
   (0, import_react50.useLayoutEffect)(() => {
+    if (panel) editor.current?.focus({ preventScroll: true });
+  }, [panel]);
+  (0, import_react50.useLayoutEffect)(() => {
+    setConnected(false);
+    setExpanded(true);
+    setPanel(null);
+    setText("");
+    setClipboard("");
+    setCopyStatus("");
     const controller = new AbortController();
     const { signal } = controller;
     const element = screen.current;
@@ -23103,6 +23160,12 @@ function LiveDesktop({ bridge, conversation, display, onDisconnect }) {
     let client;
     const lost = (event) => {
       if (signal.aborted) return;
+      inputClient.current = null;
+      setConnected(false);
+      setPanel(null);
+      setText("");
+      setClipboard("");
+      setCopyStatus("");
       controller.abort();
       clearTimeout(deadline);
       if (event?.type !== "disconnect") client?.disconnect();
@@ -23118,13 +23181,26 @@ function LiveDesktop({ bridge, conversation, display, onDisconnect }) {
       client.background = "var(--bt-main)";
       client.addEventListener("connect", () => {
         clearTimeout(deadline);
+        inputClient.current = client;
         setConnected(true);
         client.focus({ preventScroll: true });
       }, { once: true });
       client.addEventListener("disconnect", lost, { once: true });
-      forwardPaste(element, client, signal);
+      client.addEventListener("clipboard", (event) => {
+        if (signal.aborted) return;
+        setClipboard(event.detail.text.slice(0, CLIPBOARD_LIMIT));
+        setCopyStatus("");
+      });
+      forwardPaste(element, client, signal, (text2) => {
+        setClipboard(text2);
+        setCopyStatus("");
+      });
+      element.closest(".bt-computer-viewport")?.addEventListener("fullscreenchange", (event) => {
+        if (event.target === event.currentTarget) inputClient.current?.focus({ preventScroll: true });
+      }, { signal });
     }).catch(() => lost());
     return () => {
+      inputClient.current = null;
       if (signal.aborted) return;
       controller.abort();
       clearTimeout(deadline);
@@ -23132,11 +23208,147 @@ function LiveDesktop({ bridge, conversation, display, onDisconnect }) {
       channel?.close();
     };
   }, [bridge, conversation, display]);
+  const sendText = connected ? (text2) => {
+    const client = inputClient.current;
+    if (!client) return false;
+    typeOnDesktop(client, text2);
+    client.focus({ preventScroll: true });
+    return true;
+  } : void 0;
+  const closePanel = () => {
+    setPanel(null);
+    inputClient.current?.focus({ preventScroll: true });
+  };
+  const togglePanel = (next) => {
+    if (panel === next) closePanel();
+    else setPanel(next);
+  };
+  const sendKey = (action) => {
+    const client = inputClient.current;
+    if (!client) return;
+    action(client);
+    closePanel();
+  };
+  const writeClipboard2 = (text2) => {
+    const client = inputClient.current;
+    if (!client) return;
+    setClipboard(text2);
+    setCopyStatus("");
+    client.clipboardPasteFrom(text2);
+  };
+  const copyClipboard = async () => {
+    const client = inputClient.current;
+    if (!client || !clipboard) return;
+    try {
+      await navigator.clipboard.writeText(clipboard);
+      if (inputClient.current === client) setCopyStatus("Copied");
+    } catch {
+      if (inputClient.current === client) setCopyStatus("Select the text and copy it manually.");
+    }
+  };
+  const button = (label, onClick, props, content = t(label)) => (0, import_react50.createElement)("button", {
+    type: "button",
+    className: "bt-browser-retry",
+    onClick,
+    ...props
+  }, content);
+  const panelButton = (name, label) => button(label, () => togglePanel(name), {
+    "aria-expanded": panel === name,
+    "aria-controls": panel === name ? panelId : void 0
+  });
+  const toolbarLabel = expanded ? "Hide desktop controls" : "Show desktop controls";
+  const keyboard = (0, import_react50.createElement)(
+    "form",
+    { onSubmit: (event) => {
+      event.preventDefault();
+      if (text && sendText?.(text)) {
+        setText("");
+        closePanel();
+      }
+    } },
+    (0, import_react50.createElement)("textarea", {
+      ref: editor,
+      "aria-label": t("Text to type on desktop"),
+      rows: 3,
+      maxLength: KEYBOARD_LIMIT,
+      autoComplete: "off",
+      autoCapitalize: "off",
+      spellCheck: false,
+      value: text,
+      onChange: (event) => setText(event.target.value)
+    }),
+    (0, import_react50.createElement)(
+      "div",
+      { className: "bt-computer-actions" },
+      (0, import_react50.createElement)("button", { type: "submit", className: "bt-browser-retry", disabled: !text }, t("Send to desktop")),
+      button("Tab", () => sendKey((client) => client.sendKey(65289, "Tab"))),
+      button("Esc", () => sendKey((client) => client.sendKey(65307, "Escape"))),
+      button("Ctrl+Alt+Del", () => sendKey((client) => client.sendCtrlAltDel()))
+    )
+  );
+  const clipboardTools = (0, import_react50.createElement)(
+    import_react50.Fragment,
+    null,
+    (0, import_react50.createElement)("textarea", {
+      ref: editor,
+      "aria-label": t("Desktop clipboard"),
+      rows: 4,
+      maxLength: CLIPBOARD_LIMIT,
+      autoComplete: "off",
+      autoCapitalize: "off",
+      spellCheck: false,
+      value: clipboard,
+      onChange: (event) => writeClipboard2(event.target.value)
+    }),
+    (0, import_react50.createElement)(
+      "div",
+      { className: "bt-computer-actions" },
+      button("Copy", copyClipboard, { disabled: !clipboard }),
+      button("Paste on desktop", () => sendKey((client) => pasteOnDesktop(client, clipboard)), { disabled: !clipboard }),
+      button("Clear clipboard", () => writeClipboard2(""), { disabled: !clipboard })
+    ),
+    copyStatus ? (0, import_react50.createElement)("span", { role: "status" }, t(copyStatus)) : null
+  );
   return (0, import_react50.createElement)(
-    "div",
-    { className: "bt-computer-live", "data-connected": connected || void 0 },
-    (0, import_react50.createElement)("div", { ref: screen, className: "bt-computer-live-screen", role: "application", "aria-label": t("Private desktop") }),
-    connected ? null : (0, import_react50.createElement)("div", { className: "bt-computer-live-connecting", role: "status" }, t("Connecting to desktop…"))
+    import_react50.Fragment,
+    null,
+    renderToolbar?.(sendText),
+    (0, import_react50.createElement)(
+      "div",
+      { className: "bt-computer-live", "data-connected": connected || void 0 },
+      (0, import_react50.createElement)("div", { ref: screen, className: "bt-computer-live-screen", role: "application", "aria-label": t("Private desktop") }),
+      connected ? (0, import_react50.createElement)(
+        "div",
+        { className: "bt-computer-live-controls" },
+        (0, import_react50.createElement)(
+          "div",
+          { className: "bt-computer-live-rail", role: "group", "aria-label": t("Desktop controls") },
+          button(
+            toolbarLabel,
+            () => {
+              if (panel) closePanel();
+              setExpanded(!expanded);
+            },
+            { "aria-label": t(toolbarLabel), title: t(toolbarLabel), "aria-expanded": expanded },
+            (0, import_react50.createElement)(expanded ? ChevronLeftIcon : ChevronRightIcon)
+          ),
+          expanded ? panelButton("keyboard", "Keyboard") : null,
+          expanded ? panelButton("clipboard", "Clipboard") : null
+        ),
+        panel ? (0, import_react50.createElement)("div", {
+          id: panelId,
+          className: `bt-computer-live-panel bt-computer-${panel}-panel`,
+          role: "group",
+          "aria-label": t(panel === "keyboard" ? "Keyboard" : "Desktop clipboard"),
+          onKeyDown: (event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            event.stopPropagation();
+            closePanel();
+          }
+        }, panel === "keyboard" ? keyboard : clipboardTools) : null
+      ) : (0, import_react50.createElement)("div", { className: "bt-computer-live-connecting", role: "status" }, t("Connecting to desktop…"))
+    )
   );
 }
 
@@ -23350,6 +23562,28 @@ var STATE = {
 var OBSERVABLE = ["idle", "user"];
 var PREVIEW_INTERVAL = 3e3;
 var PREVIEW_RETRY_INTERVAL = 5e3;
+function DesktopTextEntry({ sendText }) {
+  const [text, setText] = (0, import_react52.useState)("");
+  return (0, import_react52.createElement)(
+    "form",
+    { className: "bt-computer-text-entry", onSubmit: (event) => {
+      event.preventDefault();
+      if (text && sendText?.(text)) setText("");
+    } },
+    (0, import_react52.createElement)("input", {
+      type: "text",
+      value: text,
+      maxLength: 4096,
+      autoComplete: "off",
+      autoCapitalize: "off",
+      spellCheck: false,
+      "aria-label": t("Text to type on desktop"),
+      placeholder: t("Text to type on desktop"),
+      onChange: (event) => setText(event.target.value)
+    }),
+    (0, import_react52.createElement)("button", { type: "submit", className: "bt-browser-retry", disabled: !sendText || !text }, t("Send to desktop"))
+  );
+}
 function ComputerPane({ subject, conversation, members, bots, openSettings, sessionId, workDir, actions, run: run2, onPickFolder }) {
   const [files, setFiles] = (0, import_react52.useState)(false);
   return (0, import_react52.createElement)(
@@ -23379,9 +23613,15 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
   const [previewError, setPreviewError] = (0, import_react52.useState)("");
   const [place, setPlace] = (0, import_react52.useState)(null);
   const [workspace, setWorkspace] = (0, import_react52.useState)(false);
+  const [fullscreen, setFullscreen] = (0, import_react52.useState)(false);
   const display = (0, import_react52.useRef)();
   const lifetime = (0, import_react52.useRef)();
   const viewport = (0, import_react52.useRef)(null);
+  (0, import_react52.useLayoutEffect)(() => {
+    const changed = () => setFullscreen(Boolean(viewport.current && viewport.current === document.fullscreenElement));
+    document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
+  }, []);
   function showWorkspace(open) {
     if (lifetime.current) lifetime.current.workspace = open;
     setWorkspace(open);
@@ -23511,8 +23751,8 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
   const live = state.target === "private-desktop" && state.status === "user" && typeof bridge.live === "function";
   const busy = Boolean(pending2);
   const status = pending2 === "start" && !state.lastFrame ? "Loading desktop…" : state.target ? STATE[state.status] ?? "Unavailable" : group ? "Shared desktop access is off." : "Choose a work location to show its screen.";
-  async function choose(target, workPlace, current) {
-    const token = await bridge.choose(conversation, target, operator);
+  async function choose(target2, workPlace, current) {
+    const token = await bridge.choose(conversation, target2, operator);
     if (!token || !current()) return;
     await call("computer-select", { subject, token, operator });
     const value = await bridge.view(conversation, "status");
@@ -23577,6 +23817,23 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
     const change = document.fullscreenElement === viewport.current ? document.exitFullscreen() : viewport.current?.requestFullscreen();
     void change?.catch((failure) => setError(computerError(failure)));
   };
+  const controlButton = () => state.status === "user" ? button("Hand back", () => desktop("hand-back"), pending2 === "hand-back" || pending2 === "off", "bt-computer-primary") : button("Take control", () => desktop("take"), busy || !["idle", "bot"].includes(state.status), "bt-computer-primary");
+  const target = () => (0, import_react52.createElement)("span", { className: "bt-computer-target", title: targetLabel }, targetLabel || t("Screen"));
+  const statusLabel = () => (0, import_react52.createElement)("span", { className: "bt-computer-status", role: "status" }, controlStatus);
+  const fullscreenToolbar = (sendText) => (0, import_react52.createElement)(
+    "header",
+    { className: "bt-computer-fullscreen-toolbar" },
+    target(),
+    statusLabel(),
+    (0, import_react52.createElement)(
+      "div",
+      { className: "bt-computer-actions" },
+      live ? (0, import_react52.createElement)(DesktopTextEntry, { sendText }) : null,
+      button("Exit full screen", toggleFullscreen, false),
+      state.target ? controlButton() : null
+    ),
+    error || previewError ? (0, import_react52.createElement)("p", { className: "bt-error", role: "alert" }, error || previewError) : null
+  );
   return (0, import_react52.createElement)(
     "section",
     { className: "bt-computer" },
@@ -23586,17 +23843,19 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
       (0, import_react52.createElement)(
         "div",
         { className: "bt-computer-toolbar" },
-        (0, import_react52.createElement)("span", { className: "bt-computer-target", title: targetLabel }, targetLabel || t("Screen")),
-        state.target ? (0, import_react52.createElement)("span", { className: "bt-computer-status", role: "status" }, controlStatus) : null
+        target(),
+        state.target ? statusLabel() : null
       ),
       (0, import_react52.createElement)(
         "div",
         { ref: viewport, className: "bt-computer-viewport", "data-takeover": state.status === "user" || void 0 },
+        fullscreen && !live ? fullscreenToolbar() : null,
         live ? (0, import_react52.createElement)(LiveDesktop, {
           key: state.display,
           bridge,
           conversation,
           display: state.display,
+          renderToolbar: fullscreen ? fullscreenToolbar : void 0,
           onDisconnect: () => desktop("hand-back", () => setError(t("Desktop disconnected. Take control to reconnect.")))
         }) : state.lastFrame ? (() => {
           const preview = (0, import_react52.createElement)("img", {
@@ -23621,8 +23880,7 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
       state.target ? (0, import_react52.createElement)(
         "div",
         { className: "bt-computer-actions bt-computer-screen-actions" },
-        state.status === "user" ? button("Hand back", () => desktop("hand-back"), pending2 === "hand-back" || pending2 === "off", "bt-computer-primary") : null,
-        state.status !== "user" ? button("Take control", () => desktop("take"), busy || !["idle", "bot"].includes(state.status), "bt-computer-primary") : null,
+        controlButton(),
         button("Full screen", toggleFullscreen, !state.lastFrame && !live),
         live ? null : button("Refresh preview", () => desktop("observe"), busy || !OBSERVABLE.includes(state.status)),
         !group && bridge?.workspace && state.privateMode === "per-bot" && state.target === "private-desktop" ? button("Open two desktops", () => showWorkspace(true), busy || live) : null

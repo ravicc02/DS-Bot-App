@@ -21,6 +21,18 @@ const OBSERVABLE = ['idle', 'user']
 const PREVIEW_INTERVAL = 3000
 const PREVIEW_RETRY_INTERVAL = 5000
 
+function DesktopTextEntry({ sendText }) {
+  const [text, setText] = useState('')
+  return h('form', { className: 'bt-computer-text-entry', onSubmit: event => {
+    event.preventDefault()
+    if (text && sendText?.(text)) setText('')
+  } },
+  h('input', { type: 'text', value: text, maxLength: 4096, autoComplete: 'off', autoCapitalize: 'off', spellCheck: false,
+    'aria-label': t('Text to type on desktop'), placeholder: t('Text to type on desktop'),
+    onChange: event => setText(event.target.value) }),
+  h('button', { type: 'submit', className: 'bt-browser-retry', disabled: !sendText || !text }, t('Send to desktop')))
+}
+
 export function ComputerPane({ subject, conversation, members, bots, openSettings, sessionId, workDir, actions, run, onPickFolder }) {
   const [files, setFiles] = useState(false)
   return h('div', { className: 'bt-computer-panel' },
@@ -43,9 +55,16 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
   const [previewError, setPreviewError] = useState('')
   const [place, setPlace] = useState(null)
   const [workspace, setWorkspace] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const display = useRef()
   const lifetime = useRef()
   const viewport = useRef(null)
+
+  useLayoutEffect(() => {
+    const changed = () => setFullscreen(Boolean(viewport.current && viewport.current === document.fullscreenElement))
+    document.addEventListener('fullscreenchange', changed)
+    return () => document.removeEventListener('fullscreenchange', changed)
+  }, [])
 
   function showWorkspace(open) {
     if (lifetime.current) lifetime.current.workspace = open
@@ -244,13 +263,26 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
     const change = document.fullscreenElement === viewport.current ? document.exitFullscreen() : viewport.current?.requestFullscreen()
     void change?.catch(failure => setError(computerError(failure)))
   }
+  const controlButton = () => state.status === 'user'
+    ? button('Hand back', () => desktop('hand-back'), pending === 'hand-back' || pending === 'off', 'bt-computer-primary')
+    : button('Take control', () => desktop('take'), busy || !['idle', 'bot'].includes(state.status), 'bt-computer-primary')
+  const target = () => h('span', { className: 'bt-computer-target', title: targetLabel }, targetLabel || t('Screen'))
+  const statusLabel = () => h('span', { className: 'bt-computer-status', role: 'status' }, controlStatus)
+  const fullscreenToolbar = sendText => h('header', { className: 'bt-computer-fullscreen-toolbar' },
+    target(), statusLabel(),
+    h('div', { className: 'bt-computer-actions' },
+      live ? h(DesktopTextEntry, { sendText }) : null,
+      button('Exit full screen', toggleFullscreen, false),
+      state.target ? controlButton() : null),
+    error || previewError ? h('p', { className: 'bt-error', role: 'alert' }, error || previewError) : null)
   return h('section', { className: 'bt-computer' },
     h('div', { className: 'bt-computer-monitor' },
       h('div', { className: 'bt-computer-toolbar' },
-        h('span', { className: 'bt-computer-target', title: targetLabel }, targetLabel || t('Screen')),
-        state.target ? h('span', { className: 'bt-computer-status', role: 'status' }, controlStatus) : null),
+        target(), state.target ? statusLabel() : null),
       h('div', { ref: viewport, className: 'bt-computer-viewport', 'data-takeover': state.status === 'user' || undefined },
+        fullscreen && !live ? fullscreenToolbar() : null,
         live ? h(LiveDesktop, { key: state.display, bridge, conversation, display: state.display,
+          renderToolbar: fullscreen ? fullscreenToolbar : undefined,
           onDisconnect: () => desktop('hand-back', () => setError(t('Desktop disconnected. Take control to reconnect.'))) })
           : state.lastFrame ? (() => {
             const preview = h('img', { className: 'bt-computer-preview', draggable: false,
@@ -262,8 +294,7 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
             t(state.target && !previewError && ['bot', 'viewer', 'idle'].includes(state.status)
               ? 'Waiting for the desktop image…' : status))),
       state.target ? h('div', { className: 'bt-computer-actions bt-computer-screen-actions' },
-        state.status === 'user' ? button('Hand back', () => desktop('hand-back'), pending === 'hand-back' || pending === 'off', 'bt-computer-primary') : null,
-        state.status !== 'user' ? button('Take control', () => desktop('take'), busy || !['idle', 'bot'].includes(state.status), 'bt-computer-primary') : null,
+        controlButton(),
         button('Full screen', toggleFullscreen, !state.lastFrame && !live),
         live ? null : button('Refresh preview', () => desktop('observe'), busy || !OBSERVABLE.includes(state.status)),
         !group && bridge?.workspace && state.privateMode === 'per-bot' && state.target === 'private-desktop'
