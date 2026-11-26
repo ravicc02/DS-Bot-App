@@ -1,7 +1,7 @@
 import { desktopRuntime } from '../src/computer/docker-installation.mjs'
 import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
 import { createHash, randomBytes } from 'node:crypto'
@@ -30,7 +30,18 @@ tk.Label(window, text="Isolated local desktop fixture").pack()
 entry = tk.Entry(window)
 entry.pack()
 entry.focus_set()
+def select_all(_):
+    entry.selection_range(0, "end")
+    return "break"
+entry.bind("<Control-a>", select_all)
 entry.bind("<Return>", lambda _: Path(${JSON.stringify(join(work, 'local-input.txt'))}).write_text(entry.get(), encoding="utf-8"))
+repaint = Path(${JSON.stringify(join(work, 'local-repaint'))})
+def check_repaint():
+    if repaint.exists():
+        entry.config(bg="#ff00ff")
+    else:
+        window.after(100, check_repaint)
+window.after(100, check_repaint)
 marker = ${JSON.stringify(marker)}
 if marker:
     window.attributes("-topmost", False)
@@ -165,7 +176,7 @@ async function press(cdp, key, code, windowsVirtualKeyCode) {
   for (const type of ['keyDown', 'keyUp']) await cdp.call('Input.dispatchKeyEvent', { type, key, code, windowsVirtualKeyCode })
 }
 
-export async function checkComputer({ cdp, until, evaluate, work, python, pid, mode, windowState, onDesktop, fixture }) {
+export async function checkComputer({ cdp, until, evaluate, work, python, pid, mode, windowState, onDesktop, onGrant, fixture }) {
   const click = async (selector, ...labels) => {
     const find = byText(selector, labels)
     await until(`(() => { const button = ${find}; if (!button || button.disabled) return false; button.click(); return true })()`, labels[0], 25_000)
@@ -214,6 +225,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     }
   }
   if (mode === 'browser') return checkBrowser()
+  if (mode === 'files') return checkFiles()
   await openPane()
   await until(`(document.querySelector(${JSON.stringify(`${livePanel} .bt-computer`)})?.offsetWidth ?? 0) >= 430`,
     'the expanded screen preview in the main window')
@@ -235,7 +247,29 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     assert.ok(Math.abs(frame.width - primary.width) <= 2 && Math.abs(frame.height - primary.height) <= 2,
       `Expected the primary screen, got ${JSON.stringify(frame)} vs ${JSON.stringify(primary)}`)
     console.log('check-packed: primary screen rendered in the app after authorization')
-    if (mode !== 'live') await capture(process.env.DS_BOT_PACKED_LOCAL_SCREENSHOT)
+    if (mode !== 'live') {
+      const { x, y } = JSON.parse(readFileSync(join(work, 'local-click.json'), 'utf8'))
+      const repainted = `(() => {
+        const image = ${screen};
+        if (!image?.complete || !image.naturalWidth) return false;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d');
+        context.drawImage(image, ${x + 10}, ${y}, 1, 1, 0, 0, 1, 1);
+        const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+        return r > 230 && g < 32 && b > 230;
+      })()`
+      assert.equal(await evaluate(repainted), false)
+      writeFileSync(join(work, 'local-repaint'), '')
+      await until(repainted, 'the next primary desktop screenshot after updating the fixture', 30_000)
+      console.log('check-packed: the primary screen updated without manual refresh')
+      await capture(process.env.DS_BOT_PACKED_LOCAL_SCREENSHOT)
+      await click(pane, 'Take control', '接管')
+      await until(byText(`${livePanel} .bt-computer [role=status]`, ['Use your mouse and keyboard on this computer.', '请直接使用这台电脑的鼠标和键盘。']), 'physical input takeover on this computer')
+      await click(pane, 'Hand back', '交还')
+      await until(`${frameReady} && (${byText(pane, ['Take control', '接管'])})?.disabled === false`, 'this computer after hand-back')
+      console.log('check-packed: this computer can be reserved for physical input and handed back')
+    }
     await closePane()
     const path = join(work, 'local-input.txt')
     if (mode === 'live') {
@@ -249,6 +283,34 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     }
     const { x, y } = JSON.parse(readFileSync(join(work, 'local-click.json'), 'utf8'))
     await checkBotDesktop('local', () => existsSync(path) ? readFileSync(path, 'utf8') : undefined, { x, y })
+  }
+
+  async function checkFiles() {
+    const { mainBotId } = await api('state', {})
+    const dir = join(work, 'workspace')
+    mkdirSync(dir, { recursive: true })
+    const fixtureText = 'Workspace preview fixture content.'
+    const removed = join(dir, 'removed-fixture.txt')
+    writeFileSync(join(dir, 'desktop-fixture.txt'), fixtureText)
+    writeFileSync(removed, 'This file will be removed.')
+    await api('send', { sessionId: mainBotId, text: 'Computer files smoke' })
+    await until("document.body.innerText.includes('Computer files smoke finished.')", 'the mock model presenting workspace files', 60_000)
+    await openPane()
+    const toolbar = `${livePanel} .bt-computer-panel > .bt-computer-actions button`
+    const files = ['Workspace files', '工作区文件']
+    const list = `${livePanel} .bt-computer-files`
+    const fileButton = `${list} button`
+    await click(toolbar, ...files)
+    await until(byText(fileButton, ['removed-fixture.txt']), 'the second presented file can be opened')
+    await click(toolbar, 'Screen', '画面', '屏幕')
+    unlinkSync(removed)
+    await click(toolbar, ...files)
+    await until(`(${byText(fileButton, ['desktop-fixture.txt'])}) && !document.querySelector('${list} [title="removed-fixture.txt"]')`,
+      'the missing file is filtered out after reopening the pane')
+    await click(fileButton, 'desktop-fixture.txt')
+    await until(`Array.from(document.querySelectorAll('[data-textpreview-line]')).some(node => node.textContent.includes(${JSON.stringify(fixtureText)}))`,
+      'the workspace file opens in the document preview')
+    console.log('check-packed: the workspace file list opened a presented file and removed the missing file from the list')
   }
 
   async function closePane() {
@@ -314,7 +376,8 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     const state = await api('state', {})
     const session = state.bots.find(bot => bot.id === state.mainBotId).sessionId
     const marker = `fixture-${target}-${Date.now()}`
-    await api('send', { sessionId: state.mainBotId, text: `Computer smoke: ${readInput ? 'input' : 'observe'} ${marker}${point ? ` ${point.x} ${point.y}` : ''}` })
+    const mode = !readInput ? 'observe' : point ? 'replace-local' : 'replace-private'
+    await api('send', { sessionId: state.mainBotId, text: `Computer smoke: ${mode} ${marker}${point ? ` ${point.x} ${point.y}` : ''}` })
     await click('[data-approval-key] button', 'Allow once', '允许一次')
     const response = `document.body.innerText.split('\\n').find(line => line.startsWith(${JSON.stringify(`Computer smoke ${marker}:`)}))`
     await until(response, 'the mock model reporting its computer action', 45_000)
@@ -324,11 +387,12 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       const rows = log().slice(previous)
       const sawImage = rows.some(row => row.images > 0 && row.out?.some(part => readInput
         ? point ? part.name === 'computer_click' && part.input?.x === point.x && part.input?.y === point.y
-          : part.name === 'computer_type' && part.input?.text === marker
+          : part.name === 'computer_type' && part.input?.text === 'replace-me'
         : part.text === `Computer smoke ${marker}: screenshot received.`))
       const current = await api('state', {})
-      if (sawImage && !current.work.turns[session] && (!readInput || await readInput() === marker)) {
-        console.log(`check-packed: the mock model received a real ${target} desktop screenshot${readInput ? ' and submitted input' : ''} after approval`)
+      const sawShortcut = !readInput || rows.some(row => row.out?.some(part => part.name === 'computer_hotkey'))
+      if (sawImage && sawShortcut && !current.work.turns[session] && (!readInput || await readInput() === marker)) {
+        console.log(`check-packed: the mock model received a real ${target} desktop screenshot${readInput ? ' and replaced input using a keyboard shortcut' : ''} after approval`)
         return
       }
       await sleep(250)
@@ -404,12 +468,12 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     const running = target => runDocker('container', 'inspect', '--format', '{{.State.Running}}', target).then(result => result.stdout.trim())
     const label = 'io.github.qingj01.dsbot.cua-instance'
     const state = await api('state', {})
-    async function registerDesktop(target, subject) {
+    async function registerDesktop(target) {
       const { stdout } = await runDocker('container', 'inspect', '--format', `{{.Id}}|{{index .Config.Labels "${label}"}}`, target)
       const [container, owner] = stdout.trim().split('|')
       assert.match(container, /^[a-f0-9]{64}$/u)
       assert.equal(owner, instance)
-      onDesktop({ container, name: target, instance, runDocker, subject })
+      onDesktop({ container, name: target, instance, runDocker })
       return container
     }
     assert.deepEqual(await evaluate("window.dsBotApp.computer.settings('inventory', [])"), [])
@@ -418,7 +482,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     await checkProgress(4, process.env.DS_BOT_PACKED_CREATE_PROGRESS_SCREENSHOT)
     const startupAlert = `document.querySelector('.bt-computer-settings [role="alert"]')?.textContent?.trim()`
     await until(`(${settingsFrame}) || Boolean(${startupAlert})`, 'the desktop creation result', 75_000)
-    const container = await registerDesktop(name, state.mainBotId)
+    const container = await registerDesktop(name)
     assert.ok(await evaluate(settingsFrame), await evaluate(startupAlert))
     assert.equal(await running(container), 'true', 'The setup guide must leave the new desktop running.')
     console.log(`check-packed: setup created a running private desktop and rendered its first frame in ${Math.round((performance.now() - startupBegan) / 1000)}s`)
@@ -443,6 +507,26 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
         return id && id !== '0x0' && (await runDocker('exec', container, 'xprop', '-id', id, '_NET_WM_NAME')).stdout.includes('Private desktop QA')
       }, 'the isolated desktop input fixture', 15_000)
       await checkLiveDesktop('private', marker, () => runDocker('exec', container, 'cat', botInput).then(({ stdout }) => stdout, () => undefined))
+      return
+    }
+    const activeWindow = async () => {
+      const { stdout } = await runDocker('exec', container, 'xprop', '-root', '_NET_ACTIVE_WINDOW')
+      const id = stdout.match(/0x[\da-f]+/u)?.[0]
+      return id && id !== '0x0' ? (await runDocker('exec', container, 'xprop', '-id', id, '_NET_WM_NAME')).stdout : ''
+    }
+    if (process.env.DS_BOT_PACKED_GROUP_ONLY === '1') {
+      await click(settings, 'Close', '关闭')
+      await until("!document.querySelector('.bt-computer-setup')", 'setup closed after creation')
+      await evaluate("document.querySelector('.bt-settings-close').click()")
+      await until("!document.querySelector('.bt-settings-layer')", 'settings closed after setup')
+      // Reproduce the Chromium visibility report without obscuring the native permission dialog.
+      await evaluate("Object.defineProperty(document, 'hidden', { configurable: true, value: true })")
+      try {
+        assert.equal(await windowState('win.isVisible() && !win.isMinimized()'), true)
+        await checkGroup()
+      } finally {
+        await evaluate("Reflect.deleteProperty(document, 'hidden')")
+      }
       return
     }
     const { width, height } = await windowState('win.getBounds()')
@@ -477,13 +561,18 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       return pixels.some((value, index) => index % 4 !== 3 && value > 16);
     })()`, 'the visible private desktop on first open')
     await capture(process.env.DS_BOT_PACKED_VIEWER_SCREENSHOT)
+    await evaluate(`window.dsBotPreviewBefore = ${screen}.getAttribute('src'); true`)
+    await runDocker('exec', '-d', container, '/usr/bin/xfce4-terminal', '--disable-server', '--maximize',
+      '--title=DS Bot preview check', '-x', 'sh', '-c', 'printf "Private desktop preview check\\n"; sleep 45')
+    await waitView(`${frameReady} && ${screen}.getAttribute('src') !== window.dsBotPreviewBefore`,
+      'the next private desktop screenshot after opening the fixture')
+    console.log('check-packed: the private desktop updated without manual refresh')
     await windowState('win.setMinimizable(true)')
     try {
       await windowState('win.minimize()')
       assert.equal(await windowState('win.isMinimized()'), true)
-      await until('document.hidden', 'the minimized window to become hidden')
-      assert.equal((await api('computer-status', { subject: state.mainBotId })).target, undefined,
-        'Minimizing the window must revoke the desktop grant.')
+      await waitFor(async () => (await api('computer-status', { subject: state.mainBotId })).target === undefined,
+        'the minimized window to revoke the desktop grant', 15_000)
     } finally {
       await windowState('(() => { win.restore(); win.focus(); win.setMinimizable(false) })()')
     }
@@ -497,11 +586,6 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     const path = '/home/cua/workspace/viewer-check.txt'
     await runDocker('exec', '-d', container, '/usr/bin/xfce4-terminal', '--disable-server',
       '--title=DS Bot viewer input', '-x', 'sh', '-c', 'IFS= read -r line && printf "%s" "$line" > "$1"', 'fixture', path)
-    const activeWindow = async () => {
-      const { stdout } = await runDocker('exec', container, 'xprop', '-root', '_NET_ACTIVE_WINDOW')
-      const id = stdout.match(/0x[\da-f]+/u)?.[0]
-      return id && id !== '0x0' ? (await runDocker('exec', container, 'xprop', '-id', id, '_NET_WM_NAME')).stdout : ''
-    }
     for (let attempt = 0; !(await activeWindow()).includes('DS Bot viewer input'); attempt++) {
       assert.ok(attempt < 25, 'The terminal fixture did not get focus.')
       await sleep(200)
@@ -520,12 +604,31 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     }
     assert.equal(typed, 'ds')
     const html = `<title>Desktop input fixture</title><style>
-      body{height:4000px} input{position:fixed;inset:0;width:320px;height:40px;margin:auto}
+      body{height:4000px;width:4000px;user-select:none} input{position:fixed;inset:0;width:320px;height:40px;margin:auto}
       </style><input aria-label="Desktop input fixture"><script>
       const input = document.querySelector('input');
       document.addEventListener('click', () => { input.focus(); document.title = 'Click verified'; });
       input.addEventListener('input', () => { if (input.value === 'DS Bot clipboard check') document.title = 'Paste verified'; });
-      addEventListener('scroll', () => { if (scrollY > 0) document.title = 'Scroll verified'; });
+      document.addEventListener('dblclick', () => { document.title = 'Double click verified'; });
+      document.addEventListener('contextmenu', event => { event.preventDefault(); document.title = 'Right click verified'; });
+      document.addEventListener('auxclick', event => {
+        if (event.button === 1) { event.preventDefault(); document.title = 'Middle click verified'; }
+      });
+      let down;
+      document.addEventListener('mousedown', event => {
+        if (event.button === 0) down = event.clientX;
+        else if (event.button === 1) event.preventDefault();
+      });
+      document.addEventListener('mouseup', event => {
+        if (event.button !== 0 || down === undefined) return;
+        const dragged = Math.abs(event.clientX - down) > 30;
+        down = undefined;
+        if (dragged) requestAnimationFrame(() => { document.title = 'Drag verified'; });
+      });
+      addEventListener('scroll', () => {
+        if (scrollX > 0) document.title = 'Horizontal scroll verified';
+        else if (scrollY > 0) document.title = 'Vertical scroll verified';
+      });
       </script>`
     await runDocker('exec', container, 'sh', '-c', 'printf "%s" "$1" > /home/cua/workspace/scroll.html', 'fixture', html)
     await runDocker('exec', '-d', container, 'chromium', '--no-first-run', '--start-maximized',
@@ -557,12 +660,36 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       assert.ok(attempt < 30, 'Pasting did not insert text in the remote input.')
       await sleep(200)
     }
-    await cdp.call('Input.dispatchMouseEvent', { type: 'mouseWheel', ...pointer, deltaX: 0, deltaY: 120 })
-    for (let attempt = 0; !(await activeWindow()).includes('Scroll verified'); attempt++) {
-      assert.ok(attempt < 30, 'The wheel event did not move the document.')
-      await sleep(200)
+    const verifyInput = async (title) => {
+      for (let attempt = 0; !(await activeWindow()).includes(title); attempt++) {
+        assert.ok(attempt < 30, `The remote page did not report: ${title}`)
+        await sleep(200)
+      }
     }
-    console.log('check-packed: the viewer clicked, pasted into, and scrolled the isolated Chromium fixture')
+    const mouse = (type, button, buttons, point = pointer) => cdp.call('Input.dispatchMouseEvent', {
+      type, button, buttons, ...point, clickCount: 1,
+    })
+    for (const [button, buttons, title] of [['right', 2, 'Right click verified'], ['middle', 4, 'Middle click verified']]) {
+      await mouse('mousePressed', button, buttons)
+      await mouse('mouseReleased', button, 0)
+      await verifyInput(title)
+    }
+    for (let count = 0; count < 2; count++) {
+      await mouse('mousePressed', 'left', 1)
+      await mouse('mouseReleased', 'left', 0)
+    }
+    await verifyInput('Double click verified')
+    const dragStart = { x: pointer.x - 80, y: pointer.y + 45 }
+    const dragEnd = { ...dragStart, x: pointer.x + 80 }
+    await mouse('mousePressed', 'left', 1, dragStart)
+    await mouse('mouseMoved', 'none', 1, dragEnd)
+    await mouse('mouseReleased', 'left', 0, dragEnd)
+    await verifyInput('Drag verified')
+    await cdp.call('Input.dispatchMouseEvent', { type: 'mouseWheel', ...pointer, deltaX: 0, deltaY: 120 })
+    await verifyInput('Vertical scroll verified')
+    await cdp.call('Input.dispatchMouseEvent', { type: 'mouseWheel', ...pointer, deltaX: 120, deltaY: 0 })
+    await verifyInput('Horizontal scroll verified')
+    console.log('check-packed: the live viewer clicked, pasted, double-clicked, right-clicked, middle-clicked, dragged, and scrolled both axes in Chromium')
     await runDocker('exec', container, 'pkill', '-f', '[s]ocket.create_connection')
     const takeControl = byText(pane, ['Take control', '接管'])
     await waitView(`${frameReady} && !(${activeFrame}) && (${takeControl})?.disabled === false`,
@@ -608,6 +735,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     }
     await checkBotDesktop('rollover')
     assert.equal((await api('computer-status', { subject: state.mainBotId })).target, 'private-desktop')
+    onGrant(state.mainBotId)
     await openPane()
     for (let attempt = 0; attempt < 4; attempt += 1) {
       await click(pane, 'Off', '关闭')
@@ -626,31 +754,49 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       }
     }
     console.log('check-packed: reopened the private desktop four times after revoking access')
-    const other = await api('create-bot', { name: 'Computer QA', role: 'Tester' })
-    const otherRow = `document.querySelector(${JSON.stringify(`[data-bot-id="${other.id}"]`)})`
+    const { other, otherRow } = await createOtherBot()
     await until(`!!${otherRow}`, 'the other test conversation')
     await evaluate(`${otherRow}.click()`)
     await until(`${otherRow}?.getAttribute('aria-current') === 'page'`, 'the other conversation selected')
     await until(`!(${screen})`, 'the previous computer preview to disappear')
     assert.equal((await api('computer-status', { subject: state.mainBotId })).target, undefined)
     console.log('check-packed: changing conversations removed the preview and revoked access')
-    const groupRow = await checkGroup()
+    const groupRow = await checkGroup({ other, otherRow })
     await checkIsolation(groupRow)
     await checkBrowser()
 
-    async function checkGroup() {
+    async function createOtherBot() {
+      const other = await api('create-bot', { name: 'Computer QA', role: 'Tester' })
+      return { other, otherRow: `document.querySelector(${JSON.stringify(`[data-bot-id="${other.id}"]`)})` }
+    }
+
+    async function checkGroup(member) {
+      const { other, otherRow } = member ?? await createOtherBot()
       const room = await api('create-room', { name: 'Shared desktop QA', members: [state.mainBotId, other.id], admin: state.mainBotId })
       const row = `document.querySelector(${JSON.stringify(`[data-room-id="${room.id}"]`)})`
       await until(`!!${row}`, 'the test group')
       await evaluate(`${row}.click()`)
+      await until(`${row}?.getAttribute('aria-current') === 'page'`, 'the group conversation selected')
       await openPane()
       const allow = byText(pane, ['Allow desktop access', '授权使用'])
-      await until(`!!(${allow}) && !(${allow}).disabled`, 'group using shared desktop settings')
+      try {
+        await until(`!!(${allow}) && !(${allow}).disabled`, 'group using shared desktop settings')
+      } catch (error) {
+        const details = await evaluate(`({ visible: !document.hidden,
+          panel: document.querySelector('${livePanel}')?.innerText.slice(-460),
+          buttons: [...document.querySelectorAll(${JSON.stringify(pane)})].map(button => [button.textContent, button.disabled]),
+        })`)
+        const { privateMode } = await evaluate("window.dsBotApp.computer.settings('read')").catch(() => ({}))
+        throw new Error(`${error.message}: ${JSON.stringify({ ...details, privateMode })}`, { cause: error })
+      }
       assert.equal(await evaluate(`document.querySelector('${livePanel} .bt-computer .bt-computer-places, ${livePanel} .bt-computer select')`), null)
       await capture(process.env.DS_BOT_PACKED_GROUP_SCREENSHOT)
       await authorizePrivate(() => click(pane, 'Allow desktop access', '授权使用'))
       await waitView(frameReady, 'the shared desktop showing in the test group')
       assert.equal((await api('computer-status', { subject: room.id })).target, 'private-desktop')
+      onGrant(room.id)
+      await capture(process.env.DS_BOT_PACKED_GROUP_FRAME_SCREENSHOT)
+      await checkGroupQueue(room)
       await click(pane, 'Revoke access', '撤销连接权限')
       await until(`!(${screen})`, 'the group screen disappearing after revocation')
       assert.equal((await api('computer-status', { subject: room.id })).target, undefined)
@@ -658,6 +804,65 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await until(`${otherRow}?.getAttribute('aria-current') === 'page'`, 'the other test conversation selected again')
       console.log('check-packed: the group followed shared settings, showed the desktop, and revoked group access')
       return row
+    }
+
+    async function checkGroupQueue(room) {
+      const file = '/home/cua/workspace/group-queue.txt'
+      await runDocker('exec', '-d', container, '/usr/bin/xfce4-terminal', '--disable-server',
+        '--title=DS Bot group queue fixture', '--hold', '-x', 'sh', '-c',
+        'for n in 1 2; do IFS= read -r line || exit 1; printf "%s\\n" "$line" >> "$1"; done', 'fixture', file)
+      await waitFor(async () => (await activeWindow()).includes('DS Bot group queue fixture'), 'the shared desktop input fixture', 10_000)
+      const marker = `fixture-group-${Date.now()}`
+      const details = byText('.bt-tab', ['Details', '详情'])
+      await until(`(() => { const tab = ${details}; if (!tab) return false; tab.click(); return true })()`, 'the group details tab')
+      await api('send', { sessionId: room.id, text: `Computer queue smoke: ${marker} @all` })
+      const approveMember = async bot => {
+        await until(`(() => {
+          const member = [...document.querySelectorAll('.bt-member')].find(node => node.querySelector('.bt-member-name')?.textContent === ${JSON.stringify(bot)});
+          const allow = [...(member?.querySelectorAll('.bt-mw-actions button') ?? [])].find(node => ['Allow once', '允许一次'].includes(node.textContent.trim()));
+          if (!allow || allow.disabled) return false;
+          allow.click(); return true;
+        })()`, `computer tool approval for ${bot}`, 45_000)
+      }
+      const first = (await api('state', {})).bots.find(bot => bot.id === state.mainBotId)
+      await until("document.querySelectorAll('.bt-mw-card').length >= 2", 'both group members asking for approval', 45_000)
+      await approveMember(first.name)
+      const groupStatus = () => api('computer-status', { subject: room.id })
+      await waitFor(async () => (await groupStatus()).status === 'bot', 'the first group member acquiring the desktop', 15_000)
+      await approveMember('Computer QA')
+      await waitFor(async () => (await groupStatus()).waiting === 1, 'the second group member entering the desktop queue', 7_500)
+      const submitted = async () => runDocker('exec', container, 'cat', file).then(({ stdout }) => stdout.trim().split('\n'), () => [])
+      const transitions = []
+      const began = performance.now()
+      let nextRead = 0
+      let lines = []
+      try {
+        await waitFor(async () => {
+          if (performance.now() >= nextRead) {
+            lines = await submitted()
+            nextRead = performance.now() + 1500
+          }
+          const { status, waiting } = await groupStatus()
+          const phase = `${status}/${waiting}/${lines.length}`
+          if (transitions.at(-1)?.phase !== phase) transitions.push({ phase, seconds: Math.round((performance.now() - began) / 1000) })
+          return lines.length === 2
+        }, 'both group members sending input to the shared desktop', 135_000)
+      } catch (error) {
+        const model = readFileSync(join(work, 'mock.log'), 'utf8').trim().split('\n')
+          .map(line => JSON.parse(line)).filter(row => row.last?.includes(marker) || row.out?.some(part =>
+            part.input?.text?.startsWith(marker) || part.text?.startsWith(`Computer smoke ${marker}`) ||
+            ['computer_observe', 'computer_key'].includes(part.name)))
+          .slice(-14).map(row => ({ time: row.t, images: row.images, out: row.out?.map(part =>
+            part.name ?? (part.text?.startsWith(`Computer smoke ${marker}`) ? part.text : part.type)) }))
+        throw new Error(`${error.message} Queue phases: ${transitions.map(({ phase, seconds }) => `${phase} at ${seconds}s`).join(' → ')}. Mock results: ${JSON.stringify(model)}.`, { cause: error })
+      }
+      assert.deepEqual(await submitted(), [`${marker}-first`, `${marker}-second`])
+      await waitFor(async () => {
+        const status = await groupStatus()
+        return status.status === 'idle' && status.waiting === 0
+      }, 'the shared group desktop queue to drain', 20_000)
+      await openPane()
+      console.log('check-packed: the second approved group member waited and both members submitted input in order')
     }
 
     async function checkIsolation(groupRow) {
@@ -702,7 +907,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
         assert.equal(info.Config.Labels['io.github.qingj01.dsbot.cua-instance'], instance)
         assert.equal(info.State.Running, true)
         assert.deepEqual(info.Mounts.map(m => m.Name).sort(), [`${target}-chromium`, `${target}-workspace`])
-        onDesktop({ container: info.Id, name: target, instance, runDocker, subject: bot })
+        onDesktop({ container: info.Id, name: target, instance, runDocker })
         return info.Id
       }
 
@@ -837,6 +1042,40 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       assert.notEqual(recreated, second)
       assert.equal((await runDocker('exec', recreated, 'cat', '/home/cua/workspace/scope-check.txt')).stdout.trim(), 'isolation')
       console.log('check-packed: cancel preserved the running instance; delete removed only its container, and recreation recovered its workspace')
+
+      await openSettings()
+      await click('.bt-computer-isolation button', 'Desktop pool', '桌面池')
+      await waitSaved()
+      await closeSettings()
+      await evaluate(`${groupRow}.click()`)
+      await openPane()
+      await until(`(${allow})?.disabled && /Enable shared mode|开启共享|启用共享/.test(document.querySelector('.bt-computer-group-access')?.innerText ?? '')`,
+        'group desktop access disabled in pool mode')
+      await switchBot(firstRow)
+      await authorizePrivate()
+      await waitView(frameReady, 'the first pool desktop frame')
+      const seatOne = await assertScope('pool-seat-1')
+      await runDocker('exec', seatOne, 'sh', '-c', 'printf pool > /home/cua/workspace/pool-check.txt')
+      await switchBot(otherRow)
+      await authorizePrivate()
+      await waitView(frameReady, 'the second pool desktop frame')
+      const seatTwo = await assertScope('pool-seat-2')
+      assert.notEqual(seatOne, seatTwo)
+      const isolated = await runDocker('exec', seatTwo, 'sh', '-c', 'test ! -f /home/cua/workspace/pool-check.txt && printf isolated')
+      assert.equal(isolated.stdout.trim(), 'isolated')
+      await openSettings()
+      await setLimit('1')
+      assert.equal(await running(seatOne), 'false')
+      assert.equal(await running(seatTwo), 'false')
+      assert.equal((await authorization(other.id)).target, undefined)
+      await closeSettings()
+      await authorizePrivate()
+      await waitView(frameReady, 'the retained pool desktop after reducing the pool size')
+      assert.equal((await authorization(other.id)).target, 'private-desktop')
+      onGrant(other.id)
+      assert.equal(await assertScope('pool-seat-1'), seatOne)
+      assert.equal((await runDocker('exec', seatOne, 'cat', '/home/cua/workspace/pool-check.txt')).stdout.trim(), 'pool')
+      console.log('check-packed: pool mode assigned separate desktops, disabled group access, and retained workspace files after shrinking')
     }
   }
 

@@ -20,7 +20,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const [given, shotFile] = process.argv.slice(2)
 const executable = given || packedExecutable()
 const computerMode = process.env.DS_BOT_PACKED_COMPUTER
-const computerCheck = ['1', 'windows', 'linux', 'browser', 'live'].includes(computerMode)
+const computerCheck = ['1', 'windows', 'linux', 'browser', 'files', 'live'].includes(computerMode)
 const liveCheck = computerMode === 'live'
 const linuxCheck = ['linux', '1', 'live'].includes(computerMode)
 
@@ -340,8 +340,8 @@ async function chat(cdp, computer) {
 let failed = false
 const problems = []
 let closeApp
-let desktop
 const desktops = new Map()
+const grantSubjects = new Set()
 try {
   const packedApp = outsideCheckout(resolve(executable))
   checkSharp(packedApp)
@@ -377,7 +377,7 @@ ${liveRoute}`)
   // A terminal inside an Electron-based editor may set ELECTRON_RUN_AS_NODE, which turns the app into plain Node.
   const { ELECTRON_RUN_AS_NODE: _runAsNode, ...env } = process.env
   Object.assign(env, {
-    DS_BOT_HOME: join(work, 'home'), DS_BOT_SHELL_DATA: join(work, 'shell'),
+    DS_BOT_HOME: join(work, 'home'), DS_BOT_SHELL_DATA: join(work, 'shell'), DS_BOT_WORKSPACE: join(work, 'workspace'),
     DEEPSEEK_BASE_URL: modelUrl, DEEPSEEK_API_KEY: 'mock-key',
   })
   const app = spawn(packedApp, [`--remote-debugging-port=${String(port)}`, `--inspect=127.0.0.1:${String(mainPort)}`], { stdio: 'inherit', env })
@@ -413,7 +413,8 @@ ${liveRoute}`)
     return { visible: win.isVisible(), minimized: win.isMinimized() };
   })()`) : undefined
   const chatError = await chat(cdp, computerCheck && { fixture, port, work, python, pid: app.pid, problems, mode: computerMode, windowState,
-    onDesktop: value => { desktop = value; desktops.set(value.name, value) },
+    onDesktop: value => desktops.set(value.name, value),
+    onGrant: subject => grantSubjects.add(subject),
   }).then(() => undefined, error => error)
   if (shotFile) {
     const { data } = await cdp.call('Page.captureScreenshot', { format: 'png' })
@@ -455,13 +456,14 @@ ${liveRoute}`)
   if (outcome === undefined) throw new Error('the app did not exit after the quit')
   console.log(`check-packed: app exited (code ${String(outcome.code)}, signal ${String(outcome.signal)})`)
   if (outcome.code !== 0) throw new Error(`the app exited with code ${String(outcome.code)}`)
-  if (desktop) {
+  if (desktops.size) {
     for (const entry of desktops.values()) {
       const running = await entry.runDocker('container', 'inspect', '--format', '{{.State.Running}}', entry.container)
       if (running.stdout.trim() !== 'false') throw new Error('An isolated private desktop did not stop at app exit.')
     }
     console.log('check-packed: exiting the app stopped the isolated desktop')
-
+  }
+  if (grantSubjects.size) {
     const restartPort = await freePort()
     const restarted = spawn(packedApp, [`--remote-debugging-port=${String(restartPort)}`], { stdio: 'inherit', env })
     children.push(restarted)
@@ -474,18 +476,22 @@ ${liveRoute}`)
     try {
       await restartPage.opened
       await restartPage.call('Runtime.enable')
-      const deadline = Date.now() + 60_000
-      let status
-      while (Date.now() < deadline) {
-        status = await restartPage.call('Runtime.evaluate', {
-          expression: `fetch('/api/bot', { method: 'POST', headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(${JSON.stringify({ endpoint: 'computer-status', payload: { subject: desktop.subject } })}) }).then(r => r.json())`,
-          awaitPromise: true, returnByValue: true,
-        })
-        if (status.result?.value?.ok) break
-        await sleep(500)
+      for (const subject of grantSubjects) {
+        const deadline = Date.now() + 60_000
+        let status
+        while (Date.now() < deadline) {
+          const reply = await restartPage.call('Runtime.evaluate', {
+            expression: `fetch('/api/bot', { method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(${JSON.stringify({ endpoint: 'computer-status', payload: { subject } })}) }).then(r => r.json())`,
+            awaitPromise: true, returnByValue: true,
+          })
+          status = reply.result?.value
+          if (status?.ok) break
+          await sleep(500)
+        }
+        if (!status?.ok) throw new Error('Could not read computer authorization after restart.')
+        if (status.value?.target !== undefined) throw new Error('A previous computer authorization survived restart.')
       }
-      if (!status?.result?.value?.ok || status.result.value.value?.target !== undefined) throw new Error('The previous desktop grant survived restart or its state could not be read.')
     } finally { restartPage.close() }
     if ((await closeApp())?.code !== 0) throw new Error('The restarted app did not quit cleanly.')
     console.log('check-packed: restarting the app requires fresh computer authorization')

@@ -171,7 +171,14 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   const installCommand = podman ? installCommands.podman : installCommands.docker
   const startRuntime = () => void run('start', async () => { await bridge.settings('start'); return recheck() })
   const perBot = settings?.privateMode === 'per-bot'
+  const pooled = settings?.privateMode === 'pool'
   const startupBot = perBot ? (bots.find(bot => bot.id === checkBot) ?? bots[0]) : undefined
+  const startupSeat = pooled ? Number(checkBot) > 0 && Number(checkBot) <= settings.maxInstances ? Number(checkBot) : 1 : undefined
+  const seatLabel = seat => `${t('Pool desktop')} ${seat}`
+  const instanceOperator = instance => instance.seat ? `pool-seat-${instance.seat}` : instance.botId ?? null
+  const setupOperator = startupSeat ? `pool-seat-${startupSeat}` : startupBot?.id ?? null
+  const setupLabel = startupSeat ? seatLabel(startupSeat) : startupBot?.name ?? t('Private desktop')
+  const matchesSetup = instance => setupOperator === null ? instance.scope === null : instanceOperator(instance) === setupOperator
   function copyInstallCommand() {
     void run('copy', async () => {
       if (!await writeClipboard(installCommand)) throw new Error('Could not copy. Select the text below and copy it.')
@@ -205,26 +212,33 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   }
   function start(instance, restart) {
     void run('desktop', async id => {
-      if (!await bridge.settings(restart ? 'restart-instance' : 'start-instance', instance.scope === null ? null : instance.botId, id)) return false
+      if (!await bridge.settings(restart ? 'restart-instance' : 'start-instance', instanceOperator(instance), id)) return false
       await recheck()
       return true
     }, 'The private desktop is running.')
   }
   function createDesktop() {
     void run('create', async id => {
-      const image = await bridge.settings('start-instance', startupBot?.id ?? null, id)
+      const image = await bridge.settings('start-instance', setupOperator, id)
       const result = await readStatus(bridge, botIds)
       applyStatus(result)
-      const instance = result.instances?.find(instance => (instance.botId ?? instance.scope) === setupScope && instance.running)
+      const instance = result.instances?.find(instance => matchesSetup(instance) && instance.running)
       if (!instance) throw new Error('The private desktop is stopped.')
-      setSetupFrame({ id: instance.id, image, label: startupBot?.name ?? t('Private desktop') })
+      setSetupFrame({ id: instance.id, image, label: setupLabel })
       return true
     })
   }
-  const selectStartupBot = () => perBot && startupBot ? h('select', {
+  function selectStartupDesktop() {
+    if (pooled) return h('select', {
+      className: 'bt-select', 'aria-label': t('Pool desktop'), value: startupSeat, disabled: !!busy,
+      onChange: event => { setCheckBot(event.target.value); setPreview(null); setSetupFrame(null) },
+    }, Array.from({ length: settings.maxInstances }, (_, index) =>
+      h('option', { key: index + 1, value: index + 1 }, seatLabel(index + 1))))
+    return perBot && startupBot ? h('select', {
     className: 'bt-select', 'aria-label': t('Bot for startup check'), value: startupBot.id, disabled: !!busy,
     onChange: event => { setCheckBot(event.target.value); setPreview(null); setSetupFrame(null) },
-  }, bots.map(bot => h('option', { key: bot.id, value: bot.id }, bot.name))) : null
+    }, bots.map(bot => h('option', { key: bot.id, value: bot.id }, bot.name))) : null
+  }
   function viewScreen(scope, operator, label) {
     if (preview?.scope === scope) {
       setPreview(null)
@@ -243,11 +257,15 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   const previewFor = scope => preview?.scope === scope ? previewImage(preview) : null
   const visibleInstances = instances && prepared && settings?.privateMode === 'shared' && !instances.some(instance => instance.scope === null)
     ? [{ scope: null, running: false }, ...instances] : instances
+  const listedInstances = instances && prepared && pooled
+    ? [...Array.from({ length: settings.maxInstances }, (_, index) => index + 1).filter(seat => !instances.some(instance => instance.seat === seat))
+      .map(seat => ({ scope: `pool-seat-${seat}`, seat, running: false })), ...instances]
+      .sort((a, b) => (a.seat ?? Infinity) - (b.seat ?? Infinity))
+    : visibleInstances
   const minutes = Number(idle)
   const invalid = idle === '' || !Number.isSafeInteger(minutes) || minutes < 0 || minutes > 1440
 
-  const setupScope = startupBot?.id ?? null
-  const setupInstance = instances?.find(instance => (instance.botId ?? instance.scope) === setupScope)
+  const setupInstance = instances?.find(matchesSetup)
   const setupReady = prepared && Boolean(setupInstance?.running && setupFrame?.id === setupInstance.id)
   const progressView = fallback => {
     const label = t(PHASES[progress?.phase] ?? fallback)
@@ -274,7 +292,7 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
       extra: busy === 'prepare' ? progressView('Preparing the private desktop…') : null },
     { label: 'Start the private desktop', done: setupReady,
       hint: prepared && perBot && !startupBot ? 'Add a Bot to check its private desktop.' : undefined,
-      action: prepared && !setupReady ? h(Fragment, null, selectStartupBot(),
+      action: prepared && !setupReady ? h(Fragment, null, selectStartupDesktop(),
         button(setupInstance?.id ? 'Start desktop' : 'Create desktop', createDesktop, !!busy || (perBot && !startupBot))) : null,
       extra: busy === 'create' ? progressView('Loading desktop…') : setupReady ? previewImage(setupFrame) : null },
   ]
@@ -288,38 +306,41 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
       h('code', { className: 'bt-computer-install-command' }, installCommand),
       button('Copy', copyInstallCommand)) : null,
     h(Row, { label: t('Startup check'), hint: prepared && perBot && !startupBot ? t('Add a Bot to check its private desktop.') : undefined },
-      prepared ? selectStartupBot() : null,
+      prepared ? selectStartupDesktop() : null,
       button(preview?.scope === 'startup' ? 'Hide screenshot' : 'Check startup',
-        () => viewScreen('startup', startupBot?.id ?? null, startupBot?.name ?? t('Private desktop')),
+        () => viewScreen('startup', setupOperator, setupLabel),
         !!busy || !settings || !prepared || (perBot && !startupBot))),
     previewFor('startup'),
     h(Row, { label: t('Running desktops') },
       h('span', { className: 'bt-muted' }, running ?? '—'),
       button('Stop desktops', () => stop(), !!busy || !running)),
-    visibleInstances?.map(instance => {
-      const canStart = prepared && (instance.scope === null ? settings?.privateMode === 'shared' : settings?.privateMode === 'per-bot' && instance.botId)
-      const name = instance.scope === null ? t('Shared private desktop') : bots.find(bot => bot.id === instance.botId)?.name ?? t('Former Bot')
+    listedInstances?.map(instance => {
+      const canStart = prepared && (instance.seat ? pooled && instance.seat <= settings.maxInstances
+        : instance.scope === null ? settings?.privateMode === 'shared' : perBot && instance.botId)
+      const name = instance.seat ? seatLabel(instance.seat) : instance.scope === null ? t('Shared private desktop')
+        : bots.find(bot => bot.id === instance.botId)?.name ?? t('Former Bot')
       return h(Fragment, { key: instance.scope ?? 'shared' },
         h(Row, { className: 'bt-computer-instance', label: name },
           h('span', { className: 'bt-muted' }, t(instance.running ? 'Desktop running' : 'Desktop stopped')),
           instance.running ? button('Stop this desktop', () => stop(instance)) : null,
           canStart ? button(instance.running ? 'Restart desktop' : 'Start desktop', () => start(instance, instance.running)) : null,
-          instance.running && prepared && (instance.scope === null || instance.botId)
+          instance.running && prepared && (instance.scope === null || instance.botId || instance.seat)
             ? button(preview?.scope === instance.scope ? 'Hide screenshot' : 'View screen',
-              () => viewScreen(instance.scope, instance.botId ?? null, name)) : null,
+              () => viewScreen(instance.scope, instanceOperator(instance), name)) : null,
           instance.id ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm bt-danger', disabled: !!busy,
             'aria-label': `${t('Delete desktop')} · ${name}`, onClick: () => remove(instance) }, t('Delete desktop')) : null),
         previewFor(instance.scope))
     }),
     h(Row, { label: t('Desktop isolation'), hint: t('Each Bot can have its own desktop, workspace, and browser profile.') },
       h(Segmented, { className: 'bt-computer-isolation', label: t('Desktop isolation'), value: settings?.privateMode ?? 'shared' },
-        [['shared', 'Shared desktop'], ['per-bot', 'Desktop per Bot']].map(([mode, label]) => h('button', {
+        [['shared', 'Shared desktop'], ['per-bot', 'Desktop per Bot'], ['pool', 'Desktop pool']].map(([mode, label]) => h('button', {
           key: mode, type: 'button', 'aria-pressed': (settings?.privateMode ?? 'shared') === mode,
           disabled: !!busy || !settings, onClick: () => { if (mode !== settings.privateMode) savePolicy(mode, settings.maxInstances) },
         }, t(label))))),
-    settings?.privateMode === 'per-bot' ? h(Row, {
-      label: t('Maximum running desktops'), hint: t('Stopped desktops keep their workspace and browser profile.'),
-    }, h('select', { className: 'bt-select', 'aria-label': t('Maximum running desktops'), 'data-computer-limit': true, value: settings.maxInstances,
+    perBot || pooled ? h(Row, {
+      label: t(pooled ? 'Pool size' : 'Maximum running desktops'),
+      hint: t(pooled ? 'Reducing the pool size stops the pooled desktops. Their files are kept.' : 'Stopped desktops keep their workspace and browser profile.'),
+    }, h('select', { className: 'bt-select', 'aria-label': t(pooled ? 'Pool size' : 'Maximum running desktops'), 'data-computer-limit': true, value: settings.maxInstances,
       disabled: !!busy, onChange: event => savePolicy(settings.privateMode, Number(event.target.value)) },
     Array.from({ length: 8 }, (_, index) => h('option', { key: index + 1, value: index + 1 }, index + 1)))) : null,
     h(Row, { label: t('Stop when idle'), hint: t('Minutes. Set to 0 to keep the desktop running.') },

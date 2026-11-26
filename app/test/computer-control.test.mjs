@@ -55,7 +55,12 @@ test('shared members wait in turn order across conversations and cancellation ad
   assert.equal((await service.local(room.conversation, 'status')).waiting, 3)
   await bot.end('first')
   await assert.rejects(bot.action('first'), /control ended/u)
-  assert.equal((await service.local(room.conversation, 'observe')).preview, undefined)
+  const queued = await service.inline(room.conversation, 'status')
+  assert.equal(queued.status, 'idle')
+  assert.equal(queued.waiting, 3)
+  const refresh = await service.inline(room.conversation, 'observe', undefined, queued.display)
+  assert.equal(refresh.preview, undefined)
+  assert.equal(refresh.waiting, 3)
   await room.end('second', 'member-one')
   await assert.rejects(room.action('second', observe, 'member-one'), /control ended/u)
   assert.deepEqual(await another.action('fourth'), { waiting: true, position: 2 })
@@ -148,6 +153,53 @@ test('takeover waits for driver shutdown, and hand-back invalidates a pending ta
   await assert.rejects(bot.action('first'), /control ended/u)
 })
 
+test('local takeover reserves the desktop for physical input and releases the first approved waiter', async t => {
+  const service = createComputerService({
+    'local-desktop': { open: async () => ({ run: async () => image, close: async () => {} }) },
+  }, async () => true)
+  t.after(() => service.close())
+  const conversation = 'bot-one'
+  const operator = 'operator'
+  const token = await service.choose(conversation, 'local-desktop', operator)
+  await service.request({ op: 'select', conversation, token, operator })
+  const { display } = await service.inline(conversation, 'status')
+  const action = turn => service.request({ op: 'action', conversation, token, owner: { session: conversation, turn }, action: observe })
+  assert.equal(await action('interrupted'), image)
+  assert.equal((await service.inline(conversation, 'take', undefined, display)).status, 'user')
+  await assert.rejects(action('interrupted'), /control ended/u)
+  assert.deepEqual(await action('next'), { waiting: true, position: 1 })
+  await assert.rejects(service.inline(conversation, 'input', { kind: 'key', key: 'tab' }, display), /control ended/u)
+  assert.equal((await service.inline(conversation, 'observe', undefined, display)).preview, image)
+  assert.equal((await service.inline(conversation, 'hand-back', undefined, display)).status, 'idle')
+  assert.equal(await action('next'), image)
+})
+
+test('only one private desktop can be taken over, including while its input driver is releasing', async t => {
+  const closing = controllable()
+  const service = createComputerService({ 'private-desktop': {
+    open: async (_window, _signal, scope) => ({
+      run: async () => image,
+      close: () => scope === 'alpha' ? closing.promise : Promise.resolve(),
+    }),
+  } }, async () => true, { privateMode: () => 'per-bot' })
+  t.after(() => { closing.resolve(); return service.close() })
+  const alpha = await select(service, 'one', 'alpha')
+  const beta = await select(service, 'two', 'beta')
+  const busy = /Hand back the other desktop/u
+  await alpha.action('first')
+  const taking = service.local(alpha.conversation, 'take')
+  await assert.rejects(service.local(beta.conversation, 'take'), busy)
+  closing.resolve()
+  assert.equal((await taking).status, 'user')
+  assert.equal(await beta.action('second'), image)
+  await assert.rejects(service.local(beta.conversation, 'take'), busy)
+  const returning = service.local(alpha.conversation, 'hand-back')
+  await assert.rejects(service.local(beta.conversation, 'take'), busy)
+  await returning
+  assert.equal((await service.local(beta.conversation, 'take')).status, 'user')
+  await assert.rejects(beta.action('second'), /control ended/u)
+})
+
 test('the Bot waits for an inline preview to release the driver after hand-back', async t => {
   const closeStarted = controllable()
   const closed = controllable()
@@ -213,7 +265,11 @@ test('inline preview interruptions do not report a driver failure', async t => {
   await started.promise
   await service.request({ op: 'stop', conversation: bot.conversation })
   assert.equal(await firstFrame, null)
-  assert.equal((await service.inline(bot.conversation, 'status')).display, undefined)
+  assert.equal(await service.inline(bot.conversation, 'observe', undefined, display), null)
+  await select(service, bot.conversation)
+  assert.equal(await service.inline(bot.conversation, 'hand-back', undefined, display), null)
+  await assert.rejects(service.inline(bot.conversation, 'take', undefined, display), /control ended/u)
+  await assert.rejects(service.inline(bot.conversation, 'input', { kind: 'type', text: 'stale' }, display), /control ended/u)
 })
 
 test('an inline preview reports failures when its lease was not released', async t => {
@@ -393,4 +449,31 @@ test('starting preserves authorization and restart or deletion drains only its s
   assert.deepEqual(events.slice(-2), [['close', 'alpha'], ['delete', 'alpha', 'container-id']])
   await assert.rejects(replacement.action('new'), /control ended/u)
   assert.equal(await two.action('b'), 'beta')
+})
+
+test('private desktop pool binds each grant to its seat and preserves that affinity on reauthorization', async t => {
+  let size = 2
+  let stopped = 0
+  const service = createComputerService({ 'private-desktop': {
+    open: async (_window, _signal, scope) => ({ run: async () => scope, close: async () => {} }),
+    stopManaged: async () => { stopped++ },
+  } }, async () => true, { privateMode: () => 'pool', maxInstances: () => size })
+  t.after(() => service.close())
+  await assert.rejects(select(service, 'room-team'), /control ended/u)
+  const a = await select(service)
+  const b = await select(service, 'bot-two')
+  assert.equal(await a.action('first'), 'pool-seat-1')
+  assert.equal(await b.action('second'), 'pool-seat-2')
+  const c = await select(service, 'bot-three')
+  assert.deepEqual(await c.action('third'), { waiting: true, position: 1 })
+  await a.end('first')
+  assert.equal(await c.action('third'), 'pool-seat-1')
+  await c.end('third')
+  const again = await select(service)
+  assert.equal(await again.action('again'), 'pool-seat-1')
+  await service.changePrivatePolicy(() => { size = 1 })
+  assert.equal(stopped, 1)
+  await assert.rejects(again.action('again'), /control ended/u)
+  const restarted = await select(service, 'bot-two')
+  assert.equal(await restarted.action('new-turn'), 'pool-seat-1')
 })

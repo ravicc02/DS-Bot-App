@@ -1,5 +1,6 @@
 import { createElement as h, useLayoutEffect, useRef, useState } from 'react'
 import { LiveDesktop } from './computer-live.js'
+import { ComputerFiles } from './computer-files.js'
 import { call } from './api.js'
 import { hostText, t } from './i18n.js'
 import { AutoLocationIcon, LocalDesktopIcon, PowerIcon, PrivateDesktopIcon } from './icons.js'
@@ -15,27 +16,63 @@ const STATE = {
   busy: 'In use by another conversation', stopping: 'Releasing control', unavailable: 'Unavailable',
 }
 const OBSERVABLE = ['idle', 'user']
+const PREVIEW_INTERVAL = 3000
+const PREVIEW_RETRY_INTERVAL = 5000
 
 export function computerError(failure) {
   return hostText(failure.message.replace(/^Error invoking remote method '[^']+': Error: /u, ''))
 }
 
-export function ComputerPane({ subject, conversation, members, openSettings }) {
+export function ComputerPane({ subject, conversation, members, openSettings, sessionId, workDir, actions, run, onPickFolder }) {
+  const [files, setFiles] = useState(false)
+  return h('div', { className: 'bt-computer-panel' },
+    h('div', { className: 'bt-computer-actions', role: 'group', 'aria-label': t('Computer') },
+      [[false, 'Screen'], [true, 'Workspace files']].map(([value, label]) => h('button', {
+        key: label, type: 'button', className: 'bt-browser-retry', 'aria-pressed': files === value,
+        onClick: () => setFiles(value),
+      }, t(label)))),
+    files ? h(ComputerFiles, { key: sessionId, sessionId, workDir, group: Array.isArray(members), actions, run, onPickFolder })
+      : h(ComputerScreen, { subject, conversation, members, openSettings }))
+}
+
+function ComputerScreen({ subject, conversation, members, openSettings }) {
   const bridge = window.dsBotApp?.computer
   const [state, setState] = useState({})
   const group = Array.isArray(members)
   const operator = group ? undefined : subject
   const [pending, setPending] = useState('')
   const [error, setError] = useState('')
+  const [previewError, setPreviewError] = useState('')
   const [place, setPlace] = useState(null)
   const display = useRef()
   const lifetime = useRef()
-  const attemptedDisplay = useRef()
   const viewport = useRef(null)
 
   function show(value) {
+    if (display.current !== value.display) setPreviewError('')
     display.current = value.display
     setState(previous => ({ ...value, lastFrame: value.preview ?? (previous.display === value.display && value.display ? previous.lastFrame : undefined) }))
+  }
+
+  async function refreshPreview(value, current, force = false) {
+    if (!value.display || value.status !== 'idle' || value.waiting) return
+    const scope = lifetime.current
+    const schedule = scope.preview
+    if (!force && schedule?.display === value.display && performance.now() < schedule.after) return
+
+    let delay = PREVIEW_INTERVAL
+    const sameDisplay = () => current() && display.current === value.display
+    try {
+      const frame = await bridge.view(conversation, 'observe', undefined, value.display)
+      if (!frame || !sameDisplay()) return
+      show(frame)
+      if (frame.preview) setPreviewError('')
+    } catch (failure) {
+      delay = PREVIEW_RETRY_INTERVAL
+      if (sameDisplay()) setPreviewError(computerError(failure))
+    } finally {
+      if (sameDisplay()) scope.preview = { display: value.display, after: performance.now() + delay }
+    }
   }
 
   useLayoutEffect(() => {
@@ -43,46 +80,50 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
     const scope = { active: true, work: null, next: null }
     lifetime.current = scope
     display.current = undefined
-    attemptedDisplay.current = undefined
     const refresh = () => {
-      if (scope.work || document.hidden) return
+      if (scope.work || !scope.shown) return
       void run('poll', async current => {
         const value = await bridge.view(conversation, 'status')
         if (!current()) return
         show(value)
         setError(previous => previous === t('Restore the app window to use computer control.') ? '' : previous)
-        if (!value.display || value.status === 'user' || !OBSERVABLE.includes(value.status)) return
-        if (!value.preview && attemptedDisplay.current !== value.display) {
-          attemptedDisplay.current = value.display
-          try {
-            const frame = await bridge.view(conversation, 'observe', undefined, value.display)
-            if (current() && display.current === value.display) {
-              if (!frame?.preview) attemptedDisplay.current = undefined
-              if (frame) show(frame)
-            }
-          } catch (failure) {
-            if (current() && display.current === value.display) attemptedDisplay.current = undefined
-            throw failure
-          }
-        }
+        await refreshPreview(value, current)
       })
     }
-    const visibility = () => {
-      if (!document.hidden) { refresh(); return }
+    const visibility = shown => {
+      if (!scope.active || scope.shown === shown) return
+      scope.shown = shown
+      if (shown) { refresh(); return }
       scope.work = null
       scope.next = null
+      scope.preview = undefined
       setPending('')
       setPlace(null)
       setError('')
-      show({})
+      display.current = undefined
+      setPreviewError('')
+      setState(previous => ({ privateMode: previous.privateMode }))
     }
-    document.addEventListener('visibilitychange', visibility)
-    refresh()
+    const documentVisibility = () => visibility(!document.hidden)
+    let unsubscribe
+    // An occluded Chromium page may report hidden even though its app window is still shown.
+    if (bridge.onWindowShown && bridge.windowShown) {
+      unsubscribe = bridge.onWindowShown(visibility)
+      void bridge.windowShown().then(shown => {
+        if (scope.shown === undefined) visibility(shown)
+      }, () => {
+        if (scope.shown === undefined) visibility(true)
+      })
+    } else {
+      document.addEventListener('visibilitychange', documentVisibility)
+      documentVisibility()
+    }
     const timer = setInterval(refresh, 1500)
     return () => {
       scope.active = false
       clearInterval(timer)
-      document.removeEventListener('visibilitychange', visibility)
+      unsubscribe?.()
+      document.removeEventListener('visibilitychange', documentVisibility)
       if (display.current) void bridge.view(conversation, 'hand-back', undefined, display.current).catch(() => {})
     }
   }, [bridge, conversation])
@@ -141,18 +182,7 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
     if (!current()) return
     setPlace(workPlace)
     show(value)
-    if (!value.display || !OBSERVABLE.includes(value.status)) return
-    attemptedDisplay.current = value.display
-    try {
-      const frame = await bridge.view(conversation, 'observe', undefined, value.display)
-      if (current()) {
-        if (!frame?.preview) attemptedDisplay.current = undefined
-        if (frame) show(frame)
-      }
-    } catch (failure) {
-      if (current() && display.current === value.display) attemptedDisplay.current = undefined
-      throw failure
-    }
+    await refreshPreview(value, current, true)
   }
 
   function selectPrivate(next, resume = false) {
@@ -189,13 +219,14 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
     void run(op, async current => {
       const value = await bridge.view(conversation, op, undefined, binding)
       if (!expected(current)) return
+      if (!value) return
       show(value)
       after?.()
-      if (op === 'hand-back') {
-        const frame = await bridge.view(conversation, 'observe', undefined, binding)
-        if (!frame || !expected(current)) return
-        show(frame)
+      if (op === 'observe' && value.preview) {
+        lifetime.current.preview = { display: binding, after: performance.now() + PREVIEW_INTERVAL }
+        setPreviewError('')
       }
+      if (op === 'hand-back') await refreshPreview(value, current, true)
     })
   }
 
@@ -221,23 +252,25 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
             return state.target === 'private-desktop' && ['idle', 'bot'].includes(state.status)
               ? h('button', { type: 'button', className: 'bt-computer-preview-button', disabled: busy,
                 'aria-label': t('Take control'), onClick: () => desktop('take') }, preview) : preview
-          })() : h('div', { className: 'bt-computer-empty', role: state.target ? undefined : 'status' }, t(status))),
+          })() : h('div', { className: 'bt-computer-empty', role: 'status' }, t(status))),
       state.target ? h('div', { className: 'bt-computer-actions bt-computer-screen-actions' },
-        state.target === 'private-desktop' && state.status === 'user' ? button('Hand back', () => desktop('hand-back'), pending === 'hand-back' || pending === 'off', 'bt-computer-primary') : null,
-        state.target === 'private-desktop' && state.status !== 'user' ? button('Take control', () => desktop('take'), busy || !['idle', 'bot'].includes(state.status), 'bt-computer-primary') : null,
+        state.status === 'user' ? button('Hand back', () => desktop('hand-back'), pending === 'hand-back' || pending === 'off', 'bt-computer-primary') : null,
+        state.status !== 'user' ? button('Take control', () => desktop('take'), busy || !['idle', 'bot'].includes(state.status), 'bt-computer-primary') : null,
         button('Full screen', toggleFullscreen, !state.lastFrame && !live),
-        live ? null : button('Refresh preview', () => desktop('observe'), busy || !OBSERVABLE.includes(state.status))) : null),
+        live ? null : button('Refresh preview', () => desktop('observe'), busy || !OBSERVABLE.includes(state.status))) : null,
+      state.target === 'local-desktop' && state.status === 'user'
+        ? h('p', { className: 'bt-set-hint', role: 'status' }, t('Use your mouse and keyboard on this computer.')) : null),
     h('section', { className: 'bt-computer-location', 'aria-label': t(group ? 'Shared group desktop' : 'Work location') },
       h('div', { className: 'bt-computer-location-heading' }, h('h3', null, t(group ? 'Shared group desktop' : 'Work location')),
         h('button', { type: 'button', className: 'bt-more', onClick: () => openSettings() }, t('Computer and browser settings'))),
       group ? h('div', { className: 'bt-computer-actions bt-computer-group-access' },
         h('span', { className: 'bt-set-hint' }, t(state.privateMode === 'shared' ? 'Shared mode is enabled in Settings.'
-          : state.privateMode === 'per-bot' ? 'Enable shared mode in Settings to use a desktop in this group.' : 'Checking desktop settings…')),
+          : state.privateMode ? 'Enable shared mode in Settings to use a desktop in this group.' : 'Checking desktop settings…')),
         state.target ? button('Revoke access', () => selectPlace('off'), pending === 'off')
           : button('Allow desktop access', () => selectPlace('private'), busy || state.privateMode !== 'shared' || !members.length, 'bt-computer-primary'))
         : h('div', { className: 'bt-computer-places', role: 'group', 'aria-label': t('Work location') },
           ...PLACES.map(({ id, label, Icon }) => h('button', { key: id, type: 'button', 'aria-pressed': activePlace === id,
             disabled: id === 'off' ? pending === 'off' || (!state.target && !pending) : busy,
             onClick: () => selectPlace(id) }, h(Icon), t(label)))),
-      error ? h('p', { className: 'bt-error', role: 'alert' }, error) : null))
+      error || previewError ? h('p', { className: 'bt-error', role: 'alert' }, error || previewError) : null))
 }

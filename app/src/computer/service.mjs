@@ -1,19 +1,27 @@
 import { randomUUID } from 'node:crypto'
 import { createComputerControl } from './control.mjs'
+import { DesktopSeatPool, isPoolOperator, poolOperator } from './seat-pool.mjs'
 
 const key = value => typeof value === 'string' && /^[\w-]{1,120}$/u.test(value)
 const changed = () => new Error('Computer control ended. Select a target again in the conversation.')
 const CHOICE_LIFETIME = 30_000
 const PREVIEW_LIFETIME = 30_000
 
-export function createComputerService(backends, confirm, { privateMode = () => 'shared', privateScope } = {}) {
+export function createComputerService(backends, confirm, { privateMode = () => 'shared', privateScope, maxInstances = () => 2 } = {}) {
   const control = createComputerControl(backends)
+  const pool = new DesktopSeatPool(maxInstances)
   const grants = new Map()
   let choice
   let selecting
   let closed = false
   let privateMaintenance
-  const underMaintenance = operator => privateMaintenance?.(operatorFor(operator)) === true
+  let takingControl = false
+  const underMaintenance = operator => privateMaintenance && (privateMode() === 'pool' || privateMaintenance(operatorFor(operator)))
+  const validOperator = operator => {
+    if (privateMode() === 'shared') return operator === undefined
+    if (privateMode() === 'pool') return isPoolOperator(operator) && Number(operator.slice(-1)) <= maxInstances()
+    return key(operator) && !isPoolOperator(operator)
+  }
   const operatorFor = operator => privateMode() === 'per-bot' ? operator : undefined
   const revoking = new Map()
 
@@ -40,6 +48,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     const lease = grant.lease
     if (!lease) return grant.draining ?? Promise.resolve()
     if (lease.type === 'bot') grant.finishedTurns.add(lease.owner.turn)
+    if (lease.type !== 'viewer' && grant.seat !== undefined) pool.renew(grant.conversation, grant.seat)
     lease.released = true
     grant.lease = undefined
     const draining = control.release(grant.slot, lease.id, lease.owner, lease.type).finally(() => {
@@ -96,10 +105,17 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     selecting = approved
     try {
       await released
-      if (closed || selecting !== approved || (conversation.startsWith('room-') && privateMode() !== 'shared')) throw changed()
-      const scope = approved.target === 'private-desktop' ? operatorFor(operator) : undefined
+      const isPrivate = approved.target === 'private-desktop'
+      if (closed || selecting !== approved || (isPrivate && underMaintenance(operator))
+        || (conversation.startsWith('room-') && privateMode() !== 'shared')) throw changed()
+      let scope = isPrivate ? operatorFor(operator) : undefined
+      let seat
+      if (isPrivate && privateMode() === 'pool') {
+        seat = pool.assign(conversation, index => control.holder(control.slotFor(approved.target, poolOperator(index))))
+        scope = poolOperator(seat)
+      }
       const slot = control.slotFor(approved.target, scope)
-      grants.set(conversation, { ...approved, slot, display: randomUUID(), finishedTurns: new Set() })
+      grants.set(conversation, { ...approved, slot, seat, display: randomUUID(), finishedTurns: new Set() })
       return view(conversation)
     } finally {
       if (selecting === approved) selecting = undefined
@@ -197,7 +213,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     choose,
     async checkStartup(operator) {
       const backend = backends['private-desktop']
-      if (!backend?.checkStartup || (privateMode() === 'shared' ? operator !== undefined : !key(operator))) throw changed()
+      if (!backend?.checkStartup || !validOperator(operator)) throw changed()
       return maintainPrivate(false, () => backend.checkStartup(operator), scope => scope === operator)
     },
     async previewPrivateInstance(operator) {
@@ -214,6 +230,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         await backends['private-desktop'].stopManaged()
         if (closed) throw changed()
         save()
+        pool.clear()
       })
     },
     async stopPrivate() {
@@ -230,7 +247,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     },
     async startPrivateInstance(operator, restart, report) {
       const backend = backends['private-desktop']
-      if (!privateScope || !backend?.startInstance || (privateMode() === 'shared' ? operator !== undefined : !key(operator))) throw changed()
+      if (!privateScope || !backend?.startInstance || !validOperator(operator)) throw changed()
       const scope = privateScope(operator)
       return maintainPrivate(restart, async () => {
         if (restart) await backend.stopInstance(scope)
@@ -258,6 +275,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         return action(grant, owner, 'bot', input)
       }
       if (input?.kind !== 'observe') throw changed()
+      if (grant.target === 'private-desktop' && privateMaintenance?.(grant.slot.scope)) throw changed()
       const position = control.wait(grant.slot, owner, grant)
       if (position !== 1 || grant.transition || !control.available(grant.slot)) return { waiting: true, position }
       control.cancelWaiting(grant.slot, grant, owner)
@@ -272,11 +290,15 @@ export function createComputerService(backends, confirm, { privateMode = () => '
       }
       if (!['observe', 'take', 'hand-back', 'input'].includes(op)) throw changed()
       const grant = grants.get(conversation)
-      if (!grant || typeof display !== 'string' || grant.display !== display) throw changed()
+      const passive = op === 'observe' || op === 'hand-back'
+      if (!grant || typeof display !== 'string' || grant.display !== display) {
+        if (passive) return null
+        throw changed()
+      }
       try {
         return { ...await this.local(conversation, op, input, grant.token), display }
       } catch (error) {
-        if (op === 'observe' && grants.get(conversation) !== grant) return null
+        if (passive && grants.get(conversation) !== grant) return null
         throw error
       }
     },
@@ -309,8 +331,10 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         grant.transition = undefined
         if (grant.lease?.type !== 'bot') await release(grant)
       } else if (op === 'take') {
-        if (grant.target !== 'private-desktop' || grant.transition || grant.slot.handoff) throw changed()
+        if (grant.transition || grant.slot.handoff) throw changed()
         if (grant.lease?.type === 'user') return { ...view(conversation), preview: previewOf(grant) }
+        if (takingControl || control.humanBusy()) throw new Error('Hand back the other desktop before taking control here.')
+        takingControl = true
         const transition = Symbol()
         grant.transition = transition
         grant.slot.handoff = transition
@@ -323,6 +347,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         } finally {
           if (grant.transition === transition) grant.transition = undefined
           if (grant.slot.handoff === transition) grant.slot.handoff = undefined
+          takingControl = false
         }
       } else if (op === 'observe') {
         if (grant.transition) throw changed()

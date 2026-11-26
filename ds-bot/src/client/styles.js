@@ -427,7 +427,12 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-tabs[data-glide] .bt-tab[aria-selected=true]{background:transparent}
 .bt-drawer-body{flex:1;overflow-y:auto;padding:20px 16px 16px;font-size:13px;line-height:18px;display:flex;flex-direction:column;gap:16px}
 .bt-drawer-computer{padding-top:12px}
-.bt-computer{display:grid;gap:16px;min-width:0}
+.bt-computer-panel,.bt-computer{display:grid;gap:16px;min-width:0}
+.bt-computer-panel>.bt-computer-actions [aria-pressed=true]{color:var(--bt-accent);border-color:var(--bt-accent)}
+.bt-computer-files{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.bt-computer-files li{display:grid;gap:2px;min-width:0}
+.bt-computer-files li button{justify-self:start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt-computer-files li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt-computer-monitor,.bt-computer-location{display:grid;gap:8px;min-width:0}
 .bt-computer-location{padding:12px;background:var(--bt-hover);border:1px solid var(--bt-line);border-radius:8px}
 .bt-computer-location-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}

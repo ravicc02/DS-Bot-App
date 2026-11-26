@@ -7,12 +7,23 @@ import { computerImageName } from './images.js'
 const unavailable = () => new Error('Computer control is unavailable on this host.')
 const ended = () => new Error('Computer control ended. Select a target again in the conversation.')
 const field = type => ({ type, required: true })
+const button = { type: 'string', enum: ['left', 'right', 'middle'] }
 const specs = [
   ['observe', 'See the computer selected in this conversation. Use this before clicking.', {}],
-  ['click', 'Click coordinates in the most recent computer screenshot.', { x: field('integer'), y: field('integer') }],
+  ['click', 'Click coordinates in the most recent computer screenshot. Defaults to a single left click. Set count to 2 for double-click.', {
+    x: field('integer'), y: field('integer'), button, count: { type: 'integer', enum: [1, 2] },
+  }],
+  ['drag', 'Drag between two points in the most recent computer screenshot. Observe again before the next pointer action.', {
+    from_x: field('integer'), from_y: field('integer'), to_x: field('integer'), to_y: field('integer'), button,
+  }],
   ['type', 'Type text into the selected computer target.', { text: field('string') }],
   ['key', 'Press a single key on the selected computer. Use lowercase key names, such as return or tab.', { key: field('string') }],
-  ['scroll', 'Scroll up or down on the selected computer.', { x: field('integer'), y: field('integer'), direction: { ...field('string'), enum: ['up', 'down'] }, amount: field('integer') }],
+  ['hotkey', 'Press a shortcut on the selected computer. Use unique lowercase ctrl, alt or shift modifiers followed by one key, such as ["ctrl", "a"].', {
+    keys: { ...field('array'), items: { type: 'string' } },
+  }],
+  ['scroll', 'Scroll vertically or horizontally at coordinates in the most recent computer screenshot.', {
+    x: field('integer'), y: field('integer'), direction: { ...field('string'), enum: ['up', 'down', 'left', 'right'] }, amount: field('integer'),
+  }],
 ]
 
 export function desktopRelay(child = process) {

@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { findDockerDesktop } from '../src/computer/docker-installation.mjs'
+import { desktopRuntime, findDockerDesktop } from '../src/computer/docker-installation.mjs'
 import { dockerBackend, verifyContainer } from '../src/computer/docker.mjs'
 import seccomp from '../src/computer/seccomp.json' with { type: 'json' }
 
@@ -127,4 +127,52 @@ test('deleting a desktop requires its current container ID and keeps its volumes
   await backend.deleteInstance(null, id)
   assert.deepEqual(await backend.inventory(), [])
   assert.deepEqual(changes, [['container', 'stop', '--time', '3', id], ['container', 'rm', id]])
+})
+
+const podmanInfo = (overrides = {}) => ({
+  Name: 'ds-bot-cua', Created: '2026-11-26T01:40:38+08:00', State: 'running', Rootful: false,
+  ConfigDir: { Path: String.raw`C:\podman\machine\wsl` },
+  SSHConfig: { RemoteUsername: 'user', Port: 54321, IdentityPath: join(tmpdir(), 'podman-key') },
+  ...overrides,
+})
+
+function podmanRuntime(run) {
+  return desktopRuntime('podman', { locatePodman: async () => 'podman.exe', run })
+}
+
+test('Podman probes only the named machine and shares an in-flight inspection', async () => {
+  const calls = []
+  const runtime = podmanRuntime(async (_binary, args, options) => {
+    calls.push(args)
+    assert.equal(options.env.CONTAINERS_MACHINE_PROVIDER, 'wsl')
+    return { stdout: JSON.stringify([podmanInfo()]) }
+  })
+  const [first, second] = await Promise.all([runtime.connect(), runtime.connect()])
+  assert.deepEqual(first, second)
+  assert.equal(first.id, podmanInfo().Created)
+  assert.deepEqual(calls, [['machine', 'inspect', 'ds-bot-cua']])
+  await runtime.connect()
+  assert.equal(calls.length, 2, 'a later command revalidates the machine')
+})
+
+test('Podman preserves isolation checks and lets a timed-out probe be retried', async () => {
+  let result
+  const runtime = podmanRuntime(async () => {
+    if (result instanceof Error) throw result
+    return { stdout: JSON.stringify([result]) }
+  })
+  result = Object.assign(new Error('command timed out'), { killed: true })
+  await assert.rejects(runtime.connect(), /runtime did not respond\. Try again/u)
+  result = Object.assign(new Error('machine missing'), { code: 125, stderr: 'Error: ds-bot-cua: VM does not exist\n' })
+  await assert.rejects(runtime.connect(), { code: 'CUA_RUNTIME_STOPPED' })
+  result = Object.assign(new Error('different problem'), { code: 125 })
+  await assert.rejects(runtime.connect(), /Could not check the Podman machine/u)
+  result = podmanInfo({ State: 'stopped' })
+  await assert.rejects(runtime.connect(), { code: 'CUA_RUNTIME_STOPPED' })
+  for (const invalid of [{ Rootful: true }, { ConfigDir: { Path: 'C:/podman/hyperv' } }, { Created: null }]) {
+    result = podmanInfo(invalid)
+    await assert.rejects(runtime.connect(), /rootless Podman machine using WSL 2/u)
+  }
+  result = podmanInfo()
+  assert.equal((await runtime.connect()).id, result.Created)
 })

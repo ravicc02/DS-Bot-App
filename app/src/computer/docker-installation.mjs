@@ -62,18 +62,31 @@ export function desktopRuntime(name, { run = exec, locatePodman = findPodman } =
   const find = podman ? locatePodman : async () => (await findDockerDesktop())?.binary
   let activeMachine
   let starting
+  let inspecting
 
-  async function machine(binary) {
-    const { stdout } = await run(binary, ['machine', 'list', '--format', 'json'], options)
-    const entry = (JSON.parse(stdout) ?? []).find(item => item.Name === machineName)
-    if (!entry) return
-    if (entry.VMType !== 'wsl' || !Number.isFinite(Date.parse(entry.Created))) throw invalidMachine()
-    const inspected = await run(binary, ['machine', 'inspect', machineName], options)
-    const info = JSON.parse(inspected.stdout)[0]
+  async function inspectMachine(binary) {
+    let stdout
+    try {
+      ({ stdout } = await run(binary, ['machine', 'inspect', machineName], options))
+    } catch (error) {
+      if (error.code === 125 && /\bds-bot-cua: VM does not exist\b/u.test(error.stderr ?? '')) return
+      if (error.killed) throw new Error('The private desktop runtime did not respond. Try again in a moment.', { cause: error })
+      throw new Error('Could not check the Podman machine. Check Podman Desktop and try again.', { cause: error })
+    }
+    const info = JSON.parse(stdout)[0]
     const ssh = info?.SSHConfig
-    if (info?.Name !== machineName || info.Rootful !== false || !/^[a-z_][a-z0-9_-]*$/iu.test(ssh?.RemoteUsername ?? '')
+    if (info?.Name !== machineName || win32.basename(info.ConfigDir?.Path ?? '') !== 'wsl'
+      || !Number.isFinite(Date.parse(info.Created)) || info.Rootful !== false || !/^[a-z_][a-z0-9_-]*$/iu.test(ssh?.RemoteUsername ?? '')
       || !Number.isSafeInteger(ssh.Port) || ssh.Port < 1 || ssh.Port > 65535 || !isAbsolute(ssh.IdentityPath ?? '')) throw invalidMachine()
-    return { id: entry.Created, running: entry.Running === true && info.State === 'running', ssh }
+    return { id: info.Created, running: info.State === 'running', ssh }
+  }
+
+  function machine(binary) {
+    if (inspecting?.binary === binary) return inspecting.result
+    const request = { binary, result: inspectMachine(binary) }
+    request.result = request.result.finally(() => { if (inspecting === request) inspecting = undefined })
+    inspecting = request
+    return request.result
   }
 
   async function connect() {

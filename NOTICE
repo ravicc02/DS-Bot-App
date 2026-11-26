@@ -93,9 +93,10 @@ Apache License, Version 2.0, Copyright (c) Microsoft Corporation
   The license is the same Apache License, Version 2.0 that covers this
   repository; see LICENSE for the text.
 
-The desktop queue and viewer focus/clipboard handling adapt OpenMausBot
-(server/turn-resources.ts and src/components/LiveDesktop.tsx), Copyright 2026
-Milind Soni and OpenMausBot contributors, Apache License, Version 2.0.
+The desktop queue, preview scheduling and viewer focus/clipboard handling
+adapt OpenMausBot (server/turn-resources.ts, src/components/ComputerPanel.tsx,
+and src/components/LiveDesktop.tsx), Copyright 2026 Milind Soni and
+OpenMausBot contributors, Apache License, Version 2.0.
 Source: https://github.com/milind-soni/OpenMausBot
 
 The generated ds-bot/client.js bundles noVNC 1.7.0, Copyright (C) 2022 the
@@ -155,3 +156,7 @@ XFCE image and retains the packages and notices from that image.
 The shared Linux desktop includes a modified Moby seccomp profile, Apache-2.0.
 Source: https://github.com/moby/profiles/blob/9ee3204f0d0cfa19ca2c6a7b0fcf5a2b353954ae/seccomp/default.json
 DS Bot adds the namespace and chroot operations required by Chromium's sandbox.
+
+Private desktop pool seat selection adapts OpenMausBot
+(server/local-vm-seat-pool.ts), Copyright 2026 Milind Soni and OpenMausBot
+contributors, Apache License, Version 2.0.

@@ -24,6 +24,12 @@ if (host !== undefined && location.origin === host) {
         ipcRenderer.on('ds-bot:computer-progress', receive)
         return () => ipcRenderer.off('ds-bot:computer-progress', receive)
       },
+      windowShown: () => ipcRenderer.invoke('ds-bot:computer-window-shown'),
+      onWindowShown(listener) {
+        const receive = (_event, shown) => listener(shown)
+        ipcRenderer.on('ds-bot:computer-window-shown', receive)
+        return () => ipcRenderer.off('ds-bot:computer-window-shown', receive)
+      },
       view: (conversation, op, input, display) => ipcRenderer.invoke('ds-bot:computer-view', conversation, op, input, display),
       live(conversation, display, receive, disconnected) {
         const { port1, port2 } = new MessageChannel()

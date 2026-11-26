@@ -299,6 +299,11 @@ export function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, ro
       tab === 'computer' && inMainView ? h(ComputerPane, {
         key: conversation,
         subject: bot?.id ?? room.id,
+        sessionId: part,
+        workDir: (bot ?? room).workDir,
+        actions,
+        run,
+        onPickFolder: workDir => run(bot ? actions.updateBot(bot.id, { workDir }) : actions.updateRoom(room.id, { workDir })),
         conversation,
         openSettings: resume => actions.openSettings('browser', resume ? 'private-desktop' : null, resume),
         members: room?.members.map(id => roster.byId[id]).filter(Boolean),

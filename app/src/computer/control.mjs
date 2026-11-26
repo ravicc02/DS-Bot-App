@@ -24,12 +24,16 @@ export function createComputerControl(backends) {
     slot.lease = undefined
     clearTimeout(lease.timer)
     lease.signal.abort()
+    slot.drainingType = lease.type
     // A new owner must wait for the driver and the in-flight call to finish releasing input.
     slot.draining = Promise.all([lease.done.catch(error => {
       if (error instanceof AggregateError) throw error
     }), lease.tail]).then(async ([driver]) => {
       await driver?.close()
-    }).catch(error => { slot.failed = true; throw error }).finally(() => { slot.draining = undefined })
+    }).catch(error => { slot.failed = true; throw error }).finally(() => {
+      slot.draining = undefined
+      slot.drainingType = undefined
+    })
     return slot.draining
   }
 
@@ -62,6 +66,7 @@ export function createComputerControl(backends) {
     const signal = new AbortController()
     const lease = { id: randomUUID(), owner: { ...owner }, type, signal, tail: Promise.resolve() }
     slot.lease = lease
+    lease.expiresAt = Date.now() + TURN_LIFETIME
     lease.done = Promise.resolve().then(() => slot.backend.open(selection, signal.signal, slot.scope))
     lease.done.catch(() => { if (slot.lease === lease) void stop(slot).catch(() => {}) })
     lease.timer = setTimeout(() => { if (slot.lease === lease) void stop(slot).catch(() => {}) }, TURN_LIFETIME)
@@ -107,9 +112,16 @@ export function createComputerControl(backends) {
       if (!driver.openLive) throw new Error(EXPIRED)
       return driver.openLive(port)
     },
+    holder(slot) {
+      if (slot.failed) return { expiresAt: Infinity }
+      if (slot.lease) return slot.lease
+      if (slot.draining || slot.handoff || queue(slot).length) return { expiresAt: Date.now() }
+      return null
+    },
     waitCount: slot => queue(slot).length,
     available: slot => !closed && !slot.failed && !slot.lease && !slot.draining && !slot.handoff,
     active: (slot, id) => slot?.lease?.id === id,
+    humanBusy: () => [...slots.values()].some(slot => slot.lease?.type === 'user' || slot.drainingType === 'user'),
     busy: (target, matches = () => true) => [...slots.values()].some(slot => slot.backend === backends[target] && matches(slot.scope)
       && (slot.lease || slot.draining || slot.failed || slot.handoff || queue(slot).length)),
     async drain(target, matches = () => true) {

@@ -20,6 +20,7 @@ import { dockerBackend, newComputerInstance, privateDesktopScope } from './compu
 import { desktopRuntime, privateDesktopRuntime } from './computer/docker-installation.mjs'
 import { windowsBackend } from './computer/driver.mjs'
 import { createComputerService } from './computer/service.mjs'
+import { isPoolOperator, poolOperator } from './computer/seat-pool.mjs'
 import { canonicalExecPath } from './canonical-path.mjs'
 import { chooseLocations, localeText, programFolder, saveLocations, text } from './first-run.mjs'
 import { hostPort } from './host-port.mjs'
@@ -200,7 +201,8 @@ async function start() {
     const settingsFile = join(dirname(idFile), 'computer-settings.json')
     const validIdle = value => Number.isSafeInteger(value) && value >= 0 && value <= 1440
     const validLimit = value => Number.isSafeInteger(value) && value >= 1 && value <= 8
-    const validMode = value => value === 'shared' || value === 'per-bot'
+    const validMode = value => value === 'shared' || value === 'per-bot' || value === 'pool'
+    const validDesktopOperator = value => isBotId(value) || isPoolOperator(value)
     let computerSettings = { idleMinutes: 480, privateMode: 'shared', maxInstances: 2 }
     try {
       const saved = JSON.parse(readFileSync(settingsFile, 'utf8'))
@@ -233,7 +235,9 @@ async function start() {
         ? (zh ? 'Bot 可以看到主屏幕，并使用这台电脑的鼠标和键盘。' : 'The Bot can see the primary screen and use this computer’s mouse and keyboard.')
         : computerSettings.privateMode === 'per-bot'
           ? (zh ? '所选 Bot 使用自己的私有桌面、工作区和浏览器配置。' : 'The selected Bot uses its own private desktop, workspace, and browser profile.')
-          : (zh ? '获授权的 Bot 共用此桌面、工作区和浏览器配置。' : 'Authorized Bots share this desktop, workspace, and browser profile.')
+          : computerSettings.privateMode === 'pool'
+            ? (zh ? '此对话会使用桌面池中的一台桌面。其他对话可能在稍后使用同一桌面。' : 'This conversation uses a desktop from the pool. Another conversation may use it later.')
+            : (zh ? '获授权的 Bot 共用此桌面、工作区和浏览器配置。' : 'Authorized Bots share this desktop, workspace, and browser profile.')
       const { response } = await dialog.showMessageBox(mainWindow, {
         type: 'warning', title: 'DS Bot App', noLink: true, defaultId: 0, cancelId: 0,
         buttons: zh ? ['取消', '允许'] : ['Cancel', 'Allow'],
@@ -243,7 +247,8 @@ async function start() {
         detail: `${access}\n\n${scope}`,
       })
       return response === 1
-    }, { privateMode: () => computerSettings.privateMode, privateScope: privateDesktopScope })
+    }, { privateMode: () => computerSettings.privateMode, privateScope: privateDesktopScope,
+      maxInstances: () => computerSettings.maxInstances })
     ipcMain.on('ds-bot:computer-reset', event => { if (fromWindow(event)) resetComputer() })
     ipcMain.handle('ds-bot:computer-choose', (event, conversation, target, operator) => {
       assertComputerWindow(event)
@@ -283,7 +288,8 @@ async function start() {
       if (op === 'policy') {
         if (!validMode(value?.privateMode) || !validLimit(value?.maxInstances)) throw new Error('Invalid private desktop isolation settings.')
         const { privateMode, maxInstances } = value
-        if (privateMode === computerSettings.privateMode) return saveComputerSettings({ maxInstances })
+        const shrinkPool = privateMode === 'pool' && maxInstances < computerSettings.maxInstances
+        if (privateMode === computerSettings.privateMode && !shrinkPool) return saveComputerSettings({ maxInstances })
         await computer.changePrivatePolicy(() => saveComputerSettings({ privateMode, maxInstances }))
         return { ...computerSettings, runtime: runtime.name }
       }
@@ -292,7 +298,8 @@ async function start() {
         if (!Array.isArray(value) || !value.every(isBotId)) throw new Error('Invalid desktop inventory request.')
         const bots = new Map(value.map(id => [privateDesktopScope(id), id]))
         const entries = await backends['private-desktop'].inventory()
-        return entries.map(entry => ({ ...entry, botId: bots.get(entry.scope) }))
+        const seats = new Map(Array.from({ length: 8 }, (_, index) => [privateDesktopScope(poolOperator(index)), index + 1]))
+        return entries.map(entry => ({ ...entry, botId: bots.get(entry.scope), seat: seats.get(entry.scope) }))
       }
       if (op === 'stop' || op === 'stop-instance') {
         const single = op === 'stop-instance'
@@ -332,7 +339,7 @@ async function start() {
       }
       if (op === 'start-instance' || op === 'restart-instance') {
         const restart = op === 'restart-instance'
-        if (value !== null && !isBotId(value)) throw new Error('Invalid private desktop instance.')
+        if (value !== null && !validDesktopOperator(value)) throw new Error('Invalid private desktop instance.')
         if (restart) {
           const zh = app.getLocale().startsWith('zh')
           const { response } = await dialog.showMessageBox(mainWindow, {
@@ -357,11 +364,11 @@ async function start() {
         return true
       }
       if (op === 'startup') {
-        if (value !== null && value !== undefined && !isBotId(value)) throw new Error('Invalid private desktop instance.')
+        if (value !== null && value !== undefined && !validDesktopOperator(value)) throw new Error('Invalid private desktop instance.')
         return computer.checkStartup(value ?? undefined)
       }
       if (op === 'preview-instance') {
-        if (value !== null && !isBotId(value)) throw new Error('Invalid private desktop instance.')
+        if (value !== null && !validDesktopOperator(value)) throw new Error('Invalid private desktop instance.')
         return computer.previewPrivateInstance(value ?? undefined)
       }
       throw new Error('Unknown computer operation.')
@@ -374,6 +381,10 @@ async function start() {
         assertComputerWindow(event)
         await computer.live(message?.conversation, message?.display, port)
       })().catch(() => {}).finally(() => port.close())
+    })
+    ipcMain.handle('ds-bot:computer-window-shown', (event) => {
+      assertWindow(event)
+      return windowShown()
     })
     ipcMain.handle('ds-bot:computer-view', (event, conversation, op, input, display) => {
       assertComputerWindow(event)
@@ -850,8 +861,17 @@ function createWindow() {
   const contents = win.webContents
   contents.on('did-start-navigation', event => { if (event.isMainFrame && !event.isSameDocument) resetComputer() })
   contents.on('render-process-gone', resetComputer)
-  win.on('hide', resetComputer)
-  win.on('minimize', resetComputer)
+  if (computer) {
+    const notifyComputerWindow = () => contents.send('ds-bot:computer-window-shown', windowShown())
+    const hideComputerWindow = () => {
+      resetComputer()
+      notifyComputerWindow()
+    }
+    win.on('hide', hideComputerWindow)
+    win.on('minimize', hideComputerWindow)
+    win.on('show', notifyComputerWindow)
+    win.on('restore', notifyComputerWindow)
+  }
   // The session is the same for every window of the app, so the handler is bound once.
   if (!downloadsBound) {
     downloadsBound = true

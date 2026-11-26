@@ -14,6 +14,7 @@ import { HeaderPill } from './header.js'
 import { ComposerPlus, ComposerVoice, menuIcons } from './composer.js'
 import { CHATS_SOURCE, atSources } from './at-menu.js'
 import { BtwDock, BtwTurnTail } from './btw.js'
+import { computerFileAddress } from './computer-files.js'
 import { SIDE_CSS, sideSource } from './side-chat.js'
 import { VOICE_BUNDLE, closingReplyText, requestPreparation } from './speech.js'
 import { sameVersion } from './dsh-offer.js'
@@ -802,6 +803,17 @@ export function apply(ctx) {
     actions.closePanel()
     try {
       ctx.get('sidebarRight')?.openTab('files')
+    } catch (error) {
+      actions.reportError(error, 'right-sidebar')
+    }
+  }
+
+  actions.canOpenComputerFile = () => Boolean(ctx.get('sidebarRight') && ctx.get('remote.workspaceFiles'))
+  actions.statComputerFile = (sessionId, path, signal) => ctx.get('remote.workspaceFiles').stat(sessionId, path, signal)
+  actions.openComputerFile = (sessionId, path) => {
+    try {
+      ctx.get('sidebarRight')?.openResource(computerFileAddress(sessionId, path))
+      actions.closePanel()
     } catch (error) {
       actions.reportError(error, 'right-sidebar')
     }

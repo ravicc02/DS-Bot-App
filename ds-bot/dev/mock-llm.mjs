@@ -130,15 +130,34 @@ function decide(body) {
   }).filter(message => message.role !== 'user' || message.content.length > 0)
   const last = messages.at(-1)
   const blocks = Array.isArray(last?.content) ? last.content : []
-  const computerPrompt = message => message?.role === 'user'
-    ? /^Computer smoke: (observe|input) (fixture-[a-z0-9-]+)(?: (\d+) (\d+))?$/u.exec(textOf(message.content).trim()) : null
+  if (tools.has('present') && last?.role === 'user' && textOf(last.content).trim() === 'Computer files smoke') {
+    return [tool('present', { files: [{ path: 'desktop-fixture.txt' }, { path: 'removed-fixture.txt' }] })]
+  }
+  if (blocks.some(block => block.type === 'tool_result')) {
+    const previous = messages.at(-2)?.content
+    if (Array.isArray(previous) && previous.some(block => block.type === 'tool_use' && block.name === 'present'
+      && block.input?.files?.[0]?.path === 'desktop-fixture.txt')) return [text('Computer files smoke finished.')]
+  }
+  const computerPrompt = message => {
+    if (message?.role !== 'user') return null
+    const content = textOf(message.content).trim()
+    const direct = /^Computer smoke: (observe|input|replace-local|replace-private) (fixture-[a-z0-9-]+)(?: (\d+) (\d+))?$/u.exec(content)
+    if (direct) return { mode: direct[1], marker: direct[2], x: direct[3], y: direct[4] }
+    if (!content.startsWith('[Group chat')) return null
+    const round = /(?:^|\n)This round so far[^\n]*:\n([\s\S]*?)(?:\n\n|$)/u.exec(content)?.[1]
+    const opener = round?.split('\n').findLast(line => line.startsWith('User: '))
+    const group = /^User: Computer queue smoke: (fixture-[a-z0-9-]+) @all$/u.exec(opener ?? '')
+    if (!group) return null
+    const second = system.includes("You are Computer QA, a Bot on the user's team")
+    return { mode: 'input', marker: `${group[1]}-${second ? 'second' : 'first'}`, queueLead: !second }
+  }
   if (computerPrompt(last) && tools.has('computer_observe')) return [tool('computer_observe', {})]
   if (blocks.some(block => block.type === 'tool_result')) {
     const previous = messages.at(-2)?.content
-    const action = Array.isArray(previous) && previous.find(block => block.type === 'tool_use' && /^computer_(observe|click|type|key)$/u.test(block.name))
-    const prompt = action && messages.findLast(computerPrompt)
+    const action = Array.isArray(previous) && previous.find(block => block.type === 'tool_use' && /^computer_(observe|click|type|key|hotkey)$/u.test(block.name))
+    const prompt = action && computerPrompt(messages.findLast(computerPrompt))
     if (prompt) {
-      const [, mode, marker, x, y] = computerPrompt(prompt)
+      const { mode, marker, x, y, queueLead } = prompt
       const results = blocks.filter(block => block.type === 'tool_result')
       const failed = results.some(block => block.is_error)
       const failure = results.map(block => textOf(block.content)).join(' ').trim().slice(0, 400)
@@ -146,9 +165,19 @@ function decide(body) {
         return [text(`Computer smoke ${marker}: failed. ${failure}`)]
       }
       if (action.name === 'computer_key') return [text(`Computer smoke ${marker}: submitted.`)]
-      if (action.name === 'computer_type') return [tool('computer_key', { key: 'return' })]
-      if (action.name === 'computer_observe' && mode === 'input' && x !== undefined) return [tool('computer_click', { x: Number(x), y: Number(y) })]
-      if (mode === 'input') return [tool('computer_type', { text: marker })]
+      const replace = mode === 'replace-local' || mode === 'replace-private'
+      if (action.name === 'computer_hotkey') return [tool('computer_type', { text: marker })]
+      if (action.name === 'computer_type') {
+        if (replace && action.input?.text === 'replace-me') return [tool('computer_hotkey', { keys: ['ctrl', mode === 'replace-local' ? 'a' : 'u'] })]
+        return [tool('computer_key', { key: 'return' })]
+      }
+      if (action.name === 'computer_observe' && x !== undefined) return [tool('computer_click', { x: Number(x), y: Number(y) })]
+      if (replace) return [tool('computer_type', { text: 'replace-me' })]
+      if (mode === 'input') {
+        const input = [tool('computer_type', { text: marker })]
+        if (queueLead) input.delay = 8_000
+        return input
+      }
       return [text(`Computer smoke ${marker}: screenshot received.`)]
     }
   }

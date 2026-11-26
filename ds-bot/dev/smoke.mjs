@@ -63,17 +63,17 @@ const state = () => readJson(join(HOME, 'bot', 'state.json'))
 const botNamed = wanted => Object.values(state().bots).find(bot => bot.name === wanted)
 const roomNamed = wanted => Object.values(state().rooms).find(room => room.name === wanted)
 
-// Quiet: no Bot shows an activity and the mock has taken no call for QUIET_MS. Deliveries
-// start a moment after a turn ends, so activity alone is not enough.
+// Some tools clear the activity label while their turn is still running. Also check the
+// turn map, and leave time for deliveries that start just after a turn ends.
 async function settle() {
   const deadline = Date.now() + STEP_TIMEOUT_MS
   let calls = mockLog().length
   let since = Date.now()
   while (Date.now() < deadline) {
     await sleep(400)
-    const { activity = {} } = await api('state')
+    const { activity = {}, work } = await api('state')
     const now = mockLog().length
-    if (now !== calls || Object.keys(activity).length > 0) {
+    if (now !== calls || Object.keys(activity).length > 0 || Object.keys(work?.turns ?? {}).length > 0) {
       calls = now
       since = Date.now()
     } else if (Date.now() - since >= QUIET_MS) {
@@ -382,8 +382,9 @@ await step('Coder works in a folder of its own', () => api('update-bot', { id: b
 await step('Coder answers from its folder', () => send(botNamed('Coder').id, '你好'), () => expect(coderParts() === partsBeforeFolder + 1, 'Coder moved on again'))
 await step('Coder goes back to the team workspace', () => api('update-bot', { id: botNamed('Coder').id, workDir: '' }), () => {
   const coder = botNamed('Coder')
+  const workspaceName = basename(process.env.DS_BOT_WORKSPACE || 'bot-workspace')
   return expect(coder.workDir === undefined, 'folder not cleared')
-    ?? expect(folderOf(coder.sessionId)?.endsWith('-bot-workspace--'), `Coder's chat is under ${folderOf(coder.sessionId)}`)
+    ?? expect(folderOf(coder.sessionId)?.endsWith(`-${workspaceName}--`), `Coder's chat is under ${folderOf(coder.sessionId)}`)
 })
 rmSync(project, { recursive: true, force: true })
 

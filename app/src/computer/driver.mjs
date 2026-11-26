@@ -5,11 +5,17 @@ import { openMcp } from './mcp.mjs'
 
 const FRAME_LIFETIME = 30_000
 const POINT = { x: 'number', y: 'number' }
+const DRAG_POINTS = { from_x: 'number', from_y: 'number', to_x: 'number', to_y: 'number' }
+const BUTTONS = ['left', 'right', 'middle']
+const DIRECTIONS = ['up', 'down', 'left', 'right']
+const MODIFIERS = new Set(['ctrl', 'alt', 'shift'])
 const TOOLS = {
-  click: ['click', POINT],
+  click: ['click', { ...POINT, button: BUTTONS, count: 'integer' }],
+  drag: ['drag', { ...DRAG_POINTS, button: BUTTONS }],
   type: ['type_text', { text: 'string' }],
   key: ['press_key', { key: 'string' }],
-  scroll: ['scroll', { ...POINT, direction: 'string', amount: 'integer' }],
+  hotkey: ['hotkey', { keys: 'string[]' }],
+  scroll: ['scroll', { ...POINT, direction: DIRECTIONS, amount: 'integer' }],
 }
 const INPUT_FIELDS = { target: 'target', delivery_mode: 'string' }
 const WINDOWS_DRIVER_SHA = 'f87066ca41e6f8437923a372a2d3556c6131463f19d51a4be510f7e7c13eb4c5'
@@ -30,19 +36,38 @@ function verifySchema(catalog, name, fields) {
   if (schema?.type !== 'object' || !schema.properties || schema.required?.some(key => !(key in fields))) throw new Error('The computer driver tool schema changed.')
   for (const [key, type] of Object.entries(fields)) {
     const property = schema.properties[key]
-    if (type === 'target' ? !targetShape(property) : property?.type !== type) throw new Error('The computer driver tool schema changed.')
+    const compatible = type === 'target' ? targetShape(property)
+      : type === 'string[]' ? property?.type === 'array' && property.items?.type === 'string'
+        : Array.isArray(type) ? property?.type === 'string' && type.every(value => property.enum?.includes(value))
+          : property?.type === type
+    if (!compatible) throw new Error('The computer driver tool schema changed.')
     if (key === 'delivery_mode' && !property.enum?.includes('foreground')) throw new Error('Targeted input is unavailable.')
   }
 }
 
+const coordinates = (...values) => values.every(n => Number.isInteger(n) && n >= 0 && n < 16_384)
+
 export function checkedAction(action) {
   const kind = action?.kind
   if (kind === 'observe') return { kind }
-  if (kind === 'click' && [action.x, action.y].every(n => Number.isInteger(n) && n >= 0 && n < 16_384)) return { kind, x: action.x, y: action.y }
+  if (kind === 'click') {
+    const { x, y, button = 'left', count = 1 } = action
+    if (coordinates(x, y) && BUTTONS.includes(button) && [1, 2].includes(count)) return { kind, x, y, button, count }
+  }
+  if (kind === 'drag') {
+    const { from_x, from_y, to_x, to_y, button = 'left' } = action
+    if (coordinates(from_x, from_y, to_x, to_y) && BUTTONS.includes(button)) return { kind, from_x, from_y, to_x, to_y, button }
+  }
   if (kind === 'type' && typeof action.text === 'string' && action.text.length > 0 && action.text.length <= 2000 && !/[\p{Cc}]/u.test(action.text)) return { kind, text: action.text }
   if (kind === 'key' && typeof action.key === 'string' && KEY.test(action.key)) return { kind, key: action.key }
-  if (kind === 'scroll' && [action.x, action.y].every(n => Number.isInteger(n) && n >= 0 && n < 16_384)
-    && ['up', 'down'].includes(action.direction) && Number.isInteger(action.amount) && action.amount >= 1 && action.amount <= 8) {
+  if (kind === 'hotkey' && Array.isArray(action.keys) && action.keys.length >= 2 && action.keys.length <= 4) {
+    const modifiers = Array.from(action.keys.slice(0, -1))
+    const key = action.keys.at(-1)
+    if (new Set(modifiers).size === modifiers.length && modifiers.every(value => MODIFIERS.has(value))
+      && typeof key === 'string' && KEY.test(key)) return { kind, keys: [...modifiers, key] }
+  }
+  if (kind === 'scroll' && coordinates(action.x, action.y)
+    && DIRECTIONS.includes(action.direction) && Number.isInteger(action.amount) && action.amount >= 1 && action.amount <= 8) {
     return { kind, x: action.x, y: action.y, direction: action.direction, amount: action.amount }
   }
   throw new Error('Invalid computer action.')
@@ -102,13 +127,13 @@ export async function createDriver(connection, { signal, guard, bindCapture = fa
           return image
         }
         const input = { ...args, target, delivery_mode: 'foreground' }
-        if (action === 'click' || action === 'scroll') {
-          if (!frame || frame.until <= Date.now() || args.x >= frame.width || args.y >= frame.height) throw new Error('Click inside the latest computer screenshot.')
-          if (bindCapture && action === 'click') {
-            input.capture_id = frame.captureId
-            frame = undefined
-          }
+        const points = action === 'drag' ? [[args.from_x, args.from_y], [args.to_x, args.to_y]]
+          : action === 'click' || action === 'scroll' ? [[args.x, args.y]] : []
+        if (points.length && (!frame || frame.until <= Date.now() || points.some(([x, y]) => x >= frame.width || y >= frame.height))) {
+          throw new Error('Use coordinates inside the latest computer screenshot.')
         }
+        if (bindCapture && action === 'click') input.capture_id = frame.captureId
+        if (action === 'drag' || (bindCapture && action === 'click')) frame = undefined
         const [name] = TOOLS[action]
         checked(await request(name, input))
         return { done: true }
