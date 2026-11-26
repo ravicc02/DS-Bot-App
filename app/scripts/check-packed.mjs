@@ -273,8 +273,10 @@ async function chat(cdp, computer) {
   // The mock model's greeting for a new team.
   await until(text('先让团队帮你做哪块'), 'the greeting')
   await dismissNotice()
-  // The private desktop suite checks its own model round after authorizing the desktop.
-  if (computer?.mode === 'linux') return checkComputer({ ...computer, cdp, evaluate, until, devtools })
+  // The desktop suites verify a model turn after the user authorizes computer access.
+  if (computer && ['1', 'windows', 'linux', 'live'].includes(computer.mode)) {
+    return checkComputer({ ...computer, cdp, evaluate, until, devtools })
+  }
   // Click the composer through the input pipeline. A bare focus() is not enough where no window
   // manager gives the window focus (xvfb in CI): the text and the Enter would go nowhere.
   const box = "[...document.querySelectorAll('[role=textbox][contenteditable=true], textarea')].at(-1)"

@@ -402,6 +402,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     await until(response, 'the mock model reporting its computer action', 45_000)
     assert.equal(await evaluate(response), `Computer smoke ${marker}: ${readInput ? 'submitted.' : 'screenshot received.'}`)
     const deadline = Date.now() + 10_000
+    let verification
     while (Date.now() < deadline) {
       const rows = log().slice(previous)
       const sawImage = rows.some(row => row.images > 0 && row.out?.some(part => readInput
@@ -410,13 +411,16 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
         : part.text === `Computer smoke ${marker}: screenshot received.`))
       const current = await api('state', {})
       const sawShortcut = !readInput || rows.some(row => row.out?.some(part => part.name === 'computer_hotkey'))
-      if (sawImage && sawShortcut && !current.work.turns[session] && (!readInput || await readInput() === marker)) {
+      const input = await readInput?.()
+      const turnFinished = !current.work.turns[session]
+      verification = { sawImage, sawShortcut, turnFinished, inputReceived: input !== undefined, inputMatches: input === marker }
+      if (sawImage && sawShortcut && turnFinished && (!readInput || input === marker)) {
         console.log(`check-packed: the mock model received a real ${target} desktop screenshot${readInput ? ' and replaced input using a keyboard shortcut' : ''} after approval`)
         return
       }
       await sleep(250)
     }
-    throw new Error(`The ${target} desktop action did not finish with the expected screenshot and fixture result.`)
+    throw new Error(`The ${target} desktop action could not be verified: ${JSON.stringify(verification)}`)
   }
 
   async function checkLinux() {
