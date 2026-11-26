@@ -125,7 +125,7 @@ def owned(handle):
     return owner.value == pid
 
 seen = set()
-deadline = time.monotonic() + 22
+deadline = time.monotonic() + 45
 while time.monotonic() < deadline:
     for dialog in windows():
         if not owned(dialog) or not user.IsWindowVisible(dialog):
@@ -154,7 +154,7 @@ sys.exit(1)
 async function nativeButton(python, pid, names) {
   assert.ok(Number.isSafeInteger(pid))
   try {
-    await exec(python, ['-X', 'utf8', '-c', confirmDialog, String(pid), ...names], { windowsHide: true, timeout: 27_000 })
+    await exec(python, ['-X', 'utf8', '-c', confirmDialog, String(pid), ...names], { windowsHide: true, timeout: 50_000 })
   } catch (error) {
     throw new Error(error.stdout?.trim() || error.stderr?.trim() || 'The Windows helper could not confirm the test dialog.')
   }
@@ -176,9 +176,9 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
   const settings = '.bt-computer-settings button'
   const screen = `document.querySelector(${JSON.stringify(`${livePanel} .bt-computer-preview`)})`
   const settingsFrame = `document.querySelector('.bt-computer-settings-preview')?.naturalWidth === 1280`
-  const refresh = byText(pane, ['Refresh preview', '刷新预览'])
   const frameReady = `${screen}?.naturalWidth > 0`
-  const activeFrame = `${screen}?.hasAttribute('data-active')`
+  const canvas = `document.querySelector(${JSON.stringify(`${livePanel} .bt-computer-live[data-connected] canvas`)})`
+  const activeFrame = `Boolean(${canvas}?.width)`
   const privateLabels = ['Private desktop', '私有桌面']
   const authorizePrivate = async (trigger = () => click(pane, ...privateLabels)) => {
     try { await Promise.all([nativeButton(python, pid, ['Allow', '允许']), trigger()]) } catch (error) {
@@ -187,6 +187,8 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
         places: [...document.querySelectorAll('.bt-computer-places button')].map(button => [button.textContent, button.disabled, button.getAttribute('aria-pressed')]),
         selected: [...document.querySelectorAll('[data-bot-id][aria-current=page]')].map(node => node.innerText),
         focused: document.hasFocus(),
+        alert: document.querySelector('.bt-computer [role=alert]')?.textContent,
+        setup: Boolean(document.querySelector('.bt-computer-setup')),
       })`)
       throw new Error(`${error.message} ${JSON.stringify(details)}`)
     }
@@ -357,10 +359,18 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       assert.equal(await evaluate(`${prepareButton}?.disabled`), false, await evaluate(setupAlert))
       console.log('check-packed: the setup guide started the Podman machine')
     }
+    const setupProgress = step => `document.querySelector('.bt-computer-steps li:nth-child(${step}) .bt-computer-progress')`
+    const checkProgress = async (step, screenshot) => {
+      const progress = setupProgress(step)
+      await until(`${progress}?.querySelector('progress') && /[0-9]+:[0-9]{2}/.test(${progress}.querySelector('time')?.textContent ?? '')`,
+        `setup progress for step ${step}`)
+      await capture(screenshot)
+    }
     await Promise.all([
       nativeButton(python, pid, ['Prepare', '准备']),
       click(settings, 'Prepare desktop', '准备桌面'),
     ])
+    await checkProgress(3, process.env.DS_BOT_PACKED_PREPARE_PROGRESS_SCREENSHOT)
     const preparedButton = byText(settings, ['Create desktop', '创建桌面'])
     const imageRecord = join(work, 'shell', 'computer-image.json')
     const setupEnd = Date.now() + 16 * 60_000
@@ -405,6 +415,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     assert.deepEqual(await evaluate("window.dsBotApp.computer.settings('inventory', [])"), [])
     const startupBegan = performance.now()
     await click(settings, 'Create desktop', '创建桌面')
+    await checkProgress(4, process.env.DS_BOT_PACKED_CREATE_PROGRESS_SCREENSHOT)
     const startupAlert = `document.querySelector('.bt-computer-settings [role="alert"]')?.textContent?.trim()`
     await until(`(${settingsFrame}) || Boolean(${startupAlert})`, 'the desktop creation result', 75_000)
     const container = await registerDesktop(name, state.mainBotId)
@@ -474,7 +485,7 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       assert.equal((await api('computer-status', { subject: state.mainBotId })).target, undefined,
         'Minimizing the window must revoke the desktop grant.')
     } finally {
-      await windowState('(() => { win.restore(); win.setMinimizable(false) })()')
+      await windowState('(() => { win.restore(); win.focus(); win.setMinimizable(false) })()')
     }
     await until(`!document.hidden && !(${screen}) && !(${byText(pane, privateLabels)})?.disabled`,
       'the restored window with the previous preview cleared')
@@ -496,8 +507,8 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await sleep(200)
     }
     for (const [key, code, virtualKey] of [['d', 'KeyD', 68], ['s', 'KeyS', 83], ['Enter', 'Enter', 13]]) {
-      await waitView(`${refresh} && !(${refresh}).disabled && ${activeFrame}`, 'viewer input readiness')
-      await evaluate(`${screen}.focus()`)
+      await waitView(activeFrame, 'viewer input readiness')
+      await evaluate(`${canvas}.focus()`)
       await press(cdp, key, code, virtualKey)
       await sleep(350)
     }
@@ -508,30 +519,57 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await sleep(200)
     }
     assert.equal(typed, 'ds')
-    const html = `<title>Scroll fixture</title><style>body{height:4000px}</style>
-      <script>addEventListener('scroll', () => { if (scrollY > 0) document.title = 'Scroll verified'; });</script>`
+    const html = `<title>Desktop input fixture</title><style>
+      body{height:4000px} input{position:fixed;inset:0;width:320px;height:40px;margin:auto}
+      </style><input aria-label="Desktop input fixture"><script>
+      const input = document.querySelector('input');
+      document.addEventListener('click', () => { input.focus(); document.title = 'Click verified'; });
+      input.addEventListener('input', () => { if (input.value === 'DS Bot clipboard check') document.title = 'Paste verified'; });
+      addEventListener('scroll', () => { if (scrollY > 0) document.title = 'Scroll verified'; });
+      </script>`
     await runDocker('exec', container, 'sh', '-c', 'printf "%s" "$1" > /home/cua/workspace/scroll.html', 'fixture', html)
     await runDocker('exec', '-d', container, 'chromium', '--no-first-run', '--start-maximized',
       'file:///home/cua/workspace/scroll.html')
-    for (let attempt = 0; !(await activeWindow()).includes('Scroll fixture'); attempt++) {
-      assert.ok(attempt < 35, 'The scroll fixture did not get focus.')
+    for (let attempt = 0; !(await activeWindow()).includes('Desktop input fixture'); attempt++) {
+      assert.ok(attempt < 35, 'The desktop input fixture did not get focus.')
       await sleep(300)
     }
     // The driver must stay connected past the short Docker command deadline.
     await sleep(16_000)
-    await waitView(`(() => {
-      const image = ${screen};
-      if ((${refresh})?.disabled || !image?.hasAttribute('data-active')) return false;
-      const bounds = image.getBoundingClientRect();
-      image.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, clientX: bounds.x + bounds.width / 2,
-        clientY: bounds.y + bounds.height / 2, bubbles: true, cancelable: true }));
-      return true;
-    })()`, 'the viewer sending a wheel event')
+    await waitView(activeFrame, 'the viewer staying connected')
+    const pointer = await evaluate(`(() => {
+      const { x, y, width, height } = ${canvas}.getBoundingClientRect()
+      return { x: Math.round(x + width / 2), y: Math.round(y + height / 2) }
+    })()`)
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await cdp.call('Input.dispatchMouseEvent', { type, ...pointer, button: 'left', clickCount: 1 })
+    }
+    for (let attempt = 0; !(await activeWindow()).includes('Click verified'); attempt++) {
+      assert.ok(attempt < 30, 'The click did not focus the remote input.')
+      await sleep(200)
+    }
+    await evaluate(`(() => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/plain', 'DS Bot clipboard check');
+      ${canvas}.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData }));
+    })()`)
+    for (let attempt = 0; !(await activeWindow()).includes('Paste verified'); attempt++) {
+      assert.ok(attempt < 30, 'Pasting did not insert text in the remote input.')
+      await sleep(200)
+    }
+    await cdp.call('Input.dispatchMouseEvent', { type: 'mouseWheel', ...pointer, deltaX: 0, deltaY: 120 })
     for (let attempt = 0; !(await activeWindow()).includes('Scroll verified'); attempt++) {
       assert.ok(attempt < 30, 'The wheel event did not move the document.')
       await sleep(200)
     }
-    console.log('check-packed: the viewer scrolled the isolated Chromium fixture')
+    console.log('check-packed: the viewer clicked, pasted into, and scrolled the isolated Chromium fixture')
+    await runDocker('exec', container, 'pkill', '-f', '[s]ocket.create_connection')
+    const takeControl = byText(pane, ['Take control', '接管'])
+    await waitView(`${frameReady} && !(${activeFrame}) && (${takeControl})?.disabled === false`,
+      'the desktop preview after losing the live connection')
+    await click(pane, 'Take control', '接管')
+    await waitView(activeFrame, 'the reconnected live desktop')
+    console.log('check-packed: losing the live connection restored the preview and allowed a new takeover')
     await click(pane, 'Hand back', '交还')
     await waitView(`${frameReady} && !(${activeFrame}) && !!(${byText(pane, ['Take control', '接管'])})`,
       'hand back with a visible desktop')
@@ -596,10 +634,33 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     await until(`!(${screen})`, 'the previous computer preview to disappear')
     assert.equal((await api('computer-status', { subject: state.mainBotId })).target, undefined)
     console.log('check-packed: changing conversations removed the preview and revoked access')
-    await checkIsolation()
+    const groupRow = await checkGroup()
+    await checkIsolation(groupRow)
     await checkBrowser()
 
-    async function checkIsolation() {
+    async function checkGroup() {
+      const room = await api('create-room', { name: 'Shared desktop QA', members: [state.mainBotId, other.id], admin: state.mainBotId })
+      const row = `document.querySelector(${JSON.stringify(`[data-room-id="${room.id}"]`)})`
+      await until(`!!${row}`, 'the test group')
+      await evaluate(`${row}.click()`)
+      await openPane()
+      const allow = byText(pane, ['Allow desktop access', '授权使用'])
+      await until(`!!(${allow}) && !(${allow}).disabled`, 'group using shared desktop settings')
+      assert.equal(await evaluate(`document.querySelector('${livePanel} .bt-computer .bt-computer-places, ${livePanel} .bt-computer select')`), null)
+      await capture(process.env.DS_BOT_PACKED_GROUP_SCREENSHOT)
+      await authorizePrivate(() => click(pane, 'Allow desktop access', '授权使用'))
+      await waitView(frameReady, 'the shared desktop showing in the test group')
+      assert.equal((await api('computer-status', { subject: room.id })).target, 'private-desktop')
+      await click(pane, 'Revoke access', '撤销连接权限')
+      await until(`!(${screen})`, 'the group screen disappearing after revocation')
+      assert.equal((await api('computer-status', { subject: room.id })).target, undefined)
+      await evaluate(`${otherRow}.click()`)
+      await until(`${otherRow}?.getAttribute('aria-current') === 'page'`, 'the other test conversation selected again')
+      console.log('check-packed: the group followed shared settings, showed the desktop, and revoked group access')
+      return row
+    }
+
+    async function checkIsolation(groupRow) {
       const firstRow = `document.querySelector(${JSON.stringify(`[data-bot-id="${state.mainBotId}"]`)})`
       const settingsFile = join(work, 'shell', 'computer-settings.json')
       const scopedName = bot => `${name}-bot-${createHash('sha256').update(bot).digest('hex').slice(0, 32)}`
@@ -654,6 +715,15 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       await click('.bt-computer-isolation button', 'Desktop per Bot', '按 Bot 隔离')
       await waitSaved()
       assert.equal(await running(container), 'false')
+      await closeSettings()
+      await evaluate(`${groupRow}.click()`)
+      await openPane()
+      const allow = byText(pane, ['Allow desktop access', '授权使用'])
+      await until(`(${allow})?.disabled && /Enable shared mode|开启共享|启用共享/.test(document.querySelector('.bt-computer-group-access')?.innerText ?? '')`,
+        'group desktop access disabled in per-Bot mode')
+      await evaluate(`${otherRow}.click()`)
+      await until(`${otherRow}?.getAttribute('aria-current') === 'page'`, 'the test Bot conversation restored')
+      await openSettings()
       await setLimit('1')
       await evaluate(`(() => {
         const select = document.querySelector('.bt-computer-settings select:not([data-computer-limit])');

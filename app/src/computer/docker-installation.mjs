@@ -87,9 +87,15 @@ export function desktopRuntime(name, { run = exec, locatePodman = findPodman } =
     return { binary, prefix: ['--url', `ssh://${RemoteUsername}@127.0.0.1:${Port}${podmanSocket}`, '--identity', IdentityPath], id: current.id }
   }
 
-  async function command(args, overrides) {
+  async function command(args, overrides = {}) {
     const { binary, prefix } = await connect()
-    return run(binary, [...prefix, ...args], { ...options, ...overrides })
+    const { onOutput, ...settings } = overrides
+    const task = run(binary, [...prefix, ...args], { ...options, ...settings })
+    if (onOutput) {
+      task.child?.stdout?.on('data', data => onOutput(data, 'stdout'))
+      task.child?.stderr?.on('data', data => onOutput(data, 'stderr'))
+    }
+    return task
   }
 
   async function podmanHost({ binary, prefix }) {

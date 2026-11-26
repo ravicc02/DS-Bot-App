@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { browserOutput } from '../browser/mount.js'
 import { computerImageName } from './images.js'
@@ -154,7 +155,7 @@ export function installComputer(rt, relay) {
   function grantMatches({ subject, conversation, operator }) {
     try {
       const current = contextOf(subject)
-      return current.conversation === conversation && (current.room ? current.room.members.includes(operator) : operator === subject) && !!rt.botOf(operator)
+      return current.conversation === conversation && (current.room ? operator === undefined : operator === subject && !!rt.botOf(operator))
     } catch { return false }
   }
 
@@ -164,7 +165,8 @@ export function installComputer(rt, relay) {
     if (op === 'status') return call({ op, conversation })
     if (op === 'stop') return stop(conversation)
     if (op === 'select') {
-      const operator = room ? body.operator : subject
+      if (room && body.operator !== undefined) throw ended()
+      const operator = room ? undefined : subject
       const binding = { subject, conversation, operator }
       if (choosing.has(conversation) || !grantMatches(binding)) throw ended()
       const selection = Symbol()
@@ -203,7 +205,7 @@ export function installComputer(rt, relay) {
       const conversation = conversationOf(session)
       const grant = grants.get(conversation)
       const approval = ctx.get('approval')
-      if (!grant || grant.operator !== botOf(session) || !turn || turn.conversation !== conversation || !exec.signal || !approval?.request || rt.readOnly() !== undefined) throw ended()
+      if (!grant || (grant.operator !== undefined && grant.operator !== botOf(session)) || !turn || turn.conversation !== conversation || !exec.signal || !approval?.request || rt.readOnly() !== undefined) throw ended()
       const current = () => {
         if (turns.get(session) !== turn || grants.get(conversation) !== grant || conversationOf(session) !== conversation
           || !grantMatches(grant) || exec.signal.aborted || grant.abort.signal.aborted || rt.readOnly() !== undefined) throw ended()
@@ -232,7 +234,22 @@ export function installComputer(rt, relay) {
         } finally { turn.authorizing = false }
       }
       current()
-      const result = await call({ ...turn.claim, op: 'action', action: { ...args, kind } })
+      const request = { ...turn.claim, op: 'action', action: { ...args, kind } }
+      const signal = AbortSignal.any([exec.signal, grant.abort.signal, turn.abort.signal])
+      let result
+      try {
+        for (;;) {
+          current()
+          result = await call(request)
+          current()
+          if (result?.waiting !== true) break
+          await sleep(600, undefined, { signal })
+        }
+      } catch (error) {
+        void call({ ...turn.claim, op: 'release' }).catch(() => {})
+        turn.observed = false
+        throw error
+      }
       current()
       if (!route) return 'Computer action completed. Observe the screen to verify its result.'
       const attachment = await ctx.get('attachments').saveImage({

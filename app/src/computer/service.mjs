@@ -55,6 +55,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     discard(conversation)
     const grant = grants.get(conversation)
     grants.delete(conversation)
+    if (grant) control.cancelWaiting(grant.slot, grant)
     const draining = grant ? release(grant) : Promise.resolve()
     revoking.set(conversation, draining)
     return draining.finally(() => {
@@ -67,11 +68,14 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     return {
       targets: Object.keys(backends), target: grant?.target, operator: grant?.operator,
       status: grant ? control.status(grant.slot, grant.lease?.id) : 'idle',
+      waiting: grant ? control.waitCount(grant.slot) : 0, privateMode: privateMode(),
     }
   }
 
   async function choose(conversation, target, operator) {
-    if (closed || !key(conversation) || !key(operator) || !Object.hasOwn(backends, target) || selecting || (target === 'private-desktop' && underMaintenance(operator))) throw changed()
+    const group = typeof conversation === 'string' && conversation.startsWith('room-')
+    if (group ? operator !== undefined || target !== 'private-desktop' || privateMode() !== 'shared' : !key(operator)) throw changed()
+    if (closed || !key(conversation) || !Object.hasOwn(backends, target) || selecting || (target === 'private-desktop' && underMaintenance(operator))) throw changed()
     const pending = { conversation, target, operator, token: randomUUID() }
     selecting = pending
     choice = undefined
@@ -92,7 +96,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     selecting = approved
     try {
       await released
-      if (closed || selecting !== approved) throw changed()
+      if (closed || selecting !== approved || (conversation.startsWith('room-') && privateMode() !== 'shared')) throw changed()
       const scope = approved.target === 'private-desktop' ? operatorFor(operator) : undefined
       const slot = control.slotFor(approved.target, scope)
       grants.set(conversation, { ...approved, slot, display: randomUUID(), finishedTurns: new Set() })
@@ -152,6 +156,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
       }
       return
     }
+    if (control.waitCount(grant.slot) || !control.available(grant.slot)) return
     const owner = { session: conversation, turn: randomUUID() }
     const lease = claim(grant, owner, 'viewer')
     let preview
@@ -200,9 +205,9 @@ export function createComputerService(backends, confirm, { privateMode = () => '
       if (!backend?.previewInstance || (operator !== undefined && !key(operator))) throw changed()
       return maintainPrivate(false, () => backend.previewInstance(operator), scope => scope === operator)
     },
-    async setup(rebuild) {
+    async setup(rebuild, report) {
       if (!backends['private-desktop']?.setup) throw changed()
-      await maintainPrivate(rebuild, () => backends['private-desktop'].setup(rebuild))
+      await maintainPrivate(rebuild, () => backends['private-desktop'].setup(rebuild, report))
     },
     async changePrivatePolicy(save) {
       await maintainPrivate(true, async () => {
@@ -223,14 +228,14 @@ export function createComputerService(backends, confirm, { privateMode = () => '
       if (!privateScope || !backend?.deleteInstance) throw changed()
       await maintainPrivate(true, () => backend.deleteInstance(scope, id), operator => privateScope(operator) === scope)
     },
-    async startPrivateInstance(operator, restart) {
+    async startPrivateInstance(operator, restart, report) {
       const backend = backends['private-desktop']
       if (!privateScope || !backend?.startInstance || (privateMode() === 'shared' ? operator !== undefined : !key(operator))) throw changed()
       const scope = privateScope(operator)
       return maintainPrivate(restart, async () => {
         if (restart) await backend.stopInstance(scope)
         if (closed) throw changed()
-        return backend.startInstance(operator)
+        return backend.startInstance(operator, report)
       }, active => privateScope(active) === scope)
     },
     async request({ op, conversation, token, operator, owner, action: input } = {}) {
@@ -242,18 +247,20 @@ export function createComputerService(backends, confirm, { privateMode = () => '
       const grant = current(conversation)
       if (grant.token !== token || !key(owner?.session) || !key(owner?.turn)) throw changed()
       if (op === 'release') {
+        control.cancelWaiting(grant.slot, grant, owner)
         grant.finishedTurns.add(owner.turn)
         if (grant.finishedTurns.size >= 4096) { await revoke(conversation); return view(conversation) }
         if (grant.lease?.type === 'bot' && sameOwner(owner, grant.lease.owner)) await release(grant)
         return view(conversation)
       }
-      if (op !== 'action' || grant.transition || grant.finishedTurns.has(owner.turn) || grant.lease?.type === 'user') throw changed()
-      if (grant.lease?.type === 'viewer' || grant.draining) {
-        await (grant.lease?.type === 'viewer' ? release(grant) : grant.draining)
-        if (current(conversation) !== grant || grant.transition || grant.finishedTurns.has(owner.turn)
-          || (grant.lease && grant.lease.type !== 'bot')) throw changed()
+      if (op !== 'action' || grant.finishedTurns.has(owner.turn)) throw changed()
+      if (grant.lease?.type === 'bot' && sameOwner(grant.lease.owner, owner) && !grant.transition) {
+        return action(grant, owner, 'bot', input)
       }
-      if (grant.finishedTurns.size >= 4096) { await revoke(conversation); throw changed() }
+      if (input?.kind !== 'observe') throw changed()
+      const position = control.wait(grant.slot, owner, grant)
+      if (position !== 1 || grant.transition || !control.available(grant.slot)) return { waiting: true, position }
+      control.cancelWaiting(grant.slot, grant, owner)
       return action(grant, owner, 'bot', input)
     },
     async inline(conversation, op, input, display) {
@@ -273,6 +280,20 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         throw error
       }
     },
+    async live(conversation, display, port) {
+      const grant = current(conversation)
+      const lease = grant.lease
+      if (grant.display !== display || grant.target !== 'private-desktop' || lease?.type !== 'user' || lease.live) throw changed()
+      lease.live = true
+      const end = () => { if (grant.lease === lease) void release(grant).catch(() => {}) }
+      port.once('close', end)
+      try {
+        await control.live(grant.slot, lease.id, lease.owner, port)
+      } finally {
+        port.off('close', end)
+        end()
+      }
+    },
     viewerBinding(conversation) {
       const grant = current(conversation)
       if (grant.target !== 'private-desktop') throw changed()
@@ -288,16 +309,20 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         grant.transition = undefined
         if (grant.lease?.type !== 'bot') await release(grant)
       } else if (op === 'take') {
-        if (grant.target !== 'private-desktop' || grant.transition) throw changed()
+        if (grant.target !== 'private-desktop' || grant.transition || grant.slot.handoff) throw changed()
         if (grant.lease?.type === 'user') return { ...view(conversation), preview: previewOf(grant) }
         const transition = Symbol()
         grant.transition = transition
+        grant.slot.handoff = transition
         try {
-          await release(grant)
+          const holder = [...grants.values()].find(entry => entry.slot === grant.slot && entry.lease && entry.lease.type !== 'user')
+          if (holder) await release(holder)
+          else await grant.slot.draining
           if (closed || grants.get(conversation) !== grant || grant.transition !== transition) throw changed()
           claim(grant, { session: conversation, turn: randomUUID() }, 'user')
         } finally {
           if (grant.transition === transition) grant.transition = undefined
+          if (grant.slot.handoff === transition) grant.slot.handoff = undefined
         }
       } else if (op === 'observe') {
         if (grant.transition) throw changed()

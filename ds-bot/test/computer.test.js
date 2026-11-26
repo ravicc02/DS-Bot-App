@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { installComputer } from '../src/host/computer/index.js'
 import { scopeComputerImages } from '../src/host/computer/images.js'
 
-function fixture() {
+function fixture(requestComputer) {
   const listeners = new Map()
   const calls = []
   const approvals = []
@@ -27,6 +27,7 @@ function fixture() {
     onReset: listener => { reset = listener },
     call: async request => {
       calls.push(request)
+      if (requestComputer) return requestComputer(request)
       if (request.op === 'action') return { mediaType: 'image/png', data: 'ZmFrZQ==', width: 1, height: 1 }
     },
   })
@@ -115,7 +116,7 @@ test('screenshots are visible only to the approved session, turn and model route
 })
 
 
-test('group computer authority is limited to the member selected by the user', async () => {
+test('shared desktop members receive individual approval and removed members lose access', async () => {
   const test = fixture()
   const room = { id: 'room', members: ['one', 'two'], sessions: { one: 'a', two: 'b' } }
   test.rt.roomOf = id => id === room.id ? room : undefined
@@ -125,15 +126,67 @@ test('group computer authority is limited to the member selected by the user', a
   const observe = id => test.observe({ agent: { session: { id, requestHeader: () => ({ config: { provider: 'test', model: 'vision' } }) } } })
 
   await assert.rejects(test.selectGroup('other'), /control ended/u)
-  await test.selectGroup('one')
+  await test.selectGroup()
   test.turn('turn/start', 'a')
   test.turn('turn/start', 'b')
-  await assert.rejects(observe('b'), /control ended/u)
-  assert.equal(test.approvals.length, 0)
   await observe('a')
-  assert.equal(test.approvals.length, 1)
+  await observe('b')
+  assert.equal(test.approvals.length, 2)
+  assert.equal(test.calls[0].operator, undefined)
+  assert.deepEqual(test.calls.slice(1).map(request => request.owner.session), ['a', 'b'])
   room.members = ['two']
   test.rt.checkComputerOwners()
   await assert.rejects(observe('a'), /control ended/u)
-  assert.deepEqual(test.calls.map(call => call.op), ['select', 'action', 'release', 'stop'])
+  await observe('b')
+  assert.equal(test.approvals.length, 2)
+  await test.rt.computerChannel('stop', { subject: 'room' })
+  await assert.rejects(observe('b'), /control ended/u)
+  assert.deepEqual(test.calls.map(call => call.op), ['select', 'action', 'action', 'release', 'action', 'release', 'stop'])
+})
+
+
+test('approved group turns wait for the same desktop and resume in FIFO order', { timeout: 8000 }, async t => {
+  const { createComputerService } = await import('../../app/src/computer/service.mjs')
+  const image = { mediaType: 'image/png', data: 'ZnJhbWU=', width: 1, height: 1 }
+  const frames = []
+  const service = createComputerService({ 'private-desktop': {
+    open: async () => ({ run: async () => { frames.push(image); return image }, close: async () => {} }),
+  } }, async () => true)
+  t.after(() => service.close())
+  const token = await service.choose('room-room', 'private-desktop')
+  const queued = new Map(['b', 'c', 'd'].map(id => [id, Promise.withResolvers()]))
+  const test = fixture(async request => {
+    const result = await service.request(request)
+    if (result?.waiting) queued.get(request.owner.session)?.resolve(result.position)
+    return result
+  })
+  const room = { id: 'room', members: ['one', 'two', 'three', 'four'], sessions: { one: 'a', two: 'b', three: 'c', four: 'd' } }
+  test.rt.roomOf = id => id === room.id ? room : undefined
+  test.rt.botOf = id => room.members.includes(id) ? { id } : undefined
+  for (const [botId, id] of Object.entries(room.sessions)) test.rt.groupOwners.set(id, { roomId: room.id, botId })
+  await test.rt.computerChannel('select', { subject: room.id, token })
+  const observe = id => test.observe({ agent: { session: { id, requestHeader: () => ({ config: { provider: 'test', model: 'vision' } }) } } })
+
+  test.turn('turn/start', 'a')
+  await observe('a')
+  for (const [id, position] of [['b', 1], ['c', 2], ['d', 3]]) {
+    test.turn('turn/start', id)
+    const action = observe(id)
+    if (id === 'b') queued.get(id).result = assert.rejects(action, { name: 'AbortError' })
+    else queued.get(id).result = action
+    assert.equal(await queued.get(id).promise, position)
+  }
+  assert.equal(test.approvals.length, 4)
+  assert.equal(frames.length, 1)
+  test.turn('turn/end', 'b')
+  await queued.get('b').result
+  test.turn('turn/end', 'a')
+  assert.ok((await queued.get('c').result).attachment)
+  assert.equal(frames.length, 2)
+  assert.equal((await service.local('room-room', 'status')).waiting, 1)
+  test.turn('turn/end', 'c')
+  assert.ok((await queued.get('d').result).attachment)
+  assert.equal(frames.length, 3)
+  assert.equal(test.approvals.length, 4)
+  test.turn('turn/end', 'd')
 })

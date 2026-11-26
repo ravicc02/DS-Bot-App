@@ -432,6 +432,7 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-computer-location{padding:12px;background:var(--bt-hover);border:1px solid var(--bt-line);border-radius:8px}
 .bt-computer-location-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .bt-computer-location-heading h3{margin:0;font-size:13px;font-weight:600}
+.bt-computer-group-access{justify-content:space-between;align-items:center}
 .bt-computer-location-heading .bt-more{margin:0;padding:0;text-align:start}
 .bt-computer-screen-actions button{flex:1;white-space:nowrap}
 .bt-computer-actions .bt-computer-primary{background:var(--bt-accent);border-color:var(--bt-accent);color:var(--bt-accent-ink)}
@@ -446,7 +447,12 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-computer-viewport:fullscreen{place-content:center}
 .bt-computer-viewport:fullscreen .bt-computer-preview{max-height:100vh;max-width:100vw;width:auto}
 .bt-computer-preview{display:block;width:auto;height:auto;max-width:100%;max-height:58vh}
-.bt-computer-preview[data-active]{cursor:crosshair}
+.bt-computer-preview-button{display:block;padding:0;border:0;background:none;max-width:100%;cursor:pointer}
+.bt-computer-preview-button:focus-visible{outline:2px solid var(--bt-accent);outline-offset:-2px}
+.bt-computer-live{position:relative;width:100%;aspect-ratio:1280 / 900;max-height:58vh;min-height:160px}
+.bt-computer-viewport:fullscreen .bt-computer-live{width:100vw;height:100vh;max-height:none}
+.bt-computer-live-screen{position:absolute;inset:0}
+.bt-computer-live-connecting{position:absolute;inset:0;display:grid;place-content:center;pointer-events:none}
 .bt-computer-settings .bt-set-control{flex-wrap:wrap;justify-content:flex-end;max-width:65%;min-width:0}
 .bt-computer-settings .bt-select{max-width:100%;min-width:0;text-overflow:ellipsis}
 .bt-computer-install-command{min-width:0;overflow-wrap:anywhere;user-select:text}
@@ -489,6 +495,9 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-computer-steps+.bt-computer-setup-details{margin-top:16px}
 .bt-computer-feedback{padding:0 4px;overflow-wrap:anywhere}
 .bt-computer-feedback p{margin:0}
+.bt-computer-progress{display:grid;grid-template-columns:1fr auto;gap:4px 12px;color:var(--bt-muted);font-size:12px;width:100%;max-width:460px}
+.bt-computer-progress time{font-variant-numeric:tabular-nums}
+.bt-computer-progress progress{grid-column:1/-1;width:100%;height:5px;accent-color:var(--bt-accent)}
 @media (prefers-reduced-motion:reduce){.bt-computer-setup[open],.bt-computer-setup::backdrop{animation:none}}
 .bt-empty{text-align:center;color:var(--bt-ink-3);font-size:13px;line-height:18px;padding:8px 12px}
 .bt-section-title{font-size:12px;color:var(--bt-ink-2);margin-bottom:6px}

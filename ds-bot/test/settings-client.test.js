@@ -4,12 +4,14 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+import { desktopClientPlugin } from '../scripts/build-client.mjs'
 
 const require = createRequire(fileURLToPath(new URL('../package.json', import.meta.url)))
 const React = require('react')
 const { renderToStaticMarkup } = require('react-dom/server')
 const { outputFiles } = await build({
   entryPoints: [fileURLToPath(new URL('../src/client/settings.js', import.meta.url))],
+  plugins: [await desktopClientPlugin()],
   bundle: true, format: 'cjs', platform: 'browser', write: false,
   external: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
 })

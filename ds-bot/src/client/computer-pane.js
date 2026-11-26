@@ -1,4 +1,5 @@
 import { createElement as h, useLayoutEffect, useRef, useState } from 'react'
+import { LiveDesktop } from './computer-live.js'
 import { call } from './api.js'
 import { hostText, t } from './i18n.js'
 import { AutoLocationIcon, LocalDesktopIcon, PowerIcon, PrivateDesktopIcon } from './icons.js'
@@ -13,10 +14,7 @@ const STATE = {
   idle: 'Ready', bot: 'Bot has control', user: 'You have control', viewer: 'Refreshing',
   busy: 'In use by another conversation', stopping: 'Releasing control', unavailable: 'Unavailable',
 }
-const KEYS = { Enter: 'return', Tab: 'tab', Escape: 'escape', ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
-  ' ': 'space', Backspace: 'backspace', Delete: 'delete', Home: 'home', End: 'end', PageUp: 'pageup', PageDown: 'pagedown' }
 const OBSERVABLE = ['idle', 'user']
-const MAX_PENDING_INPUTS = 64
 
 export function computerError(failure) {
   return hostText(failure.message.replace(/^Error invoking remote method '[^']+': Error: /u, ''))
@@ -25,16 +23,14 @@ export function computerError(failure) {
 export function ComputerPane({ subject, conversation, members, openSettings }) {
   const bridge = window.dsBotApp?.computer
   const [state, setState] = useState({})
-  const [selectedBot, setSelectedBot] = useState('')
-  const operator = members ? members.find(bot => bot.id === (selectedBot || state.operator))?.id : subject
+  const group = Array.isArray(members)
+  const operator = group ? undefined : subject
   const [pending, setPending] = useState('')
   const [error, setError] = useState('')
   const [place, setPlace] = useState(null)
   const display = useRef()
   const lifetime = useRef()
-  const latestOperator = useRef(operator)
   const attemptedDisplay = useRef()
-  const screen = useRef(null)
   const viewport = useRef(null)
 
   function show(value) {
@@ -44,7 +40,7 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
 
   useLayoutEffect(() => {
     if (!bridge) return undefined
-    const scope = { active: true, work: null, next: null, inputs: [] }
+    const scope = { active: true, work: null, next: null }
     lifetime.current = scope
     display.current = undefined
     attemptedDisplay.current = undefined
@@ -55,8 +51,8 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
         if (!current()) return
         show(value)
         setError(previous => previous === t('Restore the app window to use computer control.') ? '' : previous)
-        if (scope.inputs.length || !value.display || !OBSERVABLE.includes(value.status)) return
-        if (value.status === 'user' || (!value.preview && attemptedDisplay.current !== value.display)) {
+        if (!value.display || value.status === 'user' || !OBSERVABLE.includes(value.status)) return
+        if (!value.preview && attemptedDisplay.current !== value.display) {
           attemptedDisplay.current = value.display
           try {
             const frame = await bridge.view(conversation, 'observe', undefined, value.display)
@@ -75,7 +71,6 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
       if (!document.hidden) { refresh(); return }
       scope.work = null
       scope.next = null
-      scope.inputs.length = 0
       setPending('')
       setPlace(null)
       setError('')
@@ -86,21 +81,18 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
     const timer = setInterval(refresh, 1500)
     return () => {
       scope.active = false
-      scope.inputs.length = 0
       clearInterval(timer)
       document.removeEventListener('visibilitychange', visibility)
       if (display.current) void bridge.view(conversation, 'hand-back', undefined, display.current).catch(() => {})
     }
   }, [bridge, conversation])
 
-  useLayoutEffect(() => { latestOperator.current = operator }, [operator])
-
   async function run(name, operation) {
     const scope = lifetime.current
     if (!scope?.active) return
     const releasing = name === 'off' || name === 'hand-back'
     if (scope.work && !releasing) {
-      if (name !== 'poll' && name !== 'input' && !scope.next && ['poll', 'input'].includes(scope.work.name)) {
+      if (name !== 'poll' && !scope.next && scope.work.name === 'poll') {
         scope.next = { name, operation }
         setPending(name)
       }
@@ -108,51 +100,38 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
     }
     if (releasing) {
       scope.next = null
-      scope.inputs.length = 0
     }
     const work = { name }
     scope.work = work
     const current = () => scope.active && scope.work === work
-    if (name !== 'poll' && name !== 'input') setPending(name)
+    if (name !== 'poll') setPending(name)
     if (name !== 'poll') setError('')
     try { await operation(current) } catch (failure) {
       if (current()) {
-        scope.inputs.length = 0
         setError(computerError(failure))
       }
     } finally {
       if (current()) {
         scope.work = null
-        if (name !== 'poll' && name !== 'input') setPending('')
+        if (name !== 'poll') setPending('')
         if (scope.next) {
           const next = scope.next
           scope.next = null
           void run(next.name, next.operation)
-        } else if (scope.inputs.length) drainInputs(scope)
+        }
       }
     }
-  }
-
-  function drainInputs(scope) {
-    void run('input', async current => {
-      while (current() && scope.inputs.length) {
-        const { binding, input } = scope.inputs.shift()
-        if (binding !== display.current) continue
-        const value = await bridge.view(conversation, 'input', input, binding)
-        if (current() && display.current === binding) show(value)
-      }
-    })
   }
 
   if (!bridge) return null
   const desktopPlace = PLACES.find(item => item.target && item.target === state.target)
   const activePlace = !desktopPlace ? 'off' : place === 'auto' && desktopPlace.id === 'private' ? 'auto' : desktopPlace.id
-  const targetLabel = desktopPlace && t(desktopPlace.label)
-  const canInput = state.status === 'user' && Boolean(state.preview)
+  const targetLabel = desktopPlace && t(group ? 'Shared group desktop' : desktopPlace.label)
+  const live = state.target === 'private-desktop' && state.status === 'user' && typeof bridge.live === 'function'
   const busy = Boolean(pending)
   const status = pending === 'start' && !state.lastFrame ? 'Loading desktop…'
     : state.target ? STATE[state.status] ?? 'Unavailable'
-    : 'Choose a work location to show its screen.'
+    : group ? 'Shared desktop access is off.' : 'Choose a work location to show its screen.'
 
   async function choose(target, workPlace, current) {
     const token = await bridge.choose(conversation, target, operator)
@@ -180,11 +159,11 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
     const scope = lifetime.current
     void run('start', async current => {
       const readiness = await bridge.settings('readiness')
-      if (!current() || latestOperator.current !== operator) return
+      if (!current()) return
       if (readiness !== 'prepared') {
         if (resume) throw new Error('Prepare the private desktop first.')
         openSettings(() => {
-          if (scope?.active && lifetime.current === scope && latestOperator.current === operator) selectPrivate(next, true)
+          if (scope?.active && lifetime.current === scope) selectPrivate(next, true)
         })
         return
       }
@@ -203,59 +182,27 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
     } else selectPrivate(next)
   }
 
-  function desktop(op, input) {
+  function desktop(op, after) {
     const binding = display.current
     if (!binding) return
-    if (op === 'input') {
-      const scope = lifetime.current
-      if (!scope?.active || scope.next || (scope.work && !['poll', 'input'].includes(scope.work.name))) return
-      if (scope.inputs.length >= MAX_PENDING_INPUTS) {
-        setError(t('Wait for the desktop to finish processing input.'))
-        return
-      }
-      scope.inputs.push({ binding, input })
-      if (!scope.work) drainInputs(scope)
-      return
-    }
     const expected = current => current() && display.current === binding
     void run(op, async current => {
-      const value = await bridge.view(conversation, op, input, binding)
+      const value = await bridge.view(conversation, op, undefined, binding)
       if (!expected(current)) return
       show(value)
-      if (op === 'take' || (op === 'hand-back' && !state.lastFrame)) {
+      after?.()
+      if (op === 'hand-back') {
         const frame = await bridge.view(conversation, 'observe', undefined, binding)
         if (!frame || !expected(current)) return
         show(frame)
-        if (op === 'take') screen.current?.focus()
       }
     })
-  }
-
-  function pointer(kind, event) {
-    const image = screen.current
-    if (!canInput || busy || !image?.naturalWidth || !image.complete) return
-    const bounds = image.getBoundingClientRect()
-    const x = Math.floor((event.clientX - bounds.left) * image.naturalWidth / bounds.width)
-    const y = Math.floor((event.clientY - bounds.top) * image.naturalHeight / bounds.height)
-    if (x < 0 || y < 0 || x >= image.naturalWidth || y >= image.naturalHeight) return
-    if (kind === 'scroll') {
-      if (!event.deltaY) return
-      desktop('input', { kind, x, y, direction: event.deltaY > 0 ? 'down' : 'up', amount: 1 })
-    } else desktop('input', { kind, x, y })
-  }
-
-  function keydown(event) {
-    if (!canInput || busy || event.ctrlKey || event.altKey || event.metaKey || event.isComposing || (event.key === 'Tab' && event.shiftKey)) return
-    const key = Object.hasOwn(KEYS, event.key) ? KEYS[event.key] : undefined
-    if (!key && [...event.key].length !== 1) return
-    event.preventDefault()
-    desktop('input', key ? { kind: 'key', key } : { kind: 'type', text: event.key })
   }
 
   const button = (label, onClick, disabled = busy, className = '') => h('button', {
     className: `bt-browser-retry ${className}`.trim(), type: 'button', disabled, onClick,
   }, t(label))
-  const controlStatus = [t(status), state.lastFrame && !state.preview ? t('Last screenshot') : null].filter(Boolean).join(' · ')
+  const controlStatus = [t(status), state.waiting ? `${t('Bots waiting')}: ${state.waiting}` : null, state.lastFrame && !state.preview ? t('Last screenshot') : null].filter(Boolean).join(' · ')
   const toggleFullscreen = () => {
     const change = document.fullscreenElement === viewport.current ? document.exitFullscreen() : viewport.current?.requestFullscreen()
     void change?.catch(failure => setError(computerError(failure)))
@@ -266,25 +213,31 @@ export function ComputerPane({ subject, conversation, members, openSettings }) {
         h('span', { className: 'bt-computer-target', title: targetLabel }, targetLabel || t('Screen')),
         state.target ? h('span', { className: 'bt-computer-status', role: 'status' }, controlStatus) : null),
       h('div', { ref: viewport, className: 'bt-computer-viewport', 'data-takeover': state.status === 'user' || undefined },
-        state.lastFrame ? h('img', { ref: screen, className: 'bt-computer-preview', 'data-active': canInput ? '' : undefined,
-          tabIndex: canInput ? 0 : -1, draggable: false, onClick: event => pointer('click', event), onWheel: event => pointer('scroll', event), onKeyDown: keydown,
-          alt: t('Desktop screenshot'), src: `data:${state.lastFrame.mediaType};base64,${state.lastFrame.data}` })
-          : h('div', { className: 'bt-computer-empty', role: state.target ? undefined : 'status' }, t(status))),
+        live ? h(LiveDesktop, { key: state.display, bridge, conversation, display: state.display,
+          onDisconnect: () => desktop('hand-back', () => setError(t('Desktop disconnected. Take control to reconnect.'))) })
+          : state.lastFrame ? (() => {
+            const preview = h('img', { className: 'bt-computer-preview', draggable: false,
+              alt: t('Desktop screenshot'), src: `data:${state.lastFrame.mediaType};base64,${state.lastFrame.data}` })
+            return state.target === 'private-desktop' && ['idle', 'bot'].includes(state.status)
+              ? h('button', { type: 'button', className: 'bt-computer-preview-button', disabled: busy,
+                'aria-label': t('Take control'), onClick: () => desktop('take') }, preview) : preview
+          })() : h('div', { className: 'bt-computer-empty', role: state.target ? undefined : 'status' }, t(status))),
       state.target ? h('div', { className: 'bt-computer-actions bt-computer-screen-actions' },
         state.target === 'private-desktop' && state.status === 'user' ? button('Hand back', () => desktop('hand-back'), pending === 'hand-back' || pending === 'off', 'bt-computer-primary') : null,
         state.target === 'private-desktop' && state.status !== 'user' ? button('Take control', () => desktop('take'), busy || !['idle', 'bot'].includes(state.status), 'bt-computer-primary') : null,
-        button('Full screen', toggleFullscreen, !state.lastFrame),
-        button('Refresh preview', () => desktop('observe'), busy || !OBSERVABLE.includes(state.status))) : null),
-    h('section', { className: 'bt-computer-location', 'aria-label': t('Work location') },
-      h('div', { className: 'bt-computer-location-heading' }, h('h3', null, t('Work location')),
+        button('Full screen', toggleFullscreen, !state.lastFrame && !live),
+        live ? null : button('Refresh preview', () => desktop('observe'), busy || !OBSERVABLE.includes(state.status))) : null),
+    h('section', { className: 'bt-computer-location', 'aria-label': t(group ? 'Shared group desktop' : 'Work location') },
+      h('div', { className: 'bt-computer-location-heading' }, h('h3', null, t(group ? 'Shared group desktop' : 'Work location')),
         h('button', { type: 'button', className: 'bt-more', onClick: () => openSettings() }, t('Computer and browser settings'))),
-      members ? h('label', { className: 'bt-computer-actions' }, t('Bot to authorize'),
-        h('select', { value: operator ?? '', disabled: busy, onChange: event => setSelectedBot(event.target.value) },
-          h('option', { value: '', disabled: true }, t('Select a Bot')),
-          ...members.map(bot => h('option', { key: bot.id, value: bot.id }, bot.name)))) : null,
-      h('div', { className: 'bt-computer-places', role: 'group', 'aria-label': t('Work location') },
-        ...PLACES.map(({ id, label, Icon }) => h('button', { key: id, type: 'button', 'aria-pressed': activePlace === id,
-          disabled: id === 'off' ? pending === 'off' || (!state.target && !pending) : busy || !operator,
-          onClick: () => selectPlace(id) }, h(Icon), t(label)))),
+      group ? h('div', { className: 'bt-computer-actions bt-computer-group-access' },
+        h('span', { className: 'bt-set-hint' }, t(state.privateMode === 'shared' ? 'Shared mode is enabled in Settings.'
+          : state.privateMode === 'per-bot' ? 'Enable shared mode in Settings to use a desktop in this group.' : 'Checking desktop settings…')),
+        state.target ? button('Revoke access', () => selectPlace('off'), pending === 'off')
+          : button('Allow desktop access', () => selectPlace('private'), busy || state.privateMode !== 'shared' || !members.length, 'bt-computer-primary'))
+        : h('div', { className: 'bt-computer-places', role: 'group', 'aria-label': t('Work location') },
+          ...PLACES.map(({ id, label, Icon }) => h('button', { key: id, type: 'button', 'aria-pressed': activePlace === id,
+            disabled: id === 'off' ? pending === 'off' || (!state.target && !pending) : busy,
+            onClick: () => selectPlace(id) }, h(Icon), t(label)))),
       error ? h('p', { className: 'bt-error', role: 'alert' }, error) : null))
 }

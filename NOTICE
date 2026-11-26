@@ -93,7 +93,17 @@ Apache License, Version 2.0, Copyright (c) Microsoft Corporation
   The license is the same Apache License, Version 2.0 that covers this
   repository; see LICENSE for the text.
 
-No other third-party code is copied into this repository. At run time the
+The desktop queue and viewer focus/clipboard handling adapt OpenMausBot
+(server/turn-resources.ts and src/components/LiveDesktop.tsx), Copyright 2026
+Milind Soni and OpenMausBot contributors, Apache License, Version 2.0.
+Source: https://github.com/milind-soni/OpenMausBot
+
+The generated ds-bot/client.js bundles noVNC 1.7.0, Copyright (C) 2022 the
+noVNC authors, MPL 2.0, with components under their respective BSD and MIT
+licenses. The corresponding source and license notices are available in the
+@novnc/novnc 1.7.0 npm package and at https://github.com/novnc/noVNC/tree/v1.7.0.
+
+At run time the
 plugin uses the @deepseek-ai/* packages of the DeepSeek Harness install it
 runs in; they are not bundled. The bundled ds-bot/office.js includes
 @xmldom/xmldom (https://github.com/xmldom/xmldom, MIT License, Copyright (c)

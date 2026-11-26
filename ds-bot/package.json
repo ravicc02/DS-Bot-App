@@ -40,7 +40,8 @@
     "web-search.js",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "node scripts/build-client.mjs",
@@ -53,9 +54,9 @@
     "@deepseek-ai/cordis": "*",
     "@deepseek-ai/dsh-llm": "*",
     "@deepseek-ai/dsh-scope": "*",
+    "@deepseek-ai/dsh-session-reference": "*",
     "@deepseek-ai/dsh-tools": "*",
-    "@deepseek-ai/dsh-web": "*",
-    "@deepseek-ai/dsh-session-reference": "*"
+    "@deepseek-ai/dsh-web": "*"
   },
   "dsh": {
     "client": {
@@ -66,6 +67,7 @@
     }
   },
   "devDependencies": {
+    "@novnc/novnc": "1.7.0",
     "@xmldom/xmldom": "0.9.12",
     "esbuild": "0.28.2",
     "react": "19.1.0",

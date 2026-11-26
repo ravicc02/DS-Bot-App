@@ -17,9 +17,25 @@ if (host !== undefined && location.origin === host) {
     browser: browserBridge(),
     ...(process.platform === 'win32' && process.arch === 'x64' ? { computer: {
       choose: (conversation, target, operator) => ipcRenderer.invoke('ds-bot:computer-choose', conversation, target, operator),
-      setup: rebuild => ipcRenderer.invoke('ds-bot:computer-setup', rebuild),
-      settings: (op, value) => ipcRenderer.invoke('ds-bot:computer-settings', op, value),
+      setup: (rebuild, id) => ipcRenderer.invoke('ds-bot:computer-setup', rebuild, id),
+      settings: (op, value, id) => ipcRenderer.invoke('ds-bot:computer-settings', op, value, id),
+      onProgress(listener) {
+        const receive = (_event, progress) => listener(progress)
+        ipcRenderer.on('ds-bot:computer-progress', receive)
+        return () => ipcRenderer.off('ds-bot:computer-progress', receive)
+      },
       view: (conversation, op, input, display) => ipcRenderer.invoke('ds-bot:computer-view', conversation, op, input, display),
+      live(conversation, display, receive, disconnected) {
+        const { port1, port2 } = new MessageChannel()
+        port1.onmessage = ({ data }) => { receive(data); port1.postMessage('read') }
+        port1.addEventListener('close', disconnected, { once: true })
+        ipcRenderer.postMessage('ds-bot:computer-live', { conversation, display }, [port2])
+        port1.postMessage('read')
+        return {
+          send: data => port1.postMessage(data),
+          close: () => port1.close(),
+        }
+      },
       reset: () => ipcRenderer.send('ds-bot:computer-reset'),
     } } : {}),
     // The app's own updater, for the About row's state and buttons.

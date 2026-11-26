@@ -10,6 +10,14 @@ const installCommands = {
   podman: 'winget install --exact --id RedHat.Podman-Desktop',
 }
 
+const PHASES = {
+  'checking-runtime': 'Checking desktop runtime…', 'building-image': 'Building desktop image…',
+  'downloading-image': 'Downloading desktop image…', 'checking-image': 'Verifying desktop image…',
+  'checking-container': 'Checking desktop instance…', 'creating-container': 'Creating desktop instance…',
+  'starting-container': 'Starting desktop instance…', 'waiting-desktop': 'Waiting for the desktop to load…',
+  'connecting-driver': 'Connecting to the desktop…', 'capturing-frame': 'Getting the first frame…',
+}
+
 function SetupDialog({ close, leaving, returnFocus, steps, managing, details, toggleDetails, check, busy, feedback, continueSetup, children }) {
   const dialog = useRef(null)
   useEffect(() => {
@@ -55,6 +63,9 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   const [instances, setInstances] = useState(null)
   const botIds = JSON.stringify(bots.map(bot => bot.id).sort())
   const [busy, setBusy] = useState('')
+  const [progress, setProgress] = useState(null)
+  const [elapsed, setElapsed] = useState(0)
+  const operation = useRef(null)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(null)
@@ -100,20 +111,37 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
     return () => { active = false; clearTimeout(timer) }
   }, [bridge, botIds, busy, stage])
 
+  useEffect(() => bridge?.onProgress?.(value => {
+    if (value.id === operation.current && Object.hasOwn(PHASES, value.phase)) setProgress(value)
+  }), [bridge])
+
+  useEffect(() => {
+    if (!busy) return undefined
+    const started = Date.now()
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
+    return () => clearInterval(timer)
+  }, [busy])
+
   if (!bridge?.settings) return null
   async function run(op, action, success) {
+    if (operation.current) return
+    const id = globalThis.crypto.randomUUID()
+    operation.current = id
     setBusy(op)
+    setProgress(null)
+    setElapsed(0)
     setError('')
     setNotice('')
     setPreview(null)
     try {
-      if (await action() && success) setNotice(success)
+      if (await action(id) && success) setNotice(success)
     } catch (failure) {
       if (op !== 'check') {
         try { await recheck() } catch { /* Keep the original error. */ }
       }
       setError(computerError(failure))
     } finally {
+      operation.current = null
       setBusy('')
     }
   }
@@ -152,8 +180,8 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   }
   function prepare(rebuild) {
     setSetupFrame(null)
-    void run('prepare', async () => {
-      if (!await bridge.setup(rebuild)) return false
+    void run('prepare', async id => {
+      if (!await bridge.setup(rebuild, id)) return false
       await recheck()
       return true
     })
@@ -176,15 +204,15 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
     }, 'The private desktop was deleted.')
   }
   function start(instance, restart) {
-    void run('desktop', async () => {
-      if (!await bridge.settings(restart ? 'restart-instance' : 'start-instance', instance.scope === null ? null : instance.botId)) return false
+    void run('desktop', async id => {
+      if (!await bridge.settings(restart ? 'restart-instance' : 'start-instance', instance.scope === null ? null : instance.botId, id)) return false
       await recheck()
       return true
     }, 'The private desktop is running.')
   }
   function createDesktop() {
-    void run('create', async () => {
-      const image = await bridge.settings('start-instance', startupBot?.id ?? null)
+    void run('create', async id => {
+      const image = await bridge.settings('start-instance', startupBot?.id ?? null, id)
       const result = await readStatus(bridge, botIds)
       applyStatus(result)
       const instance = result.instances?.find(instance => (instance.botId ?? instance.scope) === setupScope && instance.running)
@@ -220,7 +248,15 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
 
   const setupScope = startupBot?.id ?? null
   const setupInstance = instances?.find(instance => (instance.botId ?? instance.scope) === setupScope)
-  const setupReady = prepared && Boolean(setupInstance?.running)
+  const setupReady = prepared && Boolean(setupInstance?.running && setupFrame?.id === setupInstance.id)
+  const progressView = fallback => {
+    const label = t(PHASES[progress?.phase] ?? fallback)
+    const { step, total } = progress?.detail ?? {}
+    return h('div', { className: 'bt-computer-progress' },
+      h('div', { role: 'status' }, label, step && total ? ` ${step}/${total}` : ''),
+      h('time', null, `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`),
+      h('progress', { 'aria-label': label, ...(step && total ? { value: step, max: total } : {}) }))
+  }
   const canManage = prepared && Boolean(instances?.length)
   const steps = [
     { label: 'Install the desktop runtime', done: runtimeInstalled,
@@ -234,15 +270,17 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
         : 'Finish Docker Desktop setup and wait for the Linux engine.') : undefined },
     { label: 'Desktop preparation', done: prepared,
       action: runtimeRunning && !prepared ? button(stage === 'rebuild' ? 'Rebuild desktop' : 'Prepare desktop', () => prepare(stage === 'rebuild')) : null,
-      hint: stage === 'prepare' ? 'The first setup may take several minutes.' : undefined },
+      hint: stage === 'prepare' && busy !== 'prepare' ? 'The first setup may take several minutes.' : undefined,
+      extra: busy === 'prepare' ? progressView('Preparing the private desktop…') : null },
     { label: 'Start the private desktop', done: setupReady,
       hint: prepared && perBot && !startupBot ? 'Add a Bot to check its private desktop.' : undefined,
       action: prepared && !setupReady ? h(Fragment, null, selectStartupBot(),
         button(setupInstance?.id ? 'Start desktop' : 'Create desktop', createDesktop, !!busy || (perBot && !startupBot))) : null,
-      extra: setupReady && setupFrame?.id === setupInstance.id ? previewImage(setupFrame) : null },
+      extra: busy === 'create' ? progressView('Loading desktop…') : setupReady ? previewImage(setupFrame) : null },
   ]
   const feedback = busy || notice || error ? h('div', { className: 'bt-computer-feedback' },
-    busy || notice ? h('span', { className: 'bt-muted', role: 'status' }, t(busy === 'prepare' ? 'Preparing the private desktop…' : busy === 'start' && podman ? 'Starting the Podman machine…' : busy === 'create' ? 'Loading desktop…' : busy ? 'Working…' : notice)) : null,
+    busy === 'desktop' || ((busy === 'prepare' || busy === 'create') && shown === 'manage') ? progressView('Loading desktop…')
+      : busy === 'prepare' || busy === 'create' ? null : busy || notice ? h('span', { className: 'bt-muted', role: 'status' }, t(busy === 'start' && podman ? 'Starting the Podman machine…' : busy ? 'Working…' : notice)) : null,
     error ? h('p', { className: 'bt-error', role: 'alert' }, error) : null) : null
 
   const management = h(Section, { title: t('Private desktop'), className: 'bt-computer-setup-details' },

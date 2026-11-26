@@ -8,13 +8,13 @@ const image = { width: 1280, height: 900, mediaType: 'image/png', data: 'frame' 
 const observe = { kind: 'observe' }
 const controllable = () => Promise.withResolvers()
 
-async function select(service, conversation = 'bot-one', operator = 'operator') {
+async function select(service, conversation = 'bot-one', operator = conversation.startsWith('room-') ? undefined : 'operator') {
   const token = await service.choose(conversation, 'private-desktop', operator)
   await service.request({ op: 'select', conversation, token, operator })
   return {
     conversation, token,
     action: (turn, action = observe, session = conversation) => service.request({ op: 'action', conversation, token, owner: { session, turn }, action }),
-    end: turn => service.request({ op: 'release', conversation, token, owner: { session: conversation, turn } }),
+    end: (turn, session = conversation) => service.request({ op: 'release', conversation, token, owner: { session, turn } }),
   }
 }
 
@@ -36,25 +36,32 @@ test('stop during desktop confirmation invalidates the pending selection', async
 
 test('a native selection cannot be redeemed for a different Bot', async t => {
   const service = fixture(t)
-  const conversation = 'room-one'
+  const conversation = 'bot-one'
   const token = await service.choose(conversation, 'private-desktop', 'member-one')
   const request = { op: 'select', conversation, token }
   await assert.rejects(service.request({ ...request, operator: 'member-two' }), /control ended/u)
   assert.equal((await service.request({ ...request, operator: 'member-one' })).operator, 'member-one')
 })
 
-test('a group member cannot preempt another conversation, and a released turn cannot claim again', async t => {
+test('shared members wait in turn order across conversations and cancellation advances the queue', async t => {
   const service = fixture(t)
   const bot = await select(service)
   const room = await select(service, 'room-one')
+  const another = await select(service, 'room-two')
   assert.equal(await bot.action('first'), image)
-  await assert.rejects(room.action('second', observe, 'member-one'), /already in use/u)
+  assert.deepEqual(await room.action('second', observe, 'member-one'), { waiting: true, position: 1 })
+  assert.deepEqual(await room.action('third', observe, 'member-two'), { waiting: true, position: 2 })
+  assert.deepEqual(await another.action('fourth'), { waiting: true, position: 3 })
+  assert.equal((await service.local(room.conversation, 'status')).waiting, 3)
   await bot.end('first')
   await assert.rejects(bot.action('first'), /control ended/u)
-  await room.end('cancelled-before-action')
-  await assert.rejects(room.action('cancelled-before-action', observe, 'member-one'), /control ended/u)
-  assert.equal(await room.action('third', observe, 'member-one'), image)
-  await assert.rejects(room.action('fourth', observe, 'member-two'), /control ended/u)
+  assert.equal((await service.local(room.conversation, 'observe')).preview, undefined)
+  await room.end('second', 'member-one')
+  await assert.rejects(room.action('second', observe, 'member-one'), /control ended/u)
+  assert.deepEqual(await another.action('fourth'), { waiting: true, position: 2 })
+  assert.equal(await room.action('third', observe, 'member-two'), image)
+  await service.request({ op: 'stop', conversation: room.conversation })
+  assert.equal(await another.action('fourth'), image)
 })
 
 test('private desktop scope follows the Bot across conversations and policy changes revoke granted and pending access', async t => {
@@ -67,14 +74,15 @@ test('private desktop scope follows the Bot across conversations and policy chan
     stopManaged: () => stopping.promise,
   } }, () => confirmation?.promise ?? true, { privateMode: () => privateMode })
   t.after(() => service.close())
+  await assert.rejects(select(service, 'room-team'), /control ended/u)
   const one = await select(service, 'one', 'alpha')
   const two = await select(service, 'two', 'beta')
   const room = await select(service, 'room', 'alpha')
   assert.equal(await one.action('a'), 'alpha')
   assert.equal(await two.action('b'), 'beta')
-  await assert.rejects(room.action('c'), /already in use/u)
+  assert.deepEqual(await room.action('c'), { waiting: true, position: 1 })
   await one.end('a')
-  assert.equal(await room.action('d'), 'alpha')
+  assert.equal(await room.action('c'), 'alpha')
 
   confirmation = controllable()
   const choice = service.choose('pending', 'private-desktop', 'gamma')
@@ -154,14 +162,14 @@ test('the Bot waits for an inline preview to release the driver after hand-back'
   await service.inline(bot.conversation, 'observe', undefined, display)
   const handBack = service.inline(bot.conversation, 'hand-back', undefined, display)
   await closeStarted.promise
-  const cancelled = assert.rejects(bot.action('cancelled'), /control ended/u)
-  const screenshot = bot.action('next')
+  assert.deepEqual(await bot.action('cancelled'), { waiting: true, position: 1 })
+  assert.deepEqual(await bot.action('next'), { waiting: true, position: 2 })
   await bot.end('cancelled')
   assert.equal(captures, 1)
   closed.resolve()
   await handBack
-  await cancelled
-  assert.equal(await screenshot, image)
+  await assert.rejects(bot.action('cancelled'), /control ended/u)
+  assert.equal(await bot.action('next'), image)
   assert.equal(captures, 2)
 })
 

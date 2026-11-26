@@ -249,7 +249,12 @@ async function start() {
       assertComputerWindow(event)
       return computer.choose(conversation, target, operator)
     })
-    ipcMain.handle('ds-bot:computer-setup', async (event, rebuild) => {
+    const progressTo = (event, id) => (phase, detail) => {
+      if (typeof id === 'string' && /^[\w-]{1,80}$/u.test(id) && fromWindow(event)) {
+        event.sender.send('ds-bot:computer-progress', { id, phase, detail })
+      }
+    }
+    ipcMain.handle('ds-bot:computer-setup', async (event, rebuild, id) => {
       assertComputerWindow(event)
       if (typeof rebuild !== 'boolean') throw new Error('Unknown computer operation.')
       const zh = app.getLocale().startsWith('zh')
@@ -263,10 +268,10 @@ async function start() {
       })
       if (response !== 1) return false
       assertComputerWindow(event)
-      await computer.setup(rebuild)
+      await computer.setup(rebuild, progressTo(event, id))
       return true
     })
-    ipcMain.handle('ds-bot:computer-settings', async (event, op, value) => {
+    ipcMain.handle('ds-bot:computer-settings', async (event, op, value, id) => {
       assertComputerWindow(event)
       if (op === 'read') return { ...computerSettings, runtime: runtime.name }
       if (op === 'idle') {
@@ -340,7 +345,7 @@ async function start() {
           if (response !== 1) return false
           assertComputerWindow(event)
         }
-        return computer.startPrivateInstance(value ?? undefined, restart)
+        return computer.startPrivateInstance(value ?? undefined, restart, progressTo(event, id))
       }
       if (op === 'install') {
         await electronShell.openExternal(runtime.name === 'podman' ? 'https://podman-desktop.io/docs/installation/windows-install'
@@ -360,6 +365,15 @@ async function start() {
         return computer.previewPrivateInstance(value ?? undefined)
       }
       throw new Error('Unknown computer operation.')
+    })
+    ipcMain.on('ds-bot:computer-live', (event, message) => {
+      const [port] = event.ports
+      for (const extra of event.ports.slice(1)) extra.close()
+      if (!port) return
+      void (async () => {
+        assertComputerWindow(event)
+        await computer.live(message?.conversation, message?.display, port)
+      })().catch(() => {}).finally(() => port.close())
     })
     ipcMain.handle('ds-bot:computer-view', (event, conversation, op, input, display) => {
       assertComputerWindow(event)

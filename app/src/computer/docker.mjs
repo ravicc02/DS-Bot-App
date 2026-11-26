@@ -5,6 +5,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { isDeepStrictEqual } from 'node:util'
 import { desktopRuntime, podmanProfilePath } from './docker-installation.mjs'
 import { createDriver } from './driver.mjs'
+import { openLiveDesktop } from './live.mjs'
 import { openMcp } from './mcp.mjs'
 import seccomp from './seccomp.json' with { type: 'json' }
 
@@ -32,6 +33,24 @@ for window in $windows; do
 done
 exit 1
 `
+
+export function imageBuildReporter(report) {
+  const tails = new Map()
+  return (chunk, stream = 'stdout') => {
+    const lines = ((tails.get(stream) ?? '') + String(chunk)).split(/[\r\n]/u)
+    tails.set(stream, lines.pop().slice(-2048))
+    for (const line of lines) {
+      const layer = /^(?:STEP (\d{1,3})\/(\d{1,3}):|#\d+ \[.*?\b(\d{1,3})\/(\d{1,3})\])/u.exec(line.trim())
+      if (layer) {
+        const step = Number(layer[1] ?? layer[3])
+        const total = Number(layer[2] ?? layer[4])
+        if (step > 0 && step <= total) report?.('building-image', { step, total })
+      } else if (/^(?:Copying (?:blob|config)|Getting image source signatures|#\d+ .*?(?:pulling|downloading))/iu.test(line.trim())) {
+        report?.('downloading-image')
+      }
+    }
+  }
+}
 
 function validSecurity(options, version, podmanProfile) {
   if (!Array.isArray(options) || !options.includes('no-new-privileges')) return false
@@ -150,7 +169,8 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     return id
   }
 
-  async function build(rebuild, signal) {
+  async function build(rebuild, signal, report) {
+    report?.('checking-runtime')
     await verifyDaemon()
     const old = await imageRecord()
     const existing = await containers()
@@ -164,13 +184,16 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     const iidFile = `${imageFile}.${randomUUID()}`
     try {
       const progress = podman ? ['--format', 'docker'] : ['--progress', 'plain']
+      report?.('building-image')
+      const onOutput = imageBuildReporter(report)
       await runtime.command(['build', '--platform', 'linux/amd64', ...progress, '--iidfile', iidFile, imageDir],
-        { signal, timeout: 15 * 60_000, maxBuffer: 4 * 1024 * 1024 }).catch(error => {
+        { signal, timeout: 15 * 60_000, maxBuffer: 4 * 1024 * 1024, onOutput }).catch(error => {
         if (signal.aborted) throw signal.reason
         if (error.killed) throw new Error('Preparing the private desktop timed out.')
         throw new Error('Could not build the private desktop image. Check the desktop runtime and its network connection.')
       })
       signal.throwIfAborted()
+      report?.('checking-image')
       await verifyDaemon()
       const result = (await readFile(iidFile, 'utf8')).trim()
       const built = podman ? canonicalImageId(result) : result
@@ -192,7 +215,8 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     }
   }
 
-  async function start(state, signal, runningOnly) {
+  async function start(state, signal, runningOnly, report) {
+    report?.('checking-container')
     const { scope } = state
     const { name, mounts } = resources(instance, scope)
     await verifyDaemon()
@@ -204,6 +228,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
       throw new Error('All private desktops are in use. Stop an idle desktop or increase the instance limit in Settings.')
     }
     signal.throwIfAborted()
+    if (!existing) report?.('creating-container')
     await verifyVolumes(scope, !existing)
     if (!isDeepStrictEqual(JSON.parse(await readFile(seccompPath, 'utf8')), seccomp)) throw unsafe()
     const id = existing ?? await command('container', 'create', '--name', name, '--label', `${label}=${instance}`,
@@ -218,6 +243,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     state.desktop = selected
     if (!checked.State.Running) {
       if (runningOnly) throw new Error('The private desktop is stopped.')
+      report?.('starting-container')
       await command('container', 'start', id)
     }
     return selected
@@ -300,7 +326,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     desktops.delete(key)
   }
 
-  async function open(_selection, signal, operator, runningOnly = false) {
+  async function open(_selection, signal, operator, runningOnly = false, report) {
     const scope = privateDesktopScope(operator) ?? undefined
     if (!desktops.has(scope)) desktops.set(scope, { scope })
     const state = desktops.get(scope)
@@ -309,16 +335,18 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     state.active = true
     try {
       await state.stopping
-      const initializing = starting.then(() => start(state, signal, runningOnly))
+      const initializing = starting.then(() => start(state, signal, runningOnly, report))
       starting = initializing.catch(() => {})
       const selected = await initializing
       const { id } = selected
+      report?.('waiting-desktop')
       for (let attempt = 0; ; attempt++) {
         signal.throwIfAborted()
         if (await command('exec', id, '/bin/sh', '-c', desktopReady).then(() => true, () => false)) break
         if (attempt >= 30) throw new Error('The private desktop did not finish loading. Try refreshing the desktop.')
         await sleep(300, undefined, { signal })
       }
+      report?.('connecting-driver')
       const { binary, prefix } = await runtime.connect()
       signal.throwIfAborted()
       const connection = openMcp(binary, [...prefix, 'exec', '-i', '--env', 'CUA_DRIVER_RS_TELEMETRY_ENABLED=0', id,
@@ -326,10 +354,17 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
       const driver = await createDriver(connection, { signal, guard: async () => {
         if (!(await verify(selected)).State.Running) throw new Error('The private desktop is stopped.')
       } })
+      let live
       return {
         run: driver.run,
+        async openLive(port) {
+          if (live || !(await verify(selected)).State.Running) throw new Error('The private desktop is unavailable.')
+          signal.throwIfAborted()
+          live = openLiveDesktop({ binary, prefix, id, env: runtime.env, port, signal })
+          return live.done
+        },
         async close() {
-          try { await driver.close() } finally { state.active = false; scheduleIdle(state) }
+          try { await Promise.all([driver.close(), live?.close()]) } finally { state.active = false; scheduleIdle(state) }
         },
       }
     } catch (error) {
@@ -342,7 +377,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     }
   }
 
-  async function startAndObserve(operator, { checkOnly = false, runningOnly = false } = {}) {
+  async function startAndObserve(operator, { checkOnly = false, runningOnly = false, report } = {}) {
     if (closed || checking || building) throw new Error('The private desktop is unavailable while it is being prepared.')
     const abort = new AbortController()
     const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(65_000)])
@@ -350,8 +385,11 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
       const scope = privateDesktopScope(operator) ?? undefined
       const wasRunning = checkOnly && (await managedDesktops(true)).some(entry => entry.scope === scope)
       signal.throwIfAborted()
-      const driver = await open(undefined, signal, operator, runningOnly || wasRunning)
-      try { return await driver.run({ kind: 'observe' }) } finally {
+      const driver = await open(undefined, signal, operator, runningOnly || wasRunning, report)
+      try {
+        report?.('capturing-frame')
+        return await driver.run({ kind: 'observe' })
+      } finally {
         try { await driver.close() } finally {
           if (checkOnly && !wasRunning) await stop(desktops.get(scope))
         }
@@ -379,8 +417,8 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     },
     checkStartup: operator => startAndObserve(operator, { checkOnly: true }),
     previewInstance: operator => startAndObserve(operator, { runningOnly: true }),
-    startInstance: operator => startAndObserve(operator),
-    async setup(rebuild) {
+    startInstance: (operator, report) => startAndObserve(operator, { report }),
+    async setup(rebuild, report) {
       if (closed || building || checking || [...desktops.values()].some(state => state.active)) throw new Error('The private desktop is unavailable while it is being prepared.')
       for (const state of desktops.values()) clearTimeout(state.idleTimer)
       const abort = new AbortController()
@@ -388,7 +426,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
       building = pending
       pending.done = (async () => {
         if (rebuild) await stopManaged()
-        await build(rebuild, abort.signal)
+        await build(rebuild, abort.signal, report)
       })()
       try { await pending.done } finally { building = undefined; for (const state of desktops.values()) scheduleIdle(state) }
     },

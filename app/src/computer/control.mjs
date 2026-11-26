@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto'
 const EXPIRED = 'Computer control ended. Select a target again in the conversation.'
 const BUSY = 'This computer is already in use.'
 const TURN_LIFETIME = 5 * 60_000
+const WAIT_HEARTBEAT = 12_000
+const sameOwner = (a, b) => a.session === b.session && a.turn === b.turn
 
 export function createComputerControl(backends) {
   const slots = new Map()
@@ -11,7 +13,7 @@ export function createComputerControl(backends) {
     const backend = backends[target]
     if (closed || !backend) throw new Error(EXPIRED)
     const key = scope === undefined ? target : `${target}:${scope}`
-    if (!slots.has(key)) slots.set(key, { backend, scope })
+    if (!slots.has(key)) slots.set(key, { backend, scope, waiters: [] })
     return slots.get(key)
   }
   let closed = false
@@ -29,6 +31,29 @@ export function createComputerControl(backends) {
       await driver?.close()
     }).catch(error => { slot.failed = true; throw error }).finally(() => { slot.draining = undefined })
     return slot.draining
+  }
+
+  // FIFO admission adapted from OpenMausBot's TurnResources. Only a fresh poll can claim.
+  function queue(slot) {
+    slot.waiters = slot.waiters.filter(entry => entry.until > Date.now())
+    return slot.waiters
+  }
+
+  function wait(slot, owner, grant) {
+    if (closed || slot.failed) throw new Error(EXPIRED)
+    const waiters = queue(slot)
+    const index = waiters.findIndex(entry => entry.grant === grant && sameOwner(entry.owner, owner))
+    const until = Date.now() + WAIT_HEARTBEAT
+    if (index >= 0) {
+      waiters[index].until = until
+      return index + 1
+    }
+    waiters.push({ owner, grant, until })
+    return waiters.length
+  }
+
+  function cancelWaiting(slot, grant, owner) {
+    slot.waiters = queue(slot).filter(entry => entry.grant !== grant || (owner && !sameOwner(entry.owner, owner)))
   }
 
   function acquire(slot, owner, type, selection) {
@@ -74,10 +99,19 @@ export function createComputerControl(backends) {
   }
 
   return {
-    slotFor, acquire, run, release,
+    slotFor, acquire, run, release, wait, cancelWaiting,
+    async live(slot, id, owner, port) {
+      const lease = requireLease(slot, id, owner, 'user')
+      const driver = await lease.done
+      requireLease(slot, id, owner, 'user')
+      if (!driver.openLive) throw new Error(EXPIRED)
+      return driver.openLive(port)
+    },
+    waitCount: slot => queue(slot).length,
+    available: slot => !closed && !slot.failed && !slot.lease && !slot.draining && !slot.handoff,
     active: (slot, id) => slot?.lease?.id === id,
     busy: (target, matches = () => true) => [...slots.values()].some(slot => slot.backend === backends[target] && matches(slot.scope)
-      && (slot.lease || slot.draining || slot.failed)),
+      && (slot.lease || slot.draining || slot.failed || slot.handoff || queue(slot).length)),
     async drain(target, matches = () => true) {
       const selected = [...slots.values()].filter(slot => slot.backend === backends[target] && matches(slot.scope))
       await Promise.all(selected.map(stop))

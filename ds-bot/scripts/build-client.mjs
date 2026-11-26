@@ -16,6 +16,30 @@ const PLUGIN = dirname(dirname(fileURLToPath(import.meta.url)))
 const OUTPUT = join(PLUGIN, 'client.js')
 const PLATFORM_MODULES = ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives']
 
+// noVNC has top-level await. Initialize its self-contained ESM bundle in a lazy
+// async closure inside DSH's classic-script module loader, without eval or extra routes.
+async function desktopClient() {
+  const { outputFiles } = await build({
+    absWorkingDir: PLUGIN,
+    stdin: { contents: "export { default } from '@novnc/novnc'", resolveDir: PLUGIN },
+    bundle: true, format: 'esm', platform: 'browser', target: 'es2022', write: false,
+    minify: true, legalComments: 'inline',
+  })
+  const code = outputFiles[0].text.trimEnd()
+  const tail = /export\{([\w$]+) as default\};$/u.exec(code)
+  if (!tail) throw new Error('Unexpected noVNC bundle format')
+  return 'let pending; export default function loadRfb() { return pending ??= (async () => {'
+    + code.slice(0, tail.index) + 'return ' + tail[1] + '; })() }'
+}
+
+export async function desktopClientPlugin() {
+  const desktop = await desktopClient()
+  return { name: 'desktop-client', setup(builder) {
+    builder.onResolve({ filter: /^ds-bot-desktop-client$/ }, () => ({ path: 'rfb', namespace: 'ds-bot' }))
+    builder.onLoad({ filter: /.*/, namespace: 'ds-bot' }, () => ({ contents: desktop }))
+  } }
+}
+
 export async function bundleClient() {
   const result = await build({
     // Region comments name sources relative to the plugin, wherever the script runs from.
@@ -26,6 +50,7 @@ export async function bundleClient() {
     platform: 'browser',
     target: 'es2022',
     external: PLATFORM_MODULES,
+    plugins: [await desktopClientPlugin()],
     // Every source declaration ships, used or not, as in the hand-written bundle.
     treeShaking: false,
     // Readable for debugging in the browser: no minification, and Chinese text stays text.

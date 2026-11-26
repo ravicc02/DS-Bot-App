@@ -122,6 +122,25 @@ var ZH = {
   "Private desktop setup": "私有桌面设置",
   "Prepare desktop": "准备桌面",
   "Rebuild desktop": "重建桌面",
+  "Checking desktop runtime…": "正在检查桌面运行环境…",
+  "Building desktop image…": "正在构建桌面镜像…",
+  "Downloading desktop image…": "正在下载桌面镜像…",
+  "Verifying desktop image…": "正在验证桌面镜像…",
+  "Checking desktop instance…": "正在检查桌面实例…",
+  "Creating desktop instance…": "正在创建桌面实例…",
+  "Starting desktop instance…": "正在启动桌面实例…",
+  "Waiting for the desktop to load…": "正在等待桌面启动…",
+  "Connecting to the desktop…": "正在连接桌面…",
+  "Getting the first frame…": "正在获取首帧…",
+  "Shared desktop access is off.": "此群聊尚未授权使用共享桌面。",
+  "Shared mode is enabled in Settings.": "跟随设置：共享",
+  "Checking desktop settings…": "正在读取桌面设置…",
+  "Allow desktop access": "授权使用",
+  "Shared group desktop": "共享桌面",
+  "Connecting to desktop…": "正在连接桌面…",
+  "Desktop disconnected. Take control to reconnect.": "桌面已断开，请重新接管。",
+  "Bots waiting": "排队中的 Bot",
+  "Enable shared mode in Settings to use a desktop in this group.": "在设置中启用共享模式后，群聊才能使用桌面。",
   "Preparing the private desktop…": "正在准备私有桌面…",
   "Desktop prepared. Check startup to see its screen.": "桌面已准备好。点击「检查启动」查看画面。",
   "Prepare the private desktop first.": "请先准备私有桌面。",
@@ -1711,8 +1730,8 @@ function bodyOf(def, paint, flat = false) {
     return "";
   }
 }
-var eyeMarkup = ([cx, cy, w, h54, tilt]) => `<g transform="translate(${cx} ${cy}) rotate(${tilt})"><rect class="bt-eye" x="${-w / 2}" y="${-h54 / 2}" width="${w}" height="${h54}" rx="${w / 2}"/></g>`;
-var happyEyeMarkup = ([cx, cy, w, h54, tilt]) => `<g transform="translate(${cx} ${cy}) rotate(${tilt})"><path class="bt-eye-happy" opacity="0" d="M${-w * 0.62} ${h54 * 0.14}Q0 ${-h54 * 0.42} ${w * 0.62} ${h54 * 0.14}" fill="none" stroke="#000" stroke-width="${w * 0.5}" stroke-linecap="round"/></g>`;
+var eyeMarkup = ([cx, cy, w, h55, tilt]) => `<g transform="translate(${cx} ${cy}) rotate(${tilt})"><rect class="bt-eye" x="${-w / 2}" y="${-h55 / 2}" width="${w}" height="${h55}" rx="${w / 2}"/></g>`;
+var happyEyeMarkup = ([cx, cy, w, h55, tilt]) => `<g transform="translate(${cx} ${cy}) rotate(${tilt})"><path class="bt-eye-happy" opacity="0" d="M${-w * 0.62} ${h55 * 0.14}Q0 ${-h55 * 0.42} ${w * 0.62} ${h55 * 0.14}" fill="none" stroke="#000" stroke-width="${w * 0.5}" stroke-linecap="round"/></g>`;
 var maskBox = (size) => `maskUnits="userSpaceOnUse" x="${-size}" y="${-size}" width="${size * 3}" height="${size * 3}"`;
 var holes = (def, eyes) => `<rect x="${-def.size}" y="${-def.size}" width="${def.size * 3}" height="${def.size * 3}" fill="#fff"/>${eyes}`;
 var MASK_ID = "%MASK%";
@@ -2642,12 +2661,12 @@ function liveSprings(apply2) {
     const dt = Math.min(0.5, Math.max(1e-3, (now - last) / 1e3));
     last = now;
     const steps = Math.ceil(dt * 240);
-    const h54 = dt / steps;
+    const h55 = dt / steps;
     let moving = false;
     for (const value of values.values()) {
       for (let index = 0; index < steps; index += 1) {
-        value.v += (-value.k * (value.x - value.to) - value.c * value.v) * h54;
-        value.x += value.v * h54;
+        value.v += (-value.k * (value.x - value.to) - value.c * value.v) * h55;
+        value.x += value.v * h55;
       }
       if (Math.abs(value.x - value.to) < 0.05 && Math.abs(value.v) < 1) {
         value.x = value.to;
@@ -3237,6 +3256,7 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-computer-location{padding:12px;background:var(--bt-hover);border:1px solid var(--bt-line);border-radius:8px}
 .bt-computer-location-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .bt-computer-location-heading h3{margin:0;font-size:13px;font-weight:600}
+.bt-computer-group-access{justify-content:space-between;align-items:center}
 .bt-computer-location-heading .bt-more{margin:0;padding:0;text-align:start}
 .bt-computer-screen-actions button{flex:1;white-space:nowrap}
 .bt-computer-actions .bt-computer-primary{background:var(--bt-accent);border-color:var(--bt-accent);color:var(--bt-accent-ink)}
@@ -3251,7 +3271,12 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-computer-viewport:fullscreen{place-content:center}
 .bt-computer-viewport:fullscreen .bt-computer-preview{max-height:100vh;max-width:100vw;width:auto}
 .bt-computer-preview{display:block;width:auto;height:auto;max-width:100%;max-height:58vh}
-.bt-computer-preview[data-active]{cursor:crosshair}
+.bt-computer-preview-button{display:block;padding:0;border:0;background:none;max-width:100%;cursor:pointer}
+.bt-computer-preview-button:focus-visible{outline:2px solid var(--bt-accent);outline-offset:-2px}
+.bt-computer-live{position:relative;width:100%;aspect-ratio:1280 / 900;max-height:58vh;min-height:160px}
+.bt-computer-viewport:fullscreen .bt-computer-live{width:100vw;height:100vh;max-height:none}
+.bt-computer-live-screen{position:absolute;inset:0}
+.bt-computer-live-connecting{position:absolute;inset:0;display:grid;place-content:center;pointer-events:none}
 .bt-computer-settings .bt-set-control{flex-wrap:wrap;justify-content:flex-end;max-width:65%;min-width:0}
 .bt-computer-settings .bt-select{max-width:100%;min-width:0;text-overflow:ellipsis}
 .bt-computer-install-command{min-width:0;overflow-wrap:anywhere;user-select:text}
@@ -3294,6 +3319,9 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-computer-steps+.bt-computer-setup-details{margin-top:16px}
 .bt-computer-feedback{padding:0 4px;overflow-wrap:anywhere}
 .bt-computer-feedback p{margin:0}
+.bt-computer-progress{display:grid;grid-template-columns:1fr auto;gap:4px 12px;color:var(--bt-muted);font-size:12px;width:100%;max-width:460px}
+.bt-computer-progress time{font-variant-numeric:tabular-nums}
+.bt-computer-progress progress{grid-column:1/-1;width:100%;height:5px;accent-color:var(--bt-accent)}
 @media (prefers-reduced-motion:reduce){.bt-computer-setup[open],.bt-computer-setup::backdrop{animation:none}}
 .bt-empty{text-align:center;color:var(--bt-ink-3);font-size:13px;line-height:18px;padding:8px 12px}
 .bt-section-title{font-size:12px;color:var(--bt-ink-2);margin-bottom:6px}
@@ -4713,8 +4741,8 @@ function SettledQuestion({ question, answer }) {
   );
 }
 function QuestionCard({ matched }) {
-  const pending = matched;
-  const questions = pending.questions ?? [];
+  const pending2 = matched;
+  const questions = pending2.questions ?? [];
   const [index, setIndex] = (0, import_react6.useState)(0);
   const [answers, setAnswers] = (0, import_react6.useState)([]);
   const question = questions[index];
@@ -4726,9 +4754,9 @@ function QuestionCard({ matched }) {
       setIndex(index + 1);
       return;
     }
-    pending.answer({ answers: next });
+    pending2.answer({ answers: next });
   };
-  return (0, import_react6.createElement)(QuestionView, { key: index, question, onAnswer, onDismiss: () => pending.dismiss(), ownAnswer: true, raised: true });
+  return (0, import_react6.createElement)(QuestionView, { key: index, question, onAnswer, onDismiss: () => pending2.dismiss(), ownAnswer: true, raised: true });
 }
 function PendingQuestion({ sessionId, question, actions, inline }) {
   const [answered, setAnswered] = (0, import_react6.useState)(null);
@@ -8196,8 +8224,8 @@ function ownerSegment(card, content) {
 var btwRow = (card) => ({ kind: "btw", card });
 function withBtwRows(items, cards) {
   const list = Array.isArray(items) ? items : [];
-  const pending = (Array.isArray(cards) ? cards : []).filter((card) => card && card.id !== void 0 && card.id !== null);
-  if (pending.length === 0) return list;
+  const pending2 = (Array.isArray(cards) ? cards : []).filter((card) => card && card.id !== void 0 && card.id !== null);
+  if (pending2.length === 0) return list;
   const segments = segmentsOf(list);
   const content = segments.filter((segment) => segment.kind === "rows");
   let floor;
@@ -8207,7 +8235,7 @@ function withBtwRows(items, cards) {
   }
   const buckets = /* @__PURE__ */ new Map();
   const aside = [];
-  for (const card of pending) {
+  for (const card of pending2) {
     const owner = ownerSegment(card, content);
     if (owner) {
       const bucket = buckets.get(owner) ?? [];
@@ -8738,13 +8766,13 @@ function memoryFailure(code) {
   }
 }
 function MemoryEvent({ sessionId, scope, tool, result, failed, code, roster, actions, findBot }) {
-  const self = roster.byId[sessionId];
+  const self2 = roster.byId[sessionId];
   const room2 = roster.roomsById[sessionId];
   const named = String(scope ?? "").trim();
   const team = MEMORY_TEAM.test(named);
   const other = team || named === "" ? void 0 : findBot(named);
-  const target = other && other.id !== self?.id ? other : self;
-  const panel = team ? self?.id : MEMORY_OWN.test(named) ? self?.id : MEMORY_GROUP.test(named) ? room2?.id : named === "" ? room2?.id ?? self?.id : other?.id;
+  const target = other && other.id !== self2?.id ? other : self2;
+  const panel = team ? self2?.id : MEMORY_OWN.test(named) ? self2?.id : MEMORY_GROUP.test(named) ? room2?.id : named === "" ? room2?.id ?? self2?.id : other?.id;
   if (!failed && MEMORY_ALREADY.test(result)) {
     return (0, import_react17.createElement)(
       "div",
@@ -8754,7 +8782,7 @@ function MemoryEvent({ sessionId, scope, tool, result, failed, code, roster, act
   }
   if (!failed && MEMORY_SAVED.test(result)) {
     if (!target) return (0, import_react17.createElement)(CellEmpty);
-    const label2 = team ? t("Team memory updated") : target === self ? t("Memory updated") : t("Updated {name}'s memory", { name: target.name });
+    const label2 = team ? t("Team memory updated") : target === self2 ? t("Memory updated") : t("Updated {name}'s memory", { name: target.name });
     return (0, import_react17.createElement)(
       "div",
       { className: "bt-event" },
@@ -8837,9 +8865,9 @@ function EarlierParts({ sessionId, roster, actions }) {
     };
   }, [sessionId]);
   (0, import_react17.useLayoutEffect)(() => {
-    const pending = restore.current;
+    const pending2 = restore.current;
     restore.current = null;
-    if (pending) pending.scroller.scrollTop = pending.scroller.scrollHeight - pending.fromEnd;
+    if (pending2) pending2.scroller.scrollTop = pending2.scroller.scrollHeight - pending2.fromEnd;
   }, [view.pages]);
   (0, import_react17.useEffect)(() => {
     const node = top.current;
@@ -9126,7 +9154,7 @@ var TOOL_PHRASES = [
   [/image|photo|draw/i, "Working on an image"]
 ];
 var GROUP_PHRASES = { create_group: "Creating a group", update_group: "Updating the group", delete_group: "Deleting the group", post_to_group: "Posting in the group" };
-function toolActivity(name, arg, findBot, self) {
+function toolActivity(name, arg, findBot, self2) {
   switch (name) {
     case "ask_user":
       return null;
@@ -9149,7 +9177,7 @@ function toolActivity(name, arg, findBot, self) {
     case "create_bot":
       return { label: t("Creating {name}", { name: arg("name") ?? t("a Bot") }), state: "sending" };
     case "update_bot": {
-      const target = findBot(arg("name")) ?? findBot(arg("bot")) ?? (arg("bot") ? void 0 : self);
+      const target = findBot(arg("name")) ?? findBot(arg("bot")) ?? (arg("bot") ? void 0 : self2);
       return { label: t("Updating {name}", { name: target?.name ?? t("a Bot") }), state: "sending" };
     }
     case "list_bots":
@@ -9279,12 +9307,12 @@ function GroupReplies({ sessionId, callId, done, content, roster, actions, useUi
     replies = parsed.replies.length ? parsed.replies : live.replies;
     broken = parsed.broken;
   }
-  const pending = done ? [] : live.speaking;
-  const doing = JSON.parse(useWork?.((work) => JSON.stringify(pending.map((id) => {
+  const pending2 = done ? [] : live.speaking;
+  const doing = JSON.parse(useWork?.((work) => JSON.stringify(pending2.map((id) => {
     const tool = work.bots?.[id]?.tool;
     return tool ? [tool, workPhrase(work.bots[id])] : [];
   }))) ?? "[]");
-  if (replies.length === 0 && pending.length === 0) {
+  if (replies.length === 0 && pending2.length === 0) {
     return broken ? (0, import_react17.createElement)("div", { className: "bt-group-replies" }, (0, import_react17.createElement)("div", { className: "bt-event" }, t("The group replies could not be shown"))) : (0, import_react17.createElement)(CellEmpty);
   }
   const room2 = roster.roomsById[sessionId];
@@ -9306,7 +9334,7 @@ function GroupReplies({ sessionId, callId, done, content, roster, actions, useUi
       }
       return (0, import_react17.createElement)(GroupMessage, { key: `${reply.botId}-${index}`, bot, texts: texts2, room: room2, roster, actions, msgKey: callId ? `${sessionId}:${callId}:${index}` : void 0, useUi, time, duration });
     }),
-    pending.map((id, at) => {
+    pending2.map((id, at) => {
       const bot = roster.byId[id];
       if (!bot) return null;
       const [tool, phrase] = doing[at] ?? [];
@@ -9347,17 +9375,17 @@ function renderCall(call2, { sessionId, roster, actions, useUi, useWork, findBot
   const tool = toolName(call2);
   const done = call2.kind === "tool-result";
   const { text: arg, value: argValue } = toolArgs(call2);
-  const self = roster.byId[sessionId];
+  const self2 = roster.byId[sessionId];
   switch (tool) {
     case "message_bot": {
       const target = findBot(arg("to")) ?? { name: arg("to") ?? "…", color: "gray" };
       if (done && call2.isError) return (0, import_react17.createElement)("div", { className: "bt-event" }, t("Couldn't message {name}", { name: target.name }));
-      return (0, import_react17.createElement)(EventLine, { prefix: t("Messaged"), bots: [target], onOpen: (bot) => bot.id && actions.openExchange(self?.id ?? sessionId, bot.id), whole: true });
+      return (0, import_react17.createElement)(EventLine, { prefix: t("Messaged"), bots: [target], onOpen: (bot) => bot.id && actions.openExchange(self2?.id ?? sessionId, bot.id), whole: true });
     }
     case "stop_bot": {
       const target = findBot(arg("bot")) ?? { name: arg("bot") ?? "…", color: "gray" };
       if (done && call2.isError) return (0, import_react17.createElement)("div", { className: "bt-event" }, t("Couldn't stop {name}", { name: target.name }));
-      return (0, import_react17.createElement)(EventLine, { prefix: t("Stopped"), bots: [target], onOpen: (bot) => bot.id && actions.openExchange(self?.id ?? sessionId, bot.id), whole: true });
+      return (0, import_react17.createElement)(EventLine, { prefix: t("Stopped"), bots: [target], onOpen: (bot) => bot.id && actions.openExchange(self2?.id ?? sessionId, bot.id), whole: true });
     }
     case "create_bot": {
       const created = findBot(arg("name"));
@@ -9365,7 +9393,7 @@ function renderCall(call2, { sessionId, roster, actions, useUi, useWork, findBot
       return (0, import_react17.createElement)(EventLine, { prefix: t("Created"), bots: [created], onOpen: (bot) => actions.openSession(bot.id) });
     }
     case "update_bot": {
-      const target = findBot(arg("name")) ?? findBot(arg("bot")) ?? (arg("bot") ? void 0 : self);
+      const target = findBot(arg("name")) ?? findBot(arg("bot")) ?? (arg("bot") ? void 0 : self2);
       return done && target ? (0, import_react17.createElement)(EventLine, { prefix: t("Updated"), bots: [target], onOpen: (bot) => actions.openSession(bot.id) }) : (0, import_react17.createElement)(CellEmpty);
     }
     case "group_relay":
@@ -11241,8 +11269,8 @@ var conversationOf = (roster, sessionId) => {
   if (!roster.ready) return null;
   const room2 = roster.roomsById[sessionId];
   if (room2) return { room: room2 };
-  const self = roster.byId[sessionId];
-  return self ? { self } : null;
+  const self2 = roster.byId[sessionId];
+  return self2 ? { self: self2 } : null;
 };
 function mentionRows(roster, sessionId, query = "") {
   const here = conversationOf(roster, sessionId);
@@ -15022,12 +15050,12 @@ var DANGER = /* @__PURE__ */ new Set(["danger-full-access"]);
 var presetDanger = (value) => DANGER.has(value);
 var presetName = (value, catalog) => LABELS[value] ? t(LABELS[value]) : catalog?.options?.find((option) => option.value === value)?.name ?? value;
 function PermissionPicker({ catalog, saved, onPick, repick = false }) {
-  const [pending, setPending] = (0, import_react36.useState)(null);
+  const [pending2, setPending] = (0, import_react36.useState)(null);
   const flight = (0, import_react36.useRef)({ value: void 0, latest: void 0 });
   (0, import_react36.useEffect)(() => {
     const flying = flight.current.value;
-    if (pending === saved && (flying === void 0 || flying === pending)) setPending(null);
-  }, [pending, saved]);
+    if (pending2 === saved && (flying === void 0 || flying === pending2)) setPending(null);
+  }, [pending2, saved]);
   const send = (value) => {
     flight.current.value = value;
     void Promise.resolve(onPick(value)).then((done) => done !== false, () => false).then((ok) => {
@@ -15041,7 +15069,7 @@ function PermissionPicker({ catalog, saved, onPick, repick = false }) {
       if (!ok) setPending(null);
     });
   };
-  const current = pending ?? saved;
+  const current = pending2 ?? saved;
   const pick2 = (value) => {
     if (value === current && !repick) return;
     setPending(value);
@@ -16453,8 +16481,4417 @@ function ConnectorsPage({ roster, actions }) {
   );
 }
 
-// src/client/computer-pane.js
+// ds-bot:rfb
+var pending;
+function loadRfb() {
+  return pending ??= (async () => {
+    function ji(i) {
+      return i >>> 0;
+    }
+    function it(i) {
+      return i | 0;
+    }
+    var qi = "warn", L = () => {
+    }, V = () => {
+    }, Z = () => {
+    }, U = () => {
+    };
+    function Zr(i) {
+      if (typeof i > "u" ? i = qi : qi = i, L = V = Z = U = () => {
+      }, typeof window.console < "u") switch (i) {
+        case "debug":
+          L = console.debug.bind(window.console);
+        case "info":
+          V = console.info.bind(window.console);
+        case "warn":
+          Z = console.warn.bind(window.console);
+        case "error":
+          U = console.error.bind(window.console);
+        case "none":
+          break;
+        default:
+          throw new window.Error("invalid logging type '" + i + "'");
+      }
+    }
+    Zr();
+    function Bt(i, t2 = false) {
+      try {
+        return decodeURIComponent(escape(i));
+      } catch (e) {
+        if (e instanceof URIError && t2) return i;
+        throw e;
+      }
+    }
+    function he(i) {
+      return unescape(encodeURIComponent(i));
+    }
+    var Pe = { toBase64Table: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".split(""), base64Pad: "=", encode(i) {
+      "use strict";
+      let t2 = "", e = i.length, s = e % 3;
+      for (let n = 0; n < e - 2; n += 3) t2 += this.toBase64Table[i[n] >> 2], t2 += this.toBase64Table[((i[n] & 3) << 4) + (i[n + 1] >> 4)], t2 += this.toBase64Table[((i[n + 1] & 15) << 2) + (i[n + 2] >> 6)], t2 += this.toBase64Table[i[n + 2] & 63];
+      let r = e - s;
+      return s === 2 ? (t2 += this.toBase64Table[i[r] >> 2], t2 += this.toBase64Table[((i[r] & 3) << 4) + (i[r + 1] >> 4)], t2 += this.toBase64Table[(i[r + 1] & 15) << 2], t2 += this.toBase64Table[64]) : s === 1 && (t2 += this.toBase64Table[i[r] >> 2], t2 += this.toBase64Table[(i[r] & 3) << 4], t2 += this.toBase64Table[64], t2 += this.toBase64Table[64]), t2;
+    }, toBinaryTable: [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, 0, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1], decode(i, t2 = 0) {
+      let e = i.indexOf("=") - t2;
+      e < 0 && (e = i.length - t2);
+      let s = (e >> 2) * 3 + Math.floor(e % 4 / 1.5), r = new Array(s), n = 0, a = 0;
+      for (let h55 = 0, c = t2; c < i.length; c++) {
+        let o = this.toBinaryTable[i.charCodeAt(c) & 127], l = i.charAt(c) === this.base64Pad;
+        if (o === -1) {
+          U("Illegal character code " + i.charCodeAt(c) + " at position " + c);
+          continue;
+        }
+        a = a << 6 | o, n += 6, n >= 8 && (n -= 8, l || (r[h55++] = a >> n & 255), a &= (1 << n) - 1);
+      }
+      if (n) {
+        let h55 = new Error("Corrupted base64 string");
+        throw h55.name = "Base64-Error", h55;
+      }
+      return r;
+    } };
+    var _i = "ontouchstart" in document.documentElement || document.ontouchstart !== void 0 || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+    window.addEventListener("touchstart", function i() {
+      _i = true, window.removeEventListener("touchstart", i, false);
+    }, false);
+    var st = 10 * (window.devicePixelRatio || 1), Ji = false;
+    try {
+      let i = document.createElement("canvas");
+      i.style.cursor = 'url("data:image/x-icon;base64,AAACAAEACAgAAAIAAgA4AQAAFgAAACgAAAAIAAAAEAAAAAEAIAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AAAAAAAAAAAAAAAAAAAAAA==") 2 2, default', i.style.cursor.indexOf("url") === 0 ? (V("Data URI scheme cursor supported"), Ji = true) : Z("Data URI scheme cursor not supported");
+    } catch (i) {
+      U("Data URI scheme cursor test exception: " + i);
+    }
+    var $i = Ji, Yr = true;
+    try {
+      let i = document.createElement("div");
+      i.style.visibility = "hidden", i.style.overflow = "scroll", document.body.appendChild(i);
+      let t2 = document.createElement("div");
+      i.appendChild(t2);
+      let e = i.offsetWidth - t2.offsetWidth;
+      i.parentNode.removeChild(i), Yr = e != 0;
+    } catch (i) {
+      U("Scrollbar test exception: " + i);
+    }
+    var fi = false;
+    async function jr() {
+      if (!("VideoDecoder" in window)) return false;
+      let i = { codec: "avc1.42401f", codedWidth: 1920, codedHeight: 1080, optimizeForLatency: true };
+      if (!(await VideoDecoder.isConfigSupported(i)).supported) return false;
+      let e = new Uint8Array(Pe.decode("AAAAAWdCwBTZnpuAgICgAAADACAAAAZB4oVNAAAAAWjJYyyAAAABBgX//4HcRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MCByZWY9NSBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgxOjB4MTExIG1lPWhleCBzdWJtZT04IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0yIDh4OGRjdD0wIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD1pbmZpbml0ZSBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NTAgcmM9YWJyIG1idHJlZT0xIGJpdHJhdGU9NDAwIHJhdGV0b2w9MS4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAABZYiEBrxmKAAPVccAAS044AA5DRJMnkycJk4TPw==")), s = false, r = null, n = new VideoDecoder({ output: (h55) => {
+        s = true, h55.close();
+      }, error: (h55) => {
+        r = h55;
+      } }), a = new EncodedVideoChunk({ timestamp: 0, type: "key", data: e });
+      n.configure(i), n.decode(a);
+      try {
+        await n.flush();
+      } catch (h55) {
+        r = h55;
+      }
+      return !(!s || r !== null);
+    }
+    fi = await jr();
+    function me() {
+      return !!/mac/i.exec(navigator.platform);
+    }
+    function He() {
+      return !!/win/i.exec(navigator.platform);
+    }
+    function Ue() {
+      return !!/ipad/i.exec(navigator.platform) || !!/iphone/i.exec(navigator.platform) || !!/ipod/i.exec(navigator.platform);
+    }
+    function Ne(i, t2, e) {
+      let s = e.getBoundingClientRect(), r = { x: 0, y: 0 };
+      return i < s.left ? r.x = 0 : i >= s.right ? r.x = s.width - 1 : r.x = i - s.left, t2 < s.top ? r.y = 0 : t2 >= s.bottom ? r.y = s.height - 1 : r.y = t2 - s.top, r;
+    }
+    function Se(i) {
+      i.stopPropagation(), i.preventDefault();
+    }
+    var ui2 = false, ts = null;
+    document.captureElement = null;
+    function ke(i) {
+      if (ui2) return;
+      let t2 = new i.constructor(i.type, i);
+      ui2 = true, document.captureElement ? document.captureElement.dispatchEvent(t2) : ts.dispatchEvent(t2), ui2 = false, i.stopPropagation(), t2.defaultPrevented && i.preventDefault(), i.type === "mouseup" && ns();
+    }
+    function is() {
+      let i = document.getElementById("noVNC_mouse_capture_elem");
+      i.style.cursor = window.getComputedStyle(document.captureElement).cursor;
+    }
+    var ss = new MutationObserver(is);
+    function rs(i) {
+      if (i.setCapture) i.setCapture(), document.captureElement = i;
+      else {
+        ns();
+        let t2 = document.getElementById("noVNC_mouse_capture_elem");
+        t2 === null && (t2 = document.createElement("div"), t2.id = "noVNC_mouse_capture_elem", t2.style.position = "fixed", t2.style.top = "0px", t2.style.left = "0px", t2.style.width = "100%", t2.style.height = "100%", t2.style.zIndex = 1e4, t2.style.display = "none", document.body.appendChild(t2), t2.addEventListener("contextmenu", ke), t2.addEventListener("mousemove", ke), t2.addEventListener("mouseup", ke)), document.captureElement = i, ss.observe(i, { attributes: true }), is(), t2.style.display = "", window.addEventListener("mousemove", ke), window.addEventListener("mouseup", ke);
+      }
+    }
+    function ns() {
+      if (document.releaseCapture) document.releaseCapture(), document.captureElement = null;
+      else {
+        if (!document.captureElement) return;
+        ts = document.captureElement, document.captureElement = null, ss.disconnect();
+        let i = document.getElementById("noVNC_mouse_capture_elem");
+        i.style.display = "none", window.removeEventListener("mousemove", ke), window.removeEventListener("mouseup", ke);
+      }
+    }
+    var Ee = class {
+      constructor() {
+        this._listeners = /* @__PURE__ */ new Map();
+      }
+      addEventListener(t2, e) {
+        this._listeners.has(t2) || this._listeners.set(t2, /* @__PURE__ */ new Set()), this._listeners.get(t2).add(e);
+      }
+      removeEventListener(t2, e) {
+        this._listeners.has(t2) && this._listeners.get(t2).delete(e);
+      }
+      dispatchEvent(t2) {
+        return this._listeners.has(t2.type) ? (this._listeners.get(t2.type).forEach((e) => e.call(this, t2)), !t2.defaultPrevented) : true;
+      }
+    };
+    var rt = class {
+      constructor(t2) {
+        if (this._drawCtx = null, this._renderQ = [], this._flushPromise = null, this._fbWidth = 0, this._fbHeight = 0, this._prevDrawStyle = "", L(">> Display.constructor"), this._target = t2, !this._target) throw new Error("Target must be set");
+        if (typeof this._target == "string") throw new Error("target must be a DOM element");
+        if (!this._target.getContext) throw new Error("no getContext method");
+        this._targetCtx = this._target.getContext("2d"), this._viewportLoc = { x: 0, y: 0, w: this._target.width, h: this._target.height }, this._backbuffer = document.createElement("canvas"), this._drawCtx = this._backbuffer.getContext("2d"), this._damageBounds = { left: 0, top: 0, right: this._backbuffer.width, bottom: this._backbuffer.height }, L("User Agent: " + navigator.userAgent), L("<< Display.constructor"), this._scale = 1, this._clipViewport = false;
+      }
+      get scale() {
+        return this._scale;
+      }
+      set scale(t2) {
+        this._rescale(t2);
+      }
+      get clipViewport() {
+        return this._clipViewport;
+      }
+      set clipViewport(t2) {
+        this._clipViewport = t2;
+        let e = this._viewportLoc;
+        this.viewportChangeSize(e.w, e.h), this.viewportChangePos(0, 0);
+      }
+      get width() {
+        return this._fbWidth;
+      }
+      get height() {
+        return this._fbHeight;
+      }
+      viewportChangePos(t2, e) {
+        let s = this._viewportLoc;
+        t2 = Math.floor(t2), e = Math.floor(e), this._clipViewport || (t2 = -s.w, e = -s.h);
+        let r = s.x + s.w - 1, n = s.y + s.h - 1;
+        t2 < 0 && s.x + t2 < 0 && (t2 = -s.x), r + t2 >= this._fbWidth && (t2 -= r + t2 - this._fbWidth + 1), s.y + e < 0 && (e = -s.y), n + e >= this._fbHeight && (e -= n + e - this._fbHeight + 1), !(t2 === 0 && e === 0) && (L("viewportChange deltaX: " + t2 + ", deltaY: " + e), s.x += t2, s.y += e, this._damage(s.x, s.y, s.w, s.h), this.flip());
+      }
+      viewportChangeSize(t2, e) {
+        (!this._clipViewport || typeof t2 > "u" || typeof e > "u") && (L("Setting viewport to full display region"), t2 = this._fbWidth, e = this._fbHeight), t2 = Math.floor(t2), e = Math.floor(e), t2 > this._fbWidth && (t2 = this._fbWidth), e > this._fbHeight && (e = this._fbHeight);
+        let s = this._viewportLoc;
+        if (s.w !== t2 || s.h !== e) {
+          s.w = t2, s.h = e;
+          let r = this._target;
+          r.width = t2, r.height = e, this.viewportChangePos(0, 0), this._damage(s.x, s.y, s.w, s.h), this.flip(), this._rescale(this._scale);
+        }
+      }
+      absX(t2) {
+        return this._scale === 0 ? 0 : it(t2 / this._scale + this._viewportLoc.x);
+      }
+      absY(t2) {
+        return this._scale === 0 ? 0 : it(t2 / this._scale + this._viewportLoc.y);
+      }
+      resize(t2, e) {
+        this._prevDrawStyle = "", this._fbWidth = t2, this._fbHeight = e;
+        let s = this._backbuffer;
+        if (s.width !== t2 || s.height !== e) {
+          let n = null;
+          s.width > 0 && s.height > 0 && (n = this._drawCtx.getImageData(0, 0, s.width, s.height)), s.width !== t2 && (s.width = t2), s.height !== e && (s.height = e), n && this._drawCtx.putImageData(n, 0, 0);
+        }
+        let r = this._viewportLoc;
+        this.viewportChangeSize(r.w, r.h), this.viewportChangePos(0, 0);
+      }
+      getImageData() {
+        return this._drawCtx.getImageData(0, 0, this.width, this.height);
+      }
+      toDataURL(t2, e) {
+        return this._backbuffer.toDataURL(t2, e);
+      }
+      toBlob(t2, e, s) {
+        return this._backbuffer.toBlob(t2, e, s);
+      }
+      _damage(t2, e, s, r) {
+        t2 < this._damageBounds.left && (this._damageBounds.left = t2), e < this._damageBounds.top && (this._damageBounds.top = e), t2 + s > this._damageBounds.right && (this._damageBounds.right = t2 + s), e + r > this._damageBounds.bottom && (this._damageBounds.bottom = e + r);
+      }
+      flip(t2) {
+        if (this._renderQ.length !== 0 && !t2) this._renderQPush({ type: "flip" });
+        else {
+          let e = this._damageBounds.left, s = this._damageBounds.top, r = this._damageBounds.right - e, n = this._damageBounds.bottom - s, a = e - this._viewportLoc.x, h55 = s - this._viewportLoc.y;
+          a < 0 && (r += a, e -= a, a = 0), h55 < 0 && (n += h55, s -= h55, h55 = 0), a + r > this._viewportLoc.w && (r = this._viewportLoc.w - a), h55 + n > this._viewportLoc.h && (n = this._viewportLoc.h - h55), r > 0 && n > 0 && this._targetCtx.drawImage(this._backbuffer, e, s, r, n, a, h55, r, n), this._damageBounds.left = this._damageBounds.top = 65535, this._damageBounds.right = this._damageBounds.bottom = 0;
+        }
+      }
+      pending() {
+        return this._renderQ.length > 0;
+      }
+      flush() {
+        return this._renderQ.length === 0 ? Promise.resolve() : (this._flushPromise === null && (this._flushPromise = new Promise((t2) => {
+          this._flushResolve = t2;
+        })), this._flushPromise);
+      }
+      fillRect(t2, e, s, r, n, a) {
+        this._renderQ.length !== 0 && !a ? this._renderQPush({ type: "fill", x: t2, y: e, width: s, height: r, color: n }) : (this._setFillColor(n), this._drawCtx.fillRect(t2, e, s, r), this._damage(t2, e, s, r));
+      }
+      copyImage(t2, e, s, r, n, a, h55) {
+        this._renderQ.length !== 0 && !h55 ? this._renderQPush({ type: "copy", oldX: t2, oldY: e, x: s, y: r, width: n, height: a }) : (this._drawCtx.mozImageSmoothingEnabled = false, this._drawCtx.webkitImageSmoothingEnabled = false, this._drawCtx.msImageSmoothingEnabled = false, this._drawCtx.imageSmoothingEnabled = false, this._drawCtx.drawImage(this._backbuffer, t2, e, n, a, s, r, n, a), this._damage(s, r, n, a));
+      }
+      imageRect(t2, e, s, r, n, a) {
+        if (s === 0 || r === 0) return;
+        let h55 = new Image();
+        h55.src = "data: " + n + ";base64," + Pe.encode(a), this._renderQPush({ type: "img", img: h55, x: t2, y: e, width: s, height: r });
+      }
+      videoFrame(t2, e, s, r, n) {
+        this._renderQPush({ type: "frame", frame: n, x: t2, y: e, width: s, height: r });
+      }
+      blitImage(t2, e, s, r, n, a, h55) {
+        if (this._renderQ.length !== 0 && !h55) {
+          let c = new Uint8Array(s * r * 4);
+          c.set(new Uint8Array(n.buffer, 0, c.length)), this._renderQPush({ type: "blit", data: c, x: t2, y: e, width: s, height: r });
+        } else {
+          let c = new Uint8ClampedArray(n.buffer, n.byteOffset + a, s * r * 4), o = new ImageData(c, s, r);
+          this._drawCtx.putImageData(o, t2, e), this._damage(t2, e, s, r);
+        }
+      }
+      drawImage(t2, ...e) {
+        if (this._drawCtx.drawImage(t2, ...e), e.length <= 4) {
+          let [s, r] = e;
+          this._damage(s, r, t2.width, t2.height);
+        } else {
+          let [, , s, r, n, a] = e;
+          this._damage(n, a, s, r);
+        }
+      }
+      autoscale(t2, e) {
+        let s;
+        if (t2 === 0 || e === 0) s = 0;
+        else {
+          let r = this._viewportLoc, n = t2 / e;
+          r.w / r.h >= n ? s = t2 / r.w : s = e / r.h;
+        }
+        this._rescale(s);
+      }
+      _rescale(t2) {
+        this._scale = t2;
+        let e = this._viewportLoc, s = t2 * e.w + "px", r = t2 * e.h + "px";
+        (this._target.style.width !== s || this._target.style.height !== r) && (this._target.style.width = s, this._target.style.height = r);
+      }
+      _setFillColor(t2) {
+        let e = "rgb(" + t2[0] + "," + t2[1] + "," + t2[2] + ")";
+        e !== this._prevDrawStyle && (this._drawCtx.fillStyle = e, this._prevDrawStyle = e);
+      }
+      _renderQPush(t2) {
+        this._renderQ.push(t2), this._renderQ.length === 1 && this._scanRenderQ();
+      }
+      _resumeRenderQ() {
+        this.removeEventListener("load", this._noVNCDisplay._resumeRenderQ), this._noVNCDisplay._scanRenderQ();
+      }
+      _scanRenderQ() {
+        let t2 = true;
+        for (; t2 && this._renderQ.length > 0; ) {
+          let e = this._renderQ[0];
+          switch (e.type) {
+            case "flip":
+              this.flip(true);
+              break;
+            case "copy":
+              this.copyImage(e.oldX, e.oldY, e.x, e.y, e.width, e.height, true);
+              break;
+            case "fill":
+              this.fillRect(e.x, e.y, e.width, e.height, e.color, true);
+              break;
+            case "blit":
+              this.blitImage(e.x, e.y, e.width, e.height, e.data, 0, true);
+              break;
+            case "img":
+              if (e.img.complete) {
+                if (e.img.width !== e.width || e.img.height !== e.height) {
+                  U("Decoded image has incorrect dimensions. Got " + e.img.width + "x" + e.img.height + ". Expected " + e.width + "x" + e.height + ".");
+                  return;
+                }
+                this.drawImage(e.img, e.x, e.y), e.img.src = "";
+              } else e.img._noVNCDisplay = this, e.img.addEventListener("load", this._resumeRenderQ), t2 = false;
+              break;
+            case "frame":
+              if (e.frame.ready) {
+                let s = e.frame.frame;
+                (s.codedWidth < e.width || s.codedHeight < e.height) && Z("Decoded video frame does not cover its full rectangle area. Expecting at least " + e.width + "x" + e.height + " but got " + s.codedWidth + "x" + s.codedHeight);
+                let r = 0, n = 0, a = e.width, h55 = e.height, c = e.x, o = e.y, l = a, x = h55;
+                this.drawImage(s, r, n, a, h55, c, o, l, x), s.close();
+              } else {
+                let s = this;
+                e.frame.promise.then(() => {
+                  s._scanRenderQ();
+                }), t2 = false;
+              }
+              break;
+          }
+          t2 && this._renderQ.shift();
+        }
+        this._renderQ.length === 0 && this._flushPromise !== null && (this._flushResolve(), this._flushPromise = null, this._flushResolve = null);
+      }
+    };
+    function ae(i, t2, e, s, r) {
+      if (t2.subarray && i.subarray) {
+        i.set(t2.subarray(e, e + s), r);
+        return;
+      }
+      for (var n = 0; n < s; n++) i[r + n] = t2[e + n];
+    }
+    var Oe = Uint8Array, ie = Uint16Array, nt = Int32Array;
+    function ze(i, t2, e, s) {
+      for (var r = i & 65535 | 0, n = i >>> 16 & 65535 | 0, a = 0; e !== 0; ) {
+        a = e > 2e3 ? 2e3 : e, e -= a;
+        do
+          r = r + t2[s++] | 0, n = n + r | 0;
+        while (--a);
+        r %= 65521, n %= 65521;
+      }
+      return r | n << 16 | 0;
+    }
+    function G() {
+      for (var i, t2 = [], e = 0; e < 256; e++) {
+        i = e;
+        for (var s = 0; s < 8; s++) i = i & 1 ? 3988292384 ^ i >>> 1 : i >>> 1;
+        t2[e] = i;
+      }
+      return t2;
+    }
+    var Ma = G();
+    var Qt = 30, qr = 12;
+    function di(i, t2) {
+      var e, s, r, n, a, h55, c, o, l, x, u, d, X, F, A, k, T, E, K, C, I, S, D, B, M;
+      e = i.state, s = i.next_in, B = i.input, r = s + (i.avail_in - 5), n = i.next_out, M = i.output, a = n - (t2 - i.avail_out), h55 = n + (i.avail_out - 257), c = e.dmax, o = e.wsize, l = e.whave, x = e.wnext, u = e.window, d = e.hold, X = e.bits, F = e.lencode, A = e.distcode, k = (1 << e.lenbits) - 1, T = (1 << e.distbits) - 1;
+      e: do {
+        X < 15 && (d += B[s++] << X, X += 8, d += B[s++] << X, X += 8), E = F[d & k];
+        t: for (; ; ) {
+          if (K = E >>> 24, d >>>= K, X -= K, K = E >>> 16 & 255, K === 0) M[n++] = E & 65535;
+          else if (K & 16) {
+            C = E & 65535, K &= 15, K && (X < K && (d += B[s++] << X, X += 8), C += d & (1 << K) - 1, d >>>= K, X -= K), X < 15 && (d += B[s++] << X, X += 8, d += B[s++] << X, X += 8), E = A[d & T];
+            i: for (; ; ) {
+              if (K = E >>> 24, d >>>= K, X -= K, K = E >>> 16 & 255, K & 16) {
+                if (I = E & 65535, K &= 15, X < K && (d += B[s++] << X, X += 8, X < K && (d += B[s++] << X, X += 8)), I += d & (1 << K) - 1, I > c) {
+                  i.msg = "invalid distance too far back", e.mode = Qt;
+                  break e;
+                }
+                if (d >>>= K, X -= K, K = n - a, I > K) {
+                  if (K = I - K, K > l && e.sane) {
+                    i.msg = "invalid distance too far back", e.mode = Qt;
+                    break e;
+                  }
+                  if (S = 0, D = u, x === 0) {
+                    if (S += o - K, K < C) {
+                      C -= K;
+                      do
+                        M[n++] = u[S++];
+                      while (--K);
+                      S = n - I, D = M;
+                    }
+                  } else if (x < K) {
+                    if (S += o + x - K, K -= x, K < C) {
+                      C -= K;
+                      do
+                        M[n++] = u[S++];
+                      while (--K);
+                      if (S = 0, x < C) {
+                        K = x, C -= K;
+                        do
+                          M[n++] = u[S++];
+                        while (--K);
+                        S = n - I, D = M;
+                      }
+                    }
+                  } else if (S += x - K, K < C) {
+                    C -= K;
+                    do
+                      M[n++] = u[S++];
+                    while (--K);
+                    S = n - I, D = M;
+                  }
+                  for (; C > 2; ) M[n++] = D[S++], M[n++] = D[S++], M[n++] = D[S++], C -= 3;
+                  C && (M[n++] = D[S++], C > 1 && (M[n++] = D[S++]));
+                } else {
+                  S = n - I;
+                  do
+                    M[n++] = M[S++], M[n++] = M[S++], M[n++] = M[S++], C -= 3;
+                  while (C > 2);
+                  C && (M[n++] = M[S++], C > 1 && (M[n++] = M[S++]));
+                }
+              } else if ((K & 64) === 0) {
+                E = A[(E & 65535) + (d & (1 << K) - 1)];
+                continue i;
+              } else {
+                i.msg = "invalid distance code", e.mode = Qt;
+                break e;
+              }
+              break;
+            }
+          } else if ((K & 64) === 0) {
+            E = F[(E & 65535) + (d & (1 << K) - 1)];
+            continue t;
+          } else if (K & 32) {
+            e.mode = qr;
+            break e;
+          } else {
+            i.msg = "invalid literal/length code", e.mode = Qt;
+            break e;
+          }
+          break;
+        }
+      } while (s < r && n < h55);
+      C = X >> 3, s -= C, X -= C << 3, d &= (1 << X) - 1, i.next_in = s, i.next_out = n, i.avail_in = s < r ? 5 + (r - s) : 5 - (s - r), i.avail_out = n < h55 ? 257 + (h55 - n) : 257 - (n - h55), e.hold = d, e.bits = X;
+    }
+    var Ge = 15, as = 852, os = 592, hs = 0, xi = 1, ls = 2, Jr = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0], $r = [16, 16, 16, 16, 16, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 18, 19, 19, 19, 19, 20, 20, 20, 20, 21, 21, 21, 21, 16, 72, 78], en = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577, 0, 0], tn = [16, 16, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 64, 64];
+    function Ae(i, t2, e, s, r, n, a, h55) {
+      var c = h55.bits, o = 0, l = 0, x = 0, u = 0, d = 0, X = 0, F = 0, A = 0, k = 0, T = 0, E, K, C, I, S, D = null, B = 0, M, z = new ie(Ge + 1), te = new ie(Ge + 1), Ie = null, oe = 0, Fe, _e, W;
+      for (o = 0; o <= Ge; o++) z[o] = 0;
+      for (l = 0; l < s; l++) z[t2[e + l]]++;
+      for (d = c, u = Ge; u >= 1 && z[u] === 0; u--) ;
+      if (d > u && (d = u), u === 0) return r[n++] = 1 << 24 | 64 << 16 | 0, r[n++] = 1 << 24 | 64 << 16 | 0, h55.bits = 1, 0;
+      for (x = 1; x < u && z[x] === 0; x++) ;
+      for (d < x && (d = x), A = 1, o = 1; o <= Ge; o++) if (A <<= 1, A -= z[o], A < 0) return -1;
+      if (A > 0 && (i === hs || u !== 1)) return -1;
+      for (te[1] = 0, o = 1; o < Ge; o++) te[o + 1] = te[o] + z[o];
+      for (l = 0; l < s; l++) t2[e + l] !== 0 && (a[te[t2[e + l]]++] = l);
+      if (i === hs ? (D = Ie = a, M = 19) : i === xi ? (D = Jr, B -= 257, Ie = $r, oe -= 257, M = 256) : (D = en, Ie = tn, M = -1), T = 0, l = 0, o = x, S = n, X = d, F = 0, C = -1, k = 1 << d, I = k - 1, i === xi && k > as || i === ls && k > os) return 1;
+      for (; ; ) {
+        Fe = o - F, a[l] < M ? (_e = 0, W = a[l]) : a[l] > M ? (_e = Ie[oe + a[l]], W = D[B + a[l]]) : (_e = 96, W = 0), E = 1 << o - F, K = 1 << X, x = K;
+        do
+          K -= E, r[S + (T >> F) + K] = Fe << 24 | _e << 16 | W | 0;
+        while (K !== 0);
+        for (E = 1 << o - 1; T & E; ) E >>= 1;
+        if (E !== 0 ? (T &= E - 1, T += E) : T = 0, l++, --z[o] === 0) {
+          if (o === u) break;
+          o = t2[e + a[l]];
+        }
+        if (o > d && (T & I) !== C) {
+          for (F === 0 && (F = d), S += x, X = o - F, A = 1 << X; X + F < u && (A -= z[X + F], !(A <= 0)); ) X++, A <<= 1;
+          if (k += 1 << X, i === xi && k > as || i === ls && k > os) return 1;
+          C = T & I, r[C] = d << 24 | X << 16 | S - n | 0;
+        }
+      }
+      return T !== 0 && (r[S + T] = o - F << 24 | 64 << 16 | 0), h55.bits = d, 0;
+    }
+    var sn = 0, Is = 1, Ps = 2, cs = 4, rn = 5, It = 6, Ut = 0, nn = 1, an = 2, Ce = -2, on = -3, _s = -4, hn = -5, fs = 8, Hs = 1, us = 2, ds = 3, xs = 4, ps = 5, gs = 6, bs = 7, ms = 8, ws = 9, vs = 10, ys = 11, pe = 12, pi = 13, Xs = 14, gi = 15, Ks = 16, Fs = 17, ks = 18, Ss = 19, Pt = 20, Ht = 21, Es = 22, As = 23, Cs = 24, Ls = 25, Ts = 26, bi = 27, Ms = 28, Rs = 29, N = 30, Bs = 31, ln = 32, cn = 852, _n = 592, fn = 15, un = fn;
+    function Ds(i) {
+      return (i >>> 24 & 255) + (i >>> 8 & 65280) + ((i & 65280) << 8) + ((i & 255) << 24);
+    }
+    function dn() {
+      this.mode = 0, this.last = false, this.wrap = 0, this.havedict = false, this.flags = 0, this.dmax = 0, this.check = 0, this.total = 0, this.head = null, this.wbits = 0, this.wsize = 0, this.whave = 0, this.wnext = 0, this.window = null, this.hold = 0, this.bits = 0, this.length = 0, this.offset = 0, this.extra = 0, this.lencode = null, this.distcode = null, this.lenbits = 0, this.distbits = 0, this.ncode = 0, this.nlen = 0, this.ndist = 0, this.have = 0, this.next = null, this.lens = new ie(320), this.work = new ie(288), this.lendyn = null, this.distdyn = null, this.sane = 0, this.back = 0, this.was = 0;
+    }
+    function xn(i) {
+      var t2;
+      return !i || !i.state ? Ce : (t2 = i.state, i.total_in = i.total_out = t2.total = 0, i.msg = "", t2.wrap && (i.adler = t2.wrap & 1), t2.mode = Hs, t2.last = 0, t2.havedict = 0, t2.dmax = 32768, t2.head = null, t2.hold = 0, t2.bits = 0, t2.lencode = t2.lendyn = new nt(cn), t2.distcode = t2.distdyn = new nt(_n), t2.sane = 1, t2.back = -1, Ut);
+    }
+    function vi(i) {
+      var t2;
+      return !i || !i.state ? Ce : (t2 = i.state, t2.wsize = 0, t2.whave = 0, t2.wnext = 0, xn(i));
+    }
+    function pn(i, t2) {
+      var e, s;
+      return !i || !i.state || (s = i.state, t2 < 0 ? (e = 0, t2 = -t2) : (e = (t2 >> 4) + 1, t2 < 48 && (t2 &= 15)), t2 && (t2 < 8 || t2 > 15)) ? Ce : (s.window !== null && s.wbits !== t2 && (s.window = null), s.wrap = e, s.wbits = t2, vi(i));
+    }
+    function gn(i, t2) {
+      var e, s;
+      return i ? (s = new dn(), i.state = s, s.window = null, e = pn(i, t2), e !== Ut && (i.state = null), e) : Ce;
+    }
+    function Us(i) {
+      return gn(i, un);
+    }
+    var Qs = true, mi, wi;
+    function bn(i) {
+      if (Qs) {
+        var t2;
+        for (mi = new nt(512), wi = new nt(32), t2 = 0; t2 < 144; ) i.lens[t2++] = 8;
+        for (; t2 < 256; ) i.lens[t2++] = 9;
+        for (; t2 < 280; ) i.lens[t2++] = 7;
+        for (; t2 < 288; ) i.lens[t2++] = 8;
+        for (Ae(Is, i.lens, 0, 288, mi, 0, i.work, { bits: 9 }), t2 = 0; t2 < 32; ) i.lens[t2++] = 5;
+        Ae(Ps, i.lens, 0, 32, wi, 0, i.work, { bits: 5 }), Qs = false;
+      }
+      i.lencode = mi, i.lenbits = 9, i.distcode = wi, i.distbits = 5;
+    }
+    function mn(i, t2, e, s) {
+      var r, n = i.state;
+      return n.window === null && (n.wsize = 1 << n.wbits, n.wnext = 0, n.whave = 0, n.window = new Oe(n.wsize)), s >= n.wsize ? (ae(n.window, t2, e - n.wsize, n.wsize, 0), n.wnext = 0, n.whave = n.wsize) : (r = n.wsize - n.wnext, r > s && (r = s), ae(n.window, t2, e - s, r, n.wnext), s -= r, s ? (ae(n.window, t2, e - s, s, 0), n.wnext = s, n.whave = n.wsize) : (n.wnext += r, n.wnext === n.wsize && (n.wnext = 0), n.whave < n.wsize && (n.whave += r))), 0;
+    }
+    function Ns(i, t2) {
+      var e, s, r, n, a, h55, c, o, l, x, u, d, X, F, A = 0, k, T, E, K, C, I, S, D, B = new Oe(4), M, z, te = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
+      if (!i || !i.state || !i.output || !i.input && i.avail_in !== 0) return Ce;
+      e = i.state, e.mode === pe && (e.mode = pi), a = i.next_out, r = i.output, c = i.avail_out, n = i.next_in, s = i.input, h55 = i.avail_in, o = e.hold, l = e.bits, x = h55, u = c, D = Ut;
+      e: for (; ; ) switch (e.mode) {
+        case Hs:
+          if (e.wrap === 0) {
+            e.mode = pi;
+            break;
+          }
+          for (; l < 16; ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          if (e.wrap & 2 && o === 35615) {
+            e.check = 0, B[0] = o & 255, B[1] = o >>> 8 & 255, e.check = G(e.check, B, 2, 0), o = 0, l = 0, e.mode = us;
+            break;
+          }
+          if (e.flags = 0, e.head && (e.head.done = false), !(e.wrap & 1) || (((o & 255) << 8) + (o >> 8)) % 31) {
+            i.msg = "incorrect header check", e.mode = N;
+            break;
+          }
+          if ((o & 15) !== fs) {
+            i.msg = "unknown compression method", e.mode = N;
+            break;
+          }
+          if (o >>>= 4, l -= 4, S = (o & 15) + 8, e.wbits === 0) e.wbits = S;
+          else if (S > e.wbits) {
+            i.msg = "invalid window size", e.mode = N;
+            break;
+          }
+          e.dmax = 1 << S, i.adler = e.check = 1, e.mode = o & 512 ? vs : pe, o = 0, l = 0;
+          break;
+        case us:
+          for (; l < 16; ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          if (e.flags = o, (e.flags & 255) !== fs) {
+            i.msg = "unknown compression method", e.mode = N;
+            break;
+          }
+          if (e.flags & 57344) {
+            i.msg = "unknown header flags set", e.mode = N;
+            break;
+          }
+          e.head && (e.head.text = o >> 8 & 1), e.flags & 512 && (B[0] = o & 255, B[1] = o >>> 8 & 255, e.check = G(e.check, B, 2, 0)), o = 0, l = 0, e.mode = ds;
+        case ds:
+          for (; l < 32; ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          e.head && (e.head.time = o), e.flags & 512 && (B[0] = o & 255, B[1] = o >>> 8 & 255, B[2] = o >>> 16 & 255, B[3] = o >>> 24 & 255, e.check = G(e.check, B, 4, 0)), o = 0, l = 0, e.mode = xs;
+        case xs:
+          for (; l < 16; ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          e.head && (e.head.xflags = o & 255, e.head.os = o >> 8), e.flags & 512 && (B[0] = o & 255, B[1] = o >>> 8 & 255, e.check = G(e.check, B, 2, 0)), o = 0, l = 0, e.mode = ps;
+        case ps:
+          if (e.flags & 1024) {
+            for (; l < 16; ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            e.length = o, e.head && (e.head.extra_len = o), e.flags & 512 && (B[0] = o & 255, B[1] = o >>> 8 & 255, e.check = G(e.check, B, 2, 0)), o = 0, l = 0;
+          } else e.head && (e.head.extra = null);
+          e.mode = gs;
+        case gs:
+          if (e.flags & 1024 && (d = e.length, d > h55 && (d = h55), d && (e.head && (S = e.head.extra_len - e.length, e.head.extra || (e.head.extra = new Array(e.head.extra_len)), ae(e.head.extra, s, n, d, S)), e.flags & 512 && (e.check = G(e.check, s, d, n)), h55 -= d, n += d, e.length -= d), e.length)) break e;
+          e.length = 0, e.mode = bs;
+        case bs:
+          if (e.flags & 2048) {
+            if (h55 === 0) break e;
+            d = 0;
+            do
+              S = s[n + d++], e.head && S && e.length < 65536 && (e.head.name += String.fromCharCode(S));
+            while (S && d < h55);
+            if (e.flags & 512 && (e.check = G(e.check, s, d, n)), h55 -= d, n += d, S) break e;
+          } else e.head && (e.head.name = null);
+          e.length = 0, e.mode = ms;
+        case ms:
+          if (e.flags & 4096) {
+            if (h55 === 0) break e;
+            d = 0;
+            do
+              S = s[n + d++], e.head && S && e.length < 65536 && (e.head.comment += String.fromCharCode(S));
+            while (S && d < h55);
+            if (e.flags & 512 && (e.check = G(e.check, s, d, n)), h55 -= d, n += d, S) break e;
+          } else e.head && (e.head.comment = null);
+          e.mode = ws;
+        case ws:
+          if (e.flags & 512) {
+            for (; l < 16; ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            if (o !== (e.check & 65535)) {
+              i.msg = "header crc mismatch", e.mode = N;
+              break;
+            }
+            o = 0, l = 0;
+          }
+          e.head && (e.head.hcrc = e.flags >> 9 & 1, e.head.done = true), i.adler = e.check = 0, e.mode = pe;
+          break;
+        case vs:
+          for (; l < 32; ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          i.adler = e.check = Ds(o), o = 0, l = 0, e.mode = ys;
+        case ys:
+          if (e.havedict === 0) return i.next_out = a, i.avail_out = c, i.next_in = n, i.avail_in = h55, e.hold = o, e.bits = l, an;
+          i.adler = e.check = 1, e.mode = pe;
+        case pe:
+          if (t2 === rn || t2 === It) break e;
+        case pi:
+          if (e.last) {
+            o >>>= l & 7, l -= l & 7, e.mode = bi;
+            break;
+          }
+          for (; l < 3; ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          switch (e.last = o & 1, o >>>= 1, l -= 1, o & 3) {
+            case 0:
+              e.mode = Xs;
+              break;
+            case 1:
+              if (bn(e), e.mode = Pt, t2 === It) {
+                o >>>= 2, l -= 2;
+                break e;
+              }
+              break;
+            case 2:
+              e.mode = Fs;
+              break;
+            case 3:
+              i.msg = "invalid block type", e.mode = N;
+          }
+          o >>>= 2, l -= 2;
+          break;
+        case Xs:
+          for (o >>>= l & 7, l -= l & 7; l < 32; ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          if ((o & 65535) !== (o >>> 16 ^ 65535)) {
+            i.msg = "invalid stored block lengths", e.mode = N;
+            break;
+          }
+          if (e.length = o & 65535, o = 0, l = 0, e.mode = gi, t2 === It) break e;
+        case gi:
+          e.mode = Ks;
+        case Ks:
+          if (d = e.length, d) {
+            if (d > h55 && (d = h55), d > c && (d = c), d === 0) break e;
+            ae(r, s, n, d, a), h55 -= d, n += d, c -= d, a += d, e.length -= d;
+            break;
+          }
+          e.mode = pe;
+          break;
+        case Fs:
+          for (; l < 14; ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          if (e.nlen = (o & 31) + 257, o >>>= 5, l -= 5, e.ndist = (o & 31) + 1, o >>>= 5, l -= 5, e.ncode = (o & 15) + 4, o >>>= 4, l -= 4, e.nlen > 286 || e.ndist > 30) {
+            i.msg = "too many length or distance symbols", e.mode = N;
+            break;
+          }
+          e.have = 0, e.mode = ks;
+        case ks:
+          for (; e.have < e.ncode; ) {
+            for (; l < 3; ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            e.lens[te[e.have++]] = o & 7, o >>>= 3, l -= 3;
+          }
+          for (; e.have < 19; ) e.lens[te[e.have++]] = 0;
+          if (e.lencode = e.lendyn, e.lenbits = 7, M = { bits: e.lenbits }, D = Ae(sn, e.lens, 0, 19, e.lencode, 0, e.work, M), e.lenbits = M.bits, D) {
+            i.msg = "invalid code lengths set", e.mode = N;
+            break;
+          }
+          e.have = 0, e.mode = Ss;
+        case Ss:
+          for (; e.have < e.nlen + e.ndist; ) {
+            for (; A = e.lencode[o & (1 << e.lenbits) - 1], k = A >>> 24, T = A >>> 16 & 255, E = A & 65535, !(k <= l); ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            if (E < 16) o >>>= k, l -= k, e.lens[e.have++] = E;
+            else {
+              if (E === 16) {
+                for (z = k + 2; l < z; ) {
+                  if (h55 === 0) break e;
+                  h55--, o += s[n++] << l, l += 8;
+                }
+                if (o >>>= k, l -= k, e.have === 0) {
+                  i.msg = "invalid bit length repeat", e.mode = N;
+                  break;
+                }
+                S = e.lens[e.have - 1], d = 3 + (o & 3), o >>>= 2, l -= 2;
+              } else if (E === 17) {
+                for (z = k + 3; l < z; ) {
+                  if (h55 === 0) break e;
+                  h55--, o += s[n++] << l, l += 8;
+                }
+                o >>>= k, l -= k, S = 0, d = 3 + (o & 7), o >>>= 3, l -= 3;
+              } else {
+                for (z = k + 7; l < z; ) {
+                  if (h55 === 0) break e;
+                  h55--, o += s[n++] << l, l += 8;
+                }
+                o >>>= k, l -= k, S = 0, d = 11 + (o & 127), o >>>= 7, l -= 7;
+              }
+              if (e.have + d > e.nlen + e.ndist) {
+                i.msg = "invalid bit length repeat", e.mode = N;
+                break;
+              }
+              for (; d--; ) e.lens[e.have++] = S;
+            }
+          }
+          if (e.mode === N) break;
+          if (e.lens[256] === 0) {
+            i.msg = "invalid code -- missing end-of-block", e.mode = N;
+            break;
+          }
+          if (e.lenbits = 9, M = { bits: e.lenbits }, D = Ae(Is, e.lens, 0, e.nlen, e.lencode, 0, e.work, M), e.lenbits = M.bits, D) {
+            i.msg = "invalid literal/lengths set", e.mode = N;
+            break;
+          }
+          if (e.distbits = 6, e.distcode = e.distdyn, M = { bits: e.distbits }, D = Ae(Ps, e.lens, e.nlen, e.ndist, e.distcode, 0, e.work, M), e.distbits = M.bits, D) {
+            i.msg = "invalid distances set", e.mode = N;
+            break;
+          }
+          if (e.mode = Pt, t2 === It) break e;
+        case Pt:
+          e.mode = Ht;
+        case Ht:
+          if (h55 >= 6 && c >= 258) {
+            i.next_out = a, i.avail_out = c, i.next_in = n, i.avail_in = h55, e.hold = o, e.bits = l, di(i, u), a = i.next_out, r = i.output, c = i.avail_out, n = i.next_in, s = i.input, h55 = i.avail_in, o = e.hold, l = e.bits, e.mode === pe && (e.back = -1);
+            break;
+          }
+          for (e.back = 0; A = e.lencode[o & (1 << e.lenbits) - 1], k = A >>> 24, T = A >>> 16 & 255, E = A & 65535, !(k <= l); ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          if (T && (T & 240) === 0) {
+            for (K = k, C = T, I = E; A = e.lencode[I + ((o & (1 << K + C) - 1) >> K)], k = A >>> 24, T = A >>> 16 & 255, E = A & 65535, !(K + k <= l); ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            o >>>= K, l -= K, e.back += K;
+          }
+          if (o >>>= k, l -= k, e.back += k, e.length = E, T === 0) {
+            e.mode = Ts;
+            break;
+          }
+          if (T & 32) {
+            e.back = -1, e.mode = pe;
+            break;
+          }
+          if (T & 64) {
+            i.msg = "invalid literal/length code", e.mode = N;
+            break;
+          }
+          e.extra = T & 15, e.mode = Es;
+        case Es:
+          if (e.extra) {
+            for (z = e.extra; l < z; ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            e.length += o & (1 << e.extra) - 1, o >>>= e.extra, l -= e.extra, e.back += e.extra;
+          }
+          e.was = e.length, e.mode = As;
+        case As:
+          for (; A = e.distcode[o & (1 << e.distbits) - 1], k = A >>> 24, T = A >>> 16 & 255, E = A & 65535, !(k <= l); ) {
+            if (h55 === 0) break e;
+            h55--, o += s[n++] << l, l += 8;
+          }
+          if ((T & 240) === 0) {
+            for (K = k, C = T, I = E; A = e.distcode[I + ((o & (1 << K + C) - 1) >> K)], k = A >>> 24, T = A >>> 16 & 255, E = A & 65535, !(K + k <= l); ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            o >>>= K, l -= K, e.back += K;
+          }
+          if (o >>>= k, l -= k, e.back += k, T & 64) {
+            i.msg = "invalid distance code", e.mode = N;
+            break;
+          }
+          e.offset = E, e.extra = T & 15, e.mode = Cs;
+        case Cs:
+          if (e.extra) {
+            for (z = e.extra; l < z; ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            e.offset += o & (1 << e.extra) - 1, o >>>= e.extra, l -= e.extra, e.back += e.extra;
+          }
+          if (e.offset > e.dmax) {
+            i.msg = "invalid distance too far back", e.mode = N;
+            break;
+          }
+          e.mode = Ls;
+        case Ls:
+          if (c === 0) break e;
+          if (d = u - c, e.offset > d) {
+            if (d = e.offset - d, d > e.whave && e.sane) {
+              i.msg = "invalid distance too far back", e.mode = N;
+              break;
+            }
+            d > e.wnext ? (d -= e.wnext, X = e.wsize - d) : X = e.wnext - d, d > e.length && (d = e.length), F = e.window;
+          } else F = r, X = a - e.offset, d = e.length;
+          d > c && (d = c), c -= d, e.length -= d;
+          do
+            r[a++] = F[X++];
+          while (--d);
+          e.length === 0 && (e.mode = Ht);
+          break;
+        case Ts:
+          if (c === 0) break e;
+          r[a++] = e.length, c--, e.mode = Ht;
+          break;
+        case bi:
+          if (e.wrap) {
+            for (; l < 32; ) {
+              if (h55 === 0) break e;
+              h55--, o |= s[n++] << l, l += 8;
+            }
+            if (u -= c, i.total_out += u, e.total += u, u && (i.adler = e.check = e.flags ? G(e.check, r, u, a - u) : ze(e.check, r, u, a - u)), u = c, (e.flags ? o : Ds(o)) !== e.check) {
+              i.msg = "incorrect data check", e.mode = N;
+              break;
+            }
+            o = 0, l = 0;
+          }
+          e.mode = Ms;
+        case Ms:
+          if (e.wrap && e.flags) {
+            for (; l < 32; ) {
+              if (h55 === 0) break e;
+              h55--, o += s[n++] << l, l += 8;
+            }
+            if (o !== (e.total & 4294967295)) {
+              i.msg = "incorrect length check", e.mode = N;
+              break;
+            }
+            o = 0, l = 0;
+          }
+          e.mode = Rs;
+        case Rs:
+          D = nn;
+          break e;
+        case N:
+          D = on;
+          break e;
+        case Bs:
+          return _s;
+        case ln:
+        default:
+          return Ce;
+      }
+      return i.next_out = a, i.avail_out = c, i.next_in = n, i.avail_in = h55, e.hold = o, e.bits = l, (e.wsize || u !== i.avail_out && e.mode < N && (e.mode < bi || t2 !== cs)) && mn(i, i.output, i.next_out, u - i.avail_out) ? (e.mode = Bs, _s) : (x -= i.avail_in, u -= i.avail_out, i.total_in += x, i.total_out += u, e.total += u, e.wrap && u && (i.adler = e.check = e.flags ? G(e.check, r, u, i.next_out - u) : ze(e.check, r, u, i.next_out - u)), i.data_type = e.bits + (e.last ? 64 : 0) + (e.mode === pe ? 128 : 0) + (e.mode === Pt || e.mode === gi ? 256 : 0), (x === 0 && u === 0 || t2 === cs) && D === Ut && (D = hn), D);
+    }
+    function at() {
+      this.input = null, this.next_in = 0, this.avail_in = 0, this.total_in = 0, this.output = null, this.next_out = 0, this.avail_out = 0, this.total_out = 0, this.msg = "", this.state = null, this.data_type = 2, this.adler = 0;
+    }
+    var le = class {
+      constructor() {
+        this.strm = new at(), this.chunkSize = 1024 * 10 * 10, this.strm.output = new Uint8Array(this.chunkSize), Us(this.strm);
+      }
+      setInput(t2) {
+        t2 ? (this.strm.input = t2, this.strm.avail_in = this.strm.input.length, this.strm.next_in = 0) : (this.strm.input = null, this.strm.avail_in = 0, this.strm.next_in = 0);
+      }
+      inflate(t2) {
+        if (t2 > this.chunkSize && (this.chunkSize = t2, this.strm.output = new Uint8Array(this.chunkSize)), this.strm.next_out = 0, this.strm.avail_out = t2, Ns(this.strm, 0) < 0) throw new Error("zlib inflate failed");
+        if (this.strm.next_out != t2) throw new Error("Incomplete zlib block");
+        return new Uint8Array(this.strm.output.buffer, 0, this.strm.next_out);
+      }
+      reset() {
+        vi(this.strm);
+      }
+    };
+    var wn = 4, Os = 0, zs = 1, vn = 2;
+    function We(i) {
+      for (var t2 = i.length; --t2 >= 0; ) i[t2] = 0;
+    }
+    var yn = 0, js = 1, Xn = 2, Kn = 3, Fn = 258, Ei = 29, ft = 256, ht = ft + 1 + Ei, Ve = 30, Ai = 19, qs = 2 * ht + 1, Le = 15, yi = 16, kn = 7, Ci = 256, Js = 16, $s = 17, er = 18, ki = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0], Nt = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13], Sn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 7], tr = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15], En = 512, ge = new Array((ht + 2) * 2);
+    We(ge);
+    var ot = new Array(Ve * 2);
+    We(ot);
+    var lt = new Array(En);
+    We(lt);
+    var ct = new Array(Fn - Kn + 1);
+    We(ct);
+    var Li = new Array(Ei);
+    We(Li);
+    var Ot = new Array(Ve);
+    We(Ot);
+    function Xi(i, t2, e, s, r) {
+      this.static_tree = i, this.extra_bits = t2, this.extra_base = e, this.elems = s, this.max_length = r, this.has_stree = i && i.length;
+    }
+    var ir, sr, rr;
+    function Ki(i, t2) {
+      this.dyn_tree = i, this.max_code = 0, this.stat_desc = t2;
+    }
+    function nr(i) {
+      return i < 256 ? lt[i] : lt[256 + (i >>> 7)];
+    }
+    function _t(i, t2) {
+      i.pending_buf[i.pending++] = t2 & 255, i.pending_buf[i.pending++] = t2 >>> 8 & 255;
+    }
+    function se(i, t2, e) {
+      i.bi_valid > yi - e ? (i.bi_buf |= t2 << i.bi_valid & 65535, _t(i, i.bi_buf), i.bi_buf = t2 >> yi - i.bi_valid, i.bi_valid += e - yi) : (i.bi_buf |= t2 << i.bi_valid & 65535, i.bi_valid += e);
+    }
+    function fe(i, t2, e) {
+      se(i, e[t2 * 2], e[t2 * 2 + 1]);
+    }
+    function ar(i, t2) {
+      var e = 0;
+      do
+        e |= i & 1, i >>>= 1, e <<= 1;
+      while (--t2 > 0);
+      return e >>> 1;
+    }
+    function An(i) {
+      i.bi_valid === 16 ? (_t(i, i.bi_buf), i.bi_buf = 0, i.bi_valid = 0) : i.bi_valid >= 8 && (i.pending_buf[i.pending++] = i.bi_buf & 255, i.bi_buf >>= 8, i.bi_valid -= 8);
+    }
+    function Cn(i, t2) {
+      var e = t2.dyn_tree, s = t2.max_code, r = t2.stat_desc.static_tree, n = t2.stat_desc.has_stree, a = t2.stat_desc.extra_bits, h55 = t2.stat_desc.extra_base, c = t2.stat_desc.max_length, o, l, x, u, d, X, F = 0;
+      for (u = 0; u <= Le; u++) i.bl_count[u] = 0;
+      for (e[i.heap[i.heap_max] * 2 + 1] = 0, o = i.heap_max + 1; o < qs; o++) l = i.heap[o], u = e[e[l * 2 + 1] * 2 + 1] + 1, u > c && (u = c, F++), e[l * 2 + 1] = u, !(l > s) && (i.bl_count[u]++, d = 0, l >= h55 && (d = a[l - h55]), X = e[l * 2], i.opt_len += X * (u + d), n && (i.static_len += X * (r[l * 2 + 1] + d)));
+      if (F !== 0) {
+        do {
+          for (u = c - 1; i.bl_count[u] === 0; ) u--;
+          i.bl_count[u]--, i.bl_count[u + 1] += 2, i.bl_count[c]--, F -= 2;
+        } while (F > 0);
+        for (u = c; u !== 0; u--) for (l = i.bl_count[u]; l !== 0; ) x = i.heap[--o], !(x > s) && (e[x * 2 + 1] !== u && (i.opt_len += (u - e[x * 2 + 1]) * e[x * 2], e[x * 2 + 1] = u), l--);
+      }
+    }
+    function or(i, t2, e) {
+      var s = new Array(Le + 1), r = 0, n, a;
+      for (n = 1; n <= Le; n++) s[n] = r = r + e[n - 1] << 1;
+      for (a = 0; a <= t2; a++) {
+        var h55 = i[a * 2 + 1];
+        h55 !== 0 && (i[a * 2] = ar(s[h55]++, h55));
+      }
+    }
+    function Ln() {
+      var i, t2, e, s, r, n = new Array(Le + 1);
+      for (e = 0, s = 0; s < Ei - 1; s++) for (Li[s] = e, i = 0; i < 1 << ki[s]; i++) ct[e++] = s;
+      for (ct[e - 1] = s, r = 0, s = 0; s < 16; s++) for (Ot[s] = r, i = 0; i < 1 << Nt[s]; i++) lt[r++] = s;
+      for (r >>= 7; s < Ve; s++) for (Ot[s] = r << 7, i = 0; i < 1 << Nt[s] - 7; i++) lt[256 + r++] = s;
+      for (t2 = 0; t2 <= Le; t2++) n[t2] = 0;
+      for (i = 0; i <= 143; ) ge[i * 2 + 1] = 8, i++, n[8]++;
+      for (; i <= 255; ) ge[i * 2 + 1] = 9, i++, n[9]++;
+      for (; i <= 279; ) ge[i * 2 + 1] = 7, i++, n[7]++;
+      for (; i <= 287; ) ge[i * 2 + 1] = 8, i++, n[8]++;
+      for (or(ge, ht + 1, n), i = 0; i < Ve; i++) ot[i * 2 + 1] = 5, ot[i * 2] = ar(i, 5);
+      ir = new Xi(ge, ki, ft + 1, ht, Le), sr = new Xi(ot, Nt, 0, Ve, Le), rr = new Xi(new Array(0), Sn, 0, Ai, kn);
+    }
+    function hr(i) {
+      var t2;
+      for (t2 = 0; t2 < ht; t2++) i.dyn_ltree[t2 * 2] = 0;
+      for (t2 = 0; t2 < Ve; t2++) i.dyn_dtree[t2 * 2] = 0;
+      for (t2 = 0; t2 < Ai; t2++) i.bl_tree[t2 * 2] = 0;
+      i.dyn_ltree[Ci * 2] = 1, i.opt_len = i.static_len = 0, i.last_lit = i.matches = 0;
+    }
+    function lr(i) {
+      i.bi_valid > 8 ? _t(i, i.bi_buf) : i.bi_valid > 0 && (i.pending_buf[i.pending++] = i.bi_buf), i.bi_buf = 0, i.bi_valid = 0;
+    }
+    function Tn(i, t2, e, s) {
+      lr(i), s && (_t(i, e), _t(i, ~e)), ae(i.pending_buf, i.window, t2, e, i.pending), i.pending += e;
+    }
+    function Gs(i, t2, e, s) {
+      var r = t2 * 2, n = e * 2;
+      return i[r] < i[n] || i[r] === i[n] && s[t2] <= s[e];
+    }
+    function Fi(i, t2, e) {
+      for (var s = i.heap[e], r = e << 1; r <= i.heap_len && (r < i.heap_len && Gs(t2, i.heap[r + 1], i.heap[r], i.depth) && r++, !Gs(t2, s, i.heap[r], i.depth)); ) i.heap[e] = i.heap[r], e = r, r <<= 1;
+      i.heap[e] = s;
+    }
+    function Vs(i, t2, e) {
+      var s, r, n = 0, a, h55;
+      if (i.last_lit !== 0) do
+        s = i.pending_buf[i.d_buf + n * 2] << 8 | i.pending_buf[i.d_buf + n * 2 + 1], r = i.pending_buf[i.l_buf + n], n++, s === 0 ? fe(i, r, t2) : (a = ct[r], fe(i, a + ft + 1, t2), h55 = ki[a], h55 !== 0 && (r -= Li[a], se(i, r, h55)), s--, a = nr(s), fe(i, a, e), h55 = Nt[a], h55 !== 0 && (s -= Ot[a], se(i, s, h55)));
+      while (n < i.last_lit);
+      fe(i, Ci, t2);
+    }
+    function Si(i, t2) {
+      var e = t2.dyn_tree, s = t2.stat_desc.static_tree, r = t2.stat_desc.has_stree, n = t2.stat_desc.elems, a, h55, c = -1, o;
+      for (i.heap_len = 0, i.heap_max = qs, a = 0; a < n; a++) e[a * 2] !== 0 ? (i.heap[++i.heap_len] = c = a, i.depth[a] = 0) : e[a * 2 + 1] = 0;
+      for (; i.heap_len < 2; ) o = i.heap[++i.heap_len] = c < 2 ? ++c : 0, e[o * 2] = 1, i.depth[o] = 0, i.opt_len--, r && (i.static_len -= s[o * 2 + 1]);
+      for (t2.max_code = c, a = i.heap_len >> 1; a >= 1; a--) Fi(i, e, a);
+      o = n;
+      do
+        a = i.heap[1], i.heap[1] = i.heap[i.heap_len--], Fi(i, e, 1), h55 = i.heap[1], i.heap[--i.heap_max] = a, i.heap[--i.heap_max] = h55, e[o * 2] = e[a * 2] + e[h55 * 2], i.depth[o] = (i.depth[a] >= i.depth[h55] ? i.depth[a] : i.depth[h55]) + 1, e[a * 2 + 1] = e[h55 * 2 + 1] = o, i.heap[1] = o++, Fi(i, e, 1);
+      while (i.heap_len >= 2);
+      i.heap[--i.heap_max] = i.heap[1], Cn(i, t2), or(e, c, i.bl_count);
+    }
+    function Ws(i, t2, e) {
+      var s, r = -1, n, a = t2[1], h55 = 0, c = 7, o = 4;
+      for (a === 0 && (c = 138, o = 3), t2[(e + 1) * 2 + 1] = 65535, s = 0; s <= e; s++) n = a, a = t2[(s + 1) * 2 + 1], !(++h55 < c && n === a) && (h55 < o ? i.bl_tree[n * 2] += h55 : n !== 0 ? (n !== r && i.bl_tree[n * 2]++, i.bl_tree[Js * 2]++) : h55 <= 10 ? i.bl_tree[$s * 2]++ : i.bl_tree[er * 2]++, h55 = 0, r = n, a === 0 ? (c = 138, o = 3) : n === a ? (c = 6, o = 3) : (c = 7, o = 4));
+    }
+    function Zs(i, t2, e) {
+      var s, r = -1, n, a = t2[1], h55 = 0, c = 7, o = 4;
+      for (a === 0 && (c = 138, o = 3), s = 0; s <= e; s++) if (n = a, a = t2[(s + 1) * 2 + 1], !(++h55 < c && n === a)) {
+        if (h55 < o) do
+          fe(i, n, i.bl_tree);
+        while (--h55 !== 0);
+        else n !== 0 ? (n !== r && (fe(i, n, i.bl_tree), h55--), fe(i, Js, i.bl_tree), se(i, h55 - 3, 2)) : h55 <= 10 ? (fe(i, $s, i.bl_tree), se(i, h55 - 3, 3)) : (fe(i, er, i.bl_tree), se(i, h55 - 11, 7));
+        h55 = 0, r = n, a === 0 ? (c = 138, o = 3) : n === a ? (c = 6, o = 3) : (c = 7, o = 4);
+      }
+    }
+    function Mn(i) {
+      var t2;
+      for (Ws(i, i.dyn_ltree, i.l_desc.max_code), Ws(i, i.dyn_dtree, i.d_desc.max_code), Si(i, i.bl_desc), t2 = Ai - 1; t2 >= 3 && i.bl_tree[tr[t2] * 2 + 1] === 0; t2--) ;
+      return i.opt_len += 3 * (t2 + 1) + 5 + 5 + 4, t2;
+    }
+    function Rn(i, t2, e, s) {
+      var r;
+      for (se(i, t2 - 257, 5), se(i, e - 1, 5), se(i, s - 4, 4), r = 0; r < s; r++) se(i, i.bl_tree[tr[r] * 2 + 1], 3);
+      Zs(i, i.dyn_ltree, t2 - 1), Zs(i, i.dyn_dtree, e - 1);
+    }
+    function Bn(i) {
+      var t2 = 4093624447, e;
+      for (e = 0; e <= 31; e++, t2 >>>= 1) if (t2 & 1 && i.dyn_ltree[e * 2] !== 0) return Os;
+      if (i.dyn_ltree[18] !== 0 || i.dyn_ltree[20] !== 0 || i.dyn_ltree[26] !== 0) return zs;
+      for (e = 32; e < ft; e++) if (i.dyn_ltree[e * 2] !== 0) return zs;
+      return Os;
+    }
+    var Ys = false;
+    function cr(i) {
+      Ys || (Ln(), Ys = true), i.l_desc = new Ki(i.dyn_ltree, ir), i.d_desc = new Ki(i.dyn_dtree, sr), i.bl_desc = new Ki(i.bl_tree, rr), i.bi_buf = 0, i.bi_valid = 0, hr(i);
+    }
+    function Ti(i, t2, e, s) {
+      se(i, (yn << 1) + (s ? 1 : 0), 3), Tn(i, t2, e, true);
+    }
+    function _r(i) {
+      se(i, js << 1, 3), fe(i, Ci, ge), An(i);
+    }
+    function fr(i, t2, e, s) {
+      var r, n, a = 0;
+      i.level > 0 ? (i.strm.data_type === vn && (i.strm.data_type = Bn(i)), Si(i, i.l_desc), Si(i, i.d_desc), a = Mn(i), r = i.opt_len + 3 + 7 >>> 3, n = i.static_len + 3 + 7 >>> 3, n <= r && (r = n)) : r = n = e + 5, e + 4 <= r && t2 !== -1 ? Ti(i, t2, e, s) : i.strategy === wn || n === r ? (se(i, (js << 1) + (s ? 1 : 0), 3), Vs(i, ge, ot)) : (se(i, (Xn << 1) + (s ? 1 : 0), 3), Rn(i, i.l_desc.max_code + 1, i.d_desc.max_code + 1, a + 1), Vs(i, i.dyn_ltree, i.dyn_dtree)), hr(i), s && lr(i);
+    }
+    function be(i, t2, e) {
+      return i.pending_buf[i.d_buf + i.last_lit * 2] = t2 >>> 8 & 255, i.pending_buf[i.d_buf + i.last_lit * 2 + 1] = t2 & 255, i.pending_buf[i.l_buf + i.last_lit] = e & 255, i.last_lit++, t2 === 0 ? i.dyn_ltree[e * 2]++ : (i.matches++, t2--, i.dyn_ltree[(ct[e] + ft + 1) * 2]++, i.dyn_dtree[nr(t2) * 2]++), i.last_lit === i.lit_bufsize - 1;
+    }
+    var ur = { 2: "need dictionary", 1: "stream end", 0: "", "-1": "file error", "-2": "stream error", "-3": "data error", "-4": "insufficient memory", "-5": "buffer error", "-6": "incompatible version" };
+    var Be = 0, Qn = 1, Vt = 3, ye = 4, dr = 5, Te = 0, xr = 1, qe = -2;
+    var Mi = -5, Pi = -1, In = 1, zt = 2, Pn = 3, Hn = 4, Un = 0, Nn = 2, Wt = 8, On = 9, zn = 15, Gn = 8, Vn = 29, Wn = 256, Ii = Wn + 1 + Vn, Zn = 30, Yn = 19, jn = 2 * Ii + 1, qn = 15, P = 3, ve = 258, ce = ve + P + 1, Jn = 32, br = 42, pr = 69, Ri = 73, Bi = 91, Di = 103, dt = 113, Gt = 666, Y = 1, xt = 2, Re = 3, Je = 4, $n = 3;
+    function Ye(i, t2) {
+      return i.msg = ur[t2], t2;
+    }
+    function gr(i) {
+      return (i << 1) - (i > 4 ? 9 : 0);
+    }
+    function Me(i) {
+      for (var t2 = i.length; --t2 >= 0; ) i[t2] = 0;
+    }
+    function we(i) {
+      var t2 = i.state, e = t2.pending;
+      e > i.avail_out && (e = i.avail_out), e !== 0 && (ae(i.output, t2.pending_buf, t2.pending_out, e, i.next_out), i.next_out += e, t2.pending_out += e, i.total_out += e, i.avail_out -= e, t2.pending -= e, t2.pending === 0 && (t2.pending_out = 0));
+    }
+    function j(i, t2) {
+      fr(i, i.block_start >= 0 ? i.block_start : -1, i.strstart - i.block_start, t2), i.block_start = i.strstart, we(i.strm);
+    }
+    function Q(i, t2) {
+      i.pending_buf[i.pending++] = t2;
+    }
+    function ut(i, t2) {
+      i.pending_buf[i.pending++] = t2 >>> 8 & 255, i.pending_buf[i.pending++] = t2 & 255;
+    }
+    function ea(i, t2, e, s) {
+      var r = i.avail_in;
+      return r > s && (r = s), r === 0 ? 0 : (i.avail_in -= r, ae(t2, i.input, i.next_in, r, e), i.state.wrap === 1 ? i.adler = ze(i.adler, t2, r, e) : i.state.wrap === 2 && (i.adler = G(i.adler, t2, r, e)), i.next_in += r, i.total_in += r, r);
+    }
+    function mr(i, t2) {
+      var e = i.max_chain_length, s = i.strstart, r, n, a = i.prev_length, h55 = i.nice_match, c = i.strstart > i.w_size - ce ? i.strstart - (i.w_size - ce) : 0, o = i.window, l = i.w_mask, x = i.prev, u = i.strstart + ve, d = o[s + a - 1], X = o[s + a];
+      i.prev_length >= i.good_match && (e >>= 2), h55 > i.lookahead && (h55 = i.lookahead);
+      do
+        if (r = t2, !(o[r + a] !== X || o[r + a - 1] !== d || o[r] !== o[s] || o[++r] !== o[s + 1])) {
+          s += 2, r++;
+          do
+            ;
+          while (o[++s] === o[++r] && o[++s] === o[++r] && o[++s] === o[++r] && o[++s] === o[++r] && o[++s] === o[++r] && o[++s] === o[++r] && o[++s] === o[++r] && o[++s] === o[++r] && s < u);
+          if (n = ve - (u - s), s = u - ve, n > a) {
+            if (i.match_start = t2, a = n, n >= h55) break;
+            d = o[s + a - 1], X = o[s + a];
+          }
+        }
+      while ((t2 = x[t2 & l]) > c && --e !== 0);
+      return a <= i.lookahead ? a : i.lookahead;
+    }
+    function pt(i) {
+      var t2 = i.w_size, e, s, r, n, a;
+      do {
+        if (n = i.window_size - i.lookahead - i.strstart, i.strstart >= t2 + (t2 - ce)) {
+          ae(i.window, i.window, t2, t2, 0), i.match_start -= t2, i.strstart -= t2, i.block_start -= t2, s = i.hash_size, e = s;
+          do
+            r = i.head[--e], i.head[e] = r >= t2 ? r - t2 : 0;
+          while (--s);
+          s = t2, e = s;
+          do
+            r = i.prev[--e], i.prev[e] = r >= t2 ? r - t2 : 0;
+          while (--s);
+          n += t2;
+        }
+        if (i.strm.avail_in === 0) break;
+        if (s = ea(i.strm, i.window, i.strstart + i.lookahead, n), i.lookahead += s, i.lookahead + i.insert >= P) for (a = i.strstart - i.insert, i.ins_h = i.window[a], i.ins_h = (i.ins_h << i.hash_shift ^ i.window[a + 1]) & i.hash_mask; i.insert && (i.ins_h = (i.ins_h << i.hash_shift ^ i.window[a + P - 1]) & i.hash_mask, i.prev[a & i.w_mask] = i.head[i.ins_h], i.head[i.ins_h] = a, a++, i.insert--, !(i.lookahead + i.insert < P)); ) ;
+      } while (i.lookahead < ce && i.strm.avail_in !== 0);
+    }
+    function ta(i, t2) {
+      var e = 65535;
+      for (e > i.pending_buf_size - 5 && (e = i.pending_buf_size - 5); ; ) {
+        if (i.lookahead <= 1) {
+          if (pt(i), i.lookahead === 0 && t2 === Be) return Y;
+          if (i.lookahead === 0) break;
+        }
+        i.strstart += i.lookahead, i.lookahead = 0;
+        var s = i.block_start + e;
+        if ((i.strstart === 0 || i.strstart >= s) && (i.lookahead = i.strstart - s, i.strstart = s, j(i, false), i.strm.avail_out === 0) || i.strstart - i.block_start >= i.w_size - ce && (j(i, false), i.strm.avail_out === 0)) return Y;
+      }
+      return i.insert = 0, t2 === ye ? (j(i, true), i.strm.avail_out === 0 ? Re : Je) : (i.strstart > i.block_start && (j(i, false), i.strm.avail_out === 0), Y);
+    }
+    function Qi(i, t2) {
+      for (var e, s; ; ) {
+        if (i.lookahead < ce) {
+          if (pt(i), i.lookahead < ce && t2 === Be) return Y;
+          if (i.lookahead === 0) break;
+        }
+        if (e = 0, i.lookahead >= P && (i.ins_h = (i.ins_h << i.hash_shift ^ i.window[i.strstart + P - 1]) & i.hash_mask, e = i.prev[i.strstart & i.w_mask] = i.head[i.ins_h], i.head[i.ins_h] = i.strstart), e !== 0 && i.strstart - e <= i.w_size - ce && (i.match_length = mr(i, e)), i.match_length >= P) if (s = be(i, i.strstart - i.match_start, i.match_length - P), i.lookahead -= i.match_length, i.match_length <= i.max_lazy_match && i.lookahead >= P) {
+          i.match_length--;
+          do
+            i.strstart++, i.ins_h = (i.ins_h << i.hash_shift ^ i.window[i.strstart + P - 1]) & i.hash_mask, e = i.prev[i.strstart & i.w_mask] = i.head[i.ins_h], i.head[i.ins_h] = i.strstart;
+          while (--i.match_length !== 0);
+          i.strstart++;
+        } else i.strstart += i.match_length, i.match_length = 0, i.ins_h = i.window[i.strstart], i.ins_h = (i.ins_h << i.hash_shift ^ i.window[i.strstart + 1]) & i.hash_mask;
+        else s = be(i, 0, i.window[i.strstart]), i.lookahead--, i.strstart++;
+        if (s && (j(i, false), i.strm.avail_out === 0)) return Y;
+      }
+      return i.insert = i.strstart < P - 1 ? i.strstart : P - 1, t2 === ye ? (j(i, true), i.strm.avail_out === 0 ? Re : Je) : i.last_lit && (j(i, false), i.strm.avail_out === 0) ? Y : xt;
+    }
+    function Ze(i, t2) {
+      for (var e, s, r; ; ) {
+        if (i.lookahead < ce) {
+          if (pt(i), i.lookahead < ce && t2 === Be) return Y;
+          if (i.lookahead === 0) break;
+        }
+        if (e = 0, i.lookahead >= P && (i.ins_h = (i.ins_h << i.hash_shift ^ i.window[i.strstart + P - 1]) & i.hash_mask, e = i.prev[i.strstart & i.w_mask] = i.head[i.ins_h], i.head[i.ins_h] = i.strstart), i.prev_length = i.match_length, i.prev_match = i.match_start, i.match_length = P - 1, e !== 0 && i.prev_length < i.max_lazy_match && i.strstart - e <= i.w_size - ce && (i.match_length = mr(i, e), i.match_length <= 5 && (i.strategy === In || i.match_length === P && i.strstart - i.match_start > 4096) && (i.match_length = P - 1)), i.prev_length >= P && i.match_length <= i.prev_length) {
+          r = i.strstart + i.lookahead - P, s = be(i, i.strstart - 1 - i.prev_match, i.prev_length - P), i.lookahead -= i.prev_length - 1, i.prev_length -= 2;
+          do
+            ++i.strstart <= r && (i.ins_h = (i.ins_h << i.hash_shift ^ i.window[i.strstart + P - 1]) & i.hash_mask, e = i.prev[i.strstart & i.w_mask] = i.head[i.ins_h], i.head[i.ins_h] = i.strstart);
+          while (--i.prev_length !== 0);
+          if (i.match_available = 0, i.match_length = P - 1, i.strstart++, s && (j(i, false), i.strm.avail_out === 0)) return Y;
+        } else if (i.match_available) {
+          if (s = be(i, 0, i.window[i.strstart - 1]), s && j(i, false), i.strstart++, i.lookahead--, i.strm.avail_out === 0) return Y;
+        } else i.match_available = 1, i.strstart++, i.lookahead--;
+      }
+      return i.match_available && (s = be(i, 0, i.window[i.strstart - 1]), i.match_available = 0), i.insert = i.strstart < P - 1 ? i.strstart : P - 1, t2 === ye ? (j(i, true), i.strm.avail_out === 0 ? Re : Je) : i.last_lit && (j(i, false), i.strm.avail_out === 0) ? Y : xt;
+    }
+    function ia(i, t2) {
+      for (var e, s, r, n, a = i.window; ; ) {
+        if (i.lookahead <= ve) {
+          if (pt(i), i.lookahead <= ve && t2 === Be) return Y;
+          if (i.lookahead === 0) break;
+        }
+        if (i.match_length = 0, i.lookahead >= P && i.strstart > 0 && (r = i.strstart - 1, s = a[r], s === a[++r] && s === a[++r] && s === a[++r])) {
+          n = i.strstart + ve;
+          do
+            ;
+          while (s === a[++r] && s === a[++r] && s === a[++r] && s === a[++r] && s === a[++r] && s === a[++r] && s === a[++r] && s === a[++r] && r < n);
+          i.match_length = ve - (n - r), i.match_length > i.lookahead && (i.match_length = i.lookahead);
+        }
+        if (i.match_length >= P ? (e = be(i, 1, i.match_length - P), i.lookahead -= i.match_length, i.strstart += i.match_length, i.match_length = 0) : (e = be(i, 0, i.window[i.strstart]), i.lookahead--, i.strstart++), e && (j(i, false), i.strm.avail_out === 0)) return Y;
+      }
+      return i.insert = 0, t2 === ye ? (j(i, true), i.strm.avail_out === 0 ? Re : Je) : i.last_lit && (j(i, false), i.strm.avail_out === 0) ? Y : xt;
+    }
+    function sa(i, t2) {
+      for (var e; ; ) {
+        if (i.lookahead === 0 && (pt(i), i.lookahead === 0)) {
+          if (t2 === Be) return Y;
+          break;
+        }
+        if (i.match_length = 0, e = be(i, 0, i.window[i.strstart]), i.lookahead--, i.strstart++, e && (j(i, false), i.strm.avail_out === 0)) return Y;
+      }
+      return i.insert = 0, t2 === ye ? (j(i, true), i.strm.avail_out === 0 ? Re : Je) : i.last_lit && (j(i, false), i.strm.avail_out === 0) ? Y : xt;
+    }
+    function ue(i, t2, e, s, r) {
+      this.good_length = i, this.max_lazy = t2, this.nice_length = e, this.max_chain = s, this.func = r;
+    }
+    var je;
+    je = [new ue(0, 0, 0, 0, ta), new ue(4, 4, 8, 4, Qi), new ue(4, 5, 16, 8, Qi), new ue(4, 6, 32, 32, Qi), new ue(4, 4, 16, 16, Ze), new ue(8, 16, 32, 32, Ze), new ue(8, 16, 128, 128, Ze), new ue(8, 32, 128, 256, Ze), new ue(32, 128, 258, 1024, Ze), new ue(32, 258, 258, 4096, Ze)];
+    function ra(i) {
+      i.window_size = 2 * i.w_size, Me(i.head), i.max_lazy_match = je[i.level].max_lazy, i.good_match = je[i.level].good_length, i.nice_match = je[i.level].nice_length, i.max_chain_length = je[i.level].max_chain, i.strstart = 0, i.block_start = 0, i.lookahead = 0, i.insert = 0, i.match_length = i.prev_length = P - 1, i.match_available = 0, i.ins_h = 0;
+    }
+    function na() {
+      this.strm = null, this.status = 0, this.pending_buf = null, this.pending_buf_size = 0, this.pending_out = 0, this.pending = 0, this.wrap = 0, this.gzhead = null, this.gzindex = 0, this.method = Wt, this.last_flush = -1, this.w_size = 0, this.w_bits = 0, this.w_mask = 0, this.window = null, this.window_size = 0, this.prev = null, this.head = null, this.ins_h = 0, this.hash_size = 0, this.hash_bits = 0, this.hash_mask = 0, this.hash_shift = 0, this.block_start = 0, this.match_length = 0, this.prev_match = 0, this.match_available = 0, this.strstart = 0, this.match_start = 0, this.lookahead = 0, this.prev_length = 0, this.max_chain_length = 0, this.max_lazy_match = 0, this.level = 0, this.strategy = 0, this.good_match = 0, this.nice_match = 0, this.dyn_ltree = new ie(jn * 2), this.dyn_dtree = new ie((2 * Zn + 1) * 2), this.bl_tree = new ie((2 * Yn + 1) * 2), Me(this.dyn_ltree), Me(this.dyn_dtree), Me(this.bl_tree), this.l_desc = null, this.d_desc = null, this.bl_desc = null, this.bl_count = new ie(qn + 1), this.heap = new ie(2 * Ii + 1), Me(this.heap), this.heap_len = 0, this.heap_max = 0, this.depth = new ie(2 * Ii + 1), Me(this.depth), this.l_buf = 0, this.lit_bufsize = 0, this.last_lit = 0, this.d_buf = 0, this.opt_len = 0, this.static_len = 0, this.matches = 0, this.insert = 0, this.bi_buf = 0, this.bi_valid = 0;
+    }
+    function aa(i) {
+      var t2;
+      return !i || !i.state ? Ye(i, qe) : (i.total_in = i.total_out = 0, i.data_type = Nn, t2 = i.state, t2.pending = 0, t2.pending_out = 0, t2.wrap < 0 && (t2.wrap = -t2.wrap), t2.status = t2.wrap ? br : dt, i.adler = t2.wrap === 2 ? 0 : 1, t2.last_flush = Be, cr(t2), Te);
+    }
+    function oa(i) {
+      var t2 = aa(i);
+      return t2 === Te && ra(i.state), t2;
+    }
+    function ha(i, t2, e, s, r, n) {
+      if (!i) return qe;
+      var a = 1;
+      if (t2 === Pi && (t2 = 6), s < 0 ? (a = 0, s = -s) : s > 15 && (a = 2, s -= 16), r < 1 || r > On || e !== Wt || s < 8 || s > 15 || t2 < 0 || t2 > 9 || n < 0 || n > Hn) return Ye(i, qe);
+      s === 8 && (s = 9);
+      var h55 = new na();
+      return i.state = h55, h55.strm = i, h55.wrap = a, h55.gzhead = null, h55.w_bits = s, h55.w_size = 1 << h55.w_bits, h55.w_mask = h55.w_size - 1, h55.hash_bits = r + 7, h55.hash_size = 1 << h55.hash_bits, h55.hash_mask = h55.hash_size - 1, h55.hash_shift = ~~((h55.hash_bits + P - 1) / P), h55.window = new Oe(h55.w_size * 2), h55.head = new ie(h55.hash_size), h55.prev = new ie(h55.w_size), h55.lit_bufsize = 1 << r + 6, h55.pending_buf_size = h55.lit_bufsize * 4, h55.pending_buf = new Oe(h55.pending_buf_size), h55.d_buf = 1 * h55.lit_bufsize, h55.l_buf = 3 * h55.lit_bufsize, h55.level = t2, h55.strategy = n, h55.method = e, oa(i);
+    }
+    function wr(i, t2) {
+      return ha(i, t2, Wt, zn, Gn, Un);
+    }
+    function Hi(i, t2) {
+      var e, s, r, n;
+      if (!i || !i.state || t2 > dr || t2 < 0) return i ? Ye(i, qe) : qe;
+      if (s = i.state, !i.output || !i.input && i.avail_in !== 0 || s.status === Gt && t2 !== ye) return Ye(i, i.avail_out === 0 ? Mi : qe);
+      if (s.strm = i, e = s.last_flush, s.last_flush = t2, s.status === br) if (s.wrap === 2) i.adler = 0, Q(s, 31), Q(s, 139), Q(s, 8), s.gzhead ? (Q(s, (s.gzhead.text ? 1 : 0) + (s.gzhead.hcrc ? 2 : 0) + (s.gzhead.extra ? 4 : 0) + (s.gzhead.name ? 8 : 0) + (s.gzhead.comment ? 16 : 0)), Q(s, s.gzhead.time & 255), Q(s, s.gzhead.time >> 8 & 255), Q(s, s.gzhead.time >> 16 & 255), Q(s, s.gzhead.time >> 24 & 255), Q(s, s.level === 9 ? 2 : s.strategy >= zt || s.level < 2 ? 4 : 0), Q(s, s.gzhead.os & 255), s.gzhead.extra && s.gzhead.extra.length && (Q(s, s.gzhead.extra.length & 255), Q(s, s.gzhead.extra.length >> 8 & 255)), s.gzhead.hcrc && (i.adler = G(i.adler, s.pending_buf, s.pending, 0)), s.gzindex = 0, s.status = pr) : (Q(s, 0), Q(s, 0), Q(s, 0), Q(s, 0), Q(s, 0), Q(s, s.level === 9 ? 2 : s.strategy >= zt || s.level < 2 ? 4 : 0), Q(s, $n), s.status = dt);
+      else {
+        var a = Wt + (s.w_bits - 8 << 4) << 8, h55 = -1;
+        s.strategy >= zt || s.level < 2 ? h55 = 0 : s.level < 6 ? h55 = 1 : s.level === 6 ? h55 = 2 : h55 = 3, a |= h55 << 6, s.strstart !== 0 && (a |= Jn), a += 31 - a % 31, s.status = dt, ut(s, a), s.strstart !== 0 && (ut(s, i.adler >>> 16), ut(s, i.adler & 65535)), i.adler = 1;
+      }
+      if (s.status === pr) if (s.gzhead.extra) {
+        for (r = s.pending; s.gzindex < (s.gzhead.extra.length & 65535) && !(s.pending === s.pending_buf_size && (s.gzhead.hcrc && s.pending > r && (i.adler = G(i.adler, s.pending_buf, s.pending - r, r)), we(i), r = s.pending, s.pending === s.pending_buf_size)); ) Q(s, s.gzhead.extra[s.gzindex] & 255), s.gzindex++;
+        s.gzhead.hcrc && s.pending > r && (i.adler = G(i.adler, s.pending_buf, s.pending - r, r)), s.gzindex === s.gzhead.extra.length && (s.gzindex = 0, s.status = Ri);
+      } else s.status = Ri;
+      if (s.status === Ri) if (s.gzhead.name) {
+        r = s.pending;
+        do {
+          if (s.pending === s.pending_buf_size && (s.gzhead.hcrc && s.pending > r && (i.adler = G(i.adler, s.pending_buf, s.pending - r, r)), we(i), r = s.pending, s.pending === s.pending_buf_size)) {
+            n = 1;
+            break;
+          }
+          s.gzindex < s.gzhead.name.length ? n = s.gzhead.name.charCodeAt(s.gzindex++) & 255 : n = 0, Q(s, n);
+        } while (n !== 0);
+        s.gzhead.hcrc && s.pending > r && (i.adler = G(i.adler, s.pending_buf, s.pending - r, r)), n === 0 && (s.gzindex = 0, s.status = Bi);
+      } else s.status = Bi;
+      if (s.status === Bi) if (s.gzhead.comment) {
+        r = s.pending;
+        do {
+          if (s.pending === s.pending_buf_size && (s.gzhead.hcrc && s.pending > r && (i.adler = G(i.adler, s.pending_buf, s.pending - r, r)), we(i), r = s.pending, s.pending === s.pending_buf_size)) {
+            n = 1;
+            break;
+          }
+          s.gzindex < s.gzhead.comment.length ? n = s.gzhead.comment.charCodeAt(s.gzindex++) & 255 : n = 0, Q(s, n);
+        } while (n !== 0);
+        s.gzhead.hcrc && s.pending > r && (i.adler = G(i.adler, s.pending_buf, s.pending - r, r)), n === 0 && (s.status = Di);
+      } else s.status = Di;
+      if (s.status === Di && (s.gzhead.hcrc ? (s.pending + 2 > s.pending_buf_size && we(i), s.pending + 2 <= s.pending_buf_size && (Q(s, i.adler & 255), Q(s, i.adler >> 8 & 255), i.adler = 0, s.status = dt)) : s.status = dt), s.pending !== 0) {
+        if (we(i), i.avail_out === 0) return s.last_flush = -1, Te;
+      } else if (i.avail_in === 0 && gr(t2) <= gr(e) && t2 !== ye) return Ye(i, Mi);
+      if (s.status === Gt && i.avail_in !== 0) return Ye(i, Mi);
+      if (i.avail_in !== 0 || s.lookahead !== 0 || t2 !== Be && s.status !== Gt) {
+        var c = s.strategy === zt ? sa(s, t2) : s.strategy === Pn ? ia(s, t2) : je[s.level].func(s, t2);
+        if ((c === Re || c === Je) && (s.status = Gt), c === Y || c === Re) return i.avail_out === 0 && (s.last_flush = -1), Te;
+        if (c === xt && (t2 === Qn ? _r(s) : t2 !== dr && (Ti(s, 0, 0, false), t2 === Vt && (Me(s.head), s.lookahead === 0 && (s.strstart = 0, s.block_start = 0, s.insert = 0))), we(i), i.avail_out === 0)) return s.last_flush = -1, Te;
+      }
+      return t2 !== ye ? Te : s.wrap <= 0 ? xr : (s.wrap === 2 ? (Q(s, i.adler & 255), Q(s, i.adler >> 8 & 255), Q(s, i.adler >> 16 & 255), Q(s, i.adler >> 24 & 255), Q(s, i.total_in & 255), Q(s, i.total_in >> 8 & 255), Q(s, i.total_in >> 16 & 255), Q(s, i.total_in >> 24 & 255)) : (ut(s, i.adler >>> 16), ut(s, i.adler & 65535)), we(i), s.wrap > 0 && (s.wrap = -s.wrap), s.pending !== 0 ? Te : xr);
+    }
+    var gt = class {
+      constructor() {
+        this.strm = new at(), this.chunkSize = 1024 * 10 * 10, this.outputBuffer = new Uint8Array(this.chunkSize), wr(this.strm, Pi);
+      }
+      deflate(t2) {
+        this.strm.input = t2, this.strm.avail_in = this.strm.input.length, this.strm.next_in = 0, this.strm.output = this.outputBuffer, this.strm.avail_out = this.chunkSize, this.strm.next_out = 0;
+        let e = Hi(this.strm, Vt), s = new Uint8Array(this.strm.output.buffer, 0, this.strm.next_out);
+        if (e < 0) throw new Error("zlib deflate failed");
+        if (this.strm.avail_in > 0) {
+          let r = [s], n = s.length;
+          do {
+            if (this.strm.output = new Uint8Array(this.chunkSize), this.strm.next_out = 0, this.strm.avail_out = this.chunkSize, e = Hi(this.strm, Vt), e < 0) throw new Error("zlib deflate failed");
+            let c = new Uint8Array(this.strm.output.buffer, 0, this.strm.next_out);
+            n += c.length, r.push(c);
+          } while (this.strm.avail_in > 0);
+          let a = new Uint8Array(n), h55 = 0;
+          for (let c = 0; c < r.length; c++) a.set(r[c], h55), h55 += r[c].length;
+          s = a;
+        }
+        return this.strm.input = null, this.strm.avail_in = 0, this.strm.next_in = 0, s;
+      }
+    };
+    var f = { XK_VoidSymbol: 16777215, XK_BackSpace: 65288, XK_Tab: 65289, XK_Linefeed: 65290, XK_Clear: 65291, XK_Return: 65293, XK_Pause: 65299, XK_Scroll_Lock: 65300, XK_Sys_Req: 65301, XK_Escape: 65307, XK_Delete: 65535, XK_Multi_key: 65312, XK_Codeinput: 65335, XK_SingleCandidate: 65340, XK_MultipleCandidate: 65341, XK_PreviousCandidate: 65342, XK_Kanji: 65313, XK_Muhenkan: 65314, XK_Henkan_Mode: 65315, XK_Henkan: 65315, XK_Romaji: 65316, XK_Hiragana: 65317, XK_Katakana: 65318, XK_Hiragana_Katakana: 65319, XK_Zenkaku: 65320, XK_Hankaku: 65321, XK_Zenkaku_Hankaku: 65322, XK_Touroku: 65323, XK_Massyo: 65324, XK_Kana_Lock: 65325, XK_Kana_Shift: 65326, XK_Eisu_Shift: 65327, XK_Eisu_toggle: 65328, XK_Kanji_Bangou: 65335, XK_Zen_Koho: 65341, XK_Mae_Koho: 65342, XK_Home: 65360, XK_Left: 65361, XK_Up: 65362, XK_Right: 65363, XK_Down: 65364, XK_Prior: 65365, XK_Page_Up: 65365, XK_Next: 65366, XK_Page_Down: 65366, XK_End: 65367, XK_Begin: 65368, XK_Select: 65376, XK_Print: 65377, XK_Execute: 65378, XK_Insert: 65379, XK_Undo: 65381, XK_Redo: 65382, XK_Menu: 65383, XK_Find: 65384, XK_Cancel: 65385, XK_Help: 65386, XK_Break: 65387, XK_Mode_switch: 65406, XK_script_switch: 65406, XK_Num_Lock: 65407, XK_KP_Space: 65408, XK_KP_Tab: 65417, XK_KP_Enter: 65421, XK_KP_F1: 65425, XK_KP_F2: 65426, XK_KP_F3: 65427, XK_KP_F4: 65428, XK_KP_Home: 65429, XK_KP_Left: 65430, XK_KP_Up: 65431, XK_KP_Right: 65432, XK_KP_Down: 65433, XK_KP_Prior: 65434, XK_KP_Page_Up: 65434, XK_KP_Next: 65435, XK_KP_Page_Down: 65435, XK_KP_End: 65436, XK_KP_Begin: 65437, XK_KP_Insert: 65438, XK_KP_Delete: 65439, XK_KP_Equal: 65469, XK_KP_Multiply: 65450, XK_KP_Add: 65451, XK_KP_Separator: 65452, XK_KP_Subtract: 65453, XK_KP_Decimal: 65454, XK_KP_Divide: 65455, XK_KP_0: 65456, XK_KP_1: 65457, XK_KP_2: 65458, XK_KP_3: 65459, XK_KP_4: 65460, XK_KP_5: 65461, XK_KP_6: 65462, XK_KP_7: 65463, XK_KP_8: 65464, XK_KP_9: 65465, XK_F1: 65470, XK_F2: 65471, XK_F3: 65472, XK_F4: 65473, XK_F5: 65474, XK_F6: 65475, XK_F7: 65476, XK_F8: 65477, XK_F9: 65478, XK_F10: 65479, XK_F11: 65480, XK_L1: 65480, XK_F12: 65481, XK_L2: 65481, XK_F13: 65482, XK_L3: 65482, XK_F14: 65483, XK_L4: 65483, XK_F15: 65484, XK_L5: 65484, XK_F16: 65485, XK_L6: 65485, XK_F17: 65486, XK_L7: 65486, XK_F18: 65487, XK_L8: 65487, XK_F19: 65488, XK_L9: 65488, XK_F20: 65489, XK_L10: 65489, XK_F21: 65490, XK_R1: 65490, XK_F22: 65491, XK_R2: 65491, XK_F23: 65492, XK_R3: 65492, XK_F24: 65493, XK_R4: 65493, XK_F25: 65494, XK_R5: 65494, XK_F26: 65495, XK_R6: 65495, XK_F27: 65496, XK_R7: 65496, XK_F28: 65497, XK_R8: 65497, XK_F29: 65498, XK_R9: 65498, XK_F30: 65499, XK_R10: 65499, XK_F31: 65500, XK_R11: 65500, XK_F32: 65501, XK_R12: 65501, XK_F33: 65502, XK_R13: 65502, XK_F34: 65503, XK_R14: 65503, XK_F35: 65504, XK_R15: 65504, XK_Shift_L: 65505, XK_Shift_R: 65506, XK_Control_L: 65507, XK_Control_R: 65508, XK_Caps_Lock: 65509, XK_Shift_Lock: 65510, XK_Meta_L: 65511, XK_Meta_R: 65512, XK_Alt_L: 65513, XK_Alt_R: 65514, XK_Super_L: 65515, XK_Super_R: 65516, XK_Hyper_L: 65517, XK_Hyper_R: 65518, XK_ISO_Level3_Shift: 65027, XK_ISO_Next_Group: 65032, XK_ISO_Prev_Group: 65034, XK_ISO_First_Group: 65036, XK_ISO_Last_Group: 65038, XK_space: 32, XK_exclam: 33, XK_quotedbl: 34, XK_numbersign: 35, XK_dollar: 36, XK_percent: 37, XK_ampersand: 38, XK_apostrophe: 39, XK_quoteright: 39, XK_parenleft: 40, XK_parenright: 41, XK_asterisk: 42, XK_plus: 43, XK_comma: 44, XK_minus: 45, XK_period: 46, XK_slash: 47, XK_0: 48, XK_1: 49, XK_2: 50, XK_3: 51, XK_4: 52, XK_5: 53, XK_6: 54, XK_7: 55, XK_8: 56, XK_9: 57, XK_colon: 58, XK_semicolon: 59, XK_less: 60, XK_equal: 61, XK_greater: 62, XK_question: 63, XK_at: 64, XK_A: 65, XK_B: 66, XK_C: 67, XK_D: 68, XK_E: 69, XK_F: 70, XK_G: 71, XK_H: 72, XK_I: 73, XK_J: 74, XK_K: 75, XK_L: 76, XK_M: 77, XK_N: 78, XK_O: 79, XK_P: 80, XK_Q: 81, XK_R: 82, XK_S: 83, XK_T: 84, XK_U: 85, XK_V: 86, XK_W: 87, XK_X: 88, XK_Y: 89, XK_Z: 90, XK_bracketleft: 91, XK_backslash: 92, XK_bracketright: 93, XK_asciicircum: 94, XK_underscore: 95, XK_grave: 96, XK_quoteleft: 96, XK_a: 97, XK_b: 98, XK_c: 99, XK_d: 100, XK_e: 101, XK_f: 102, XK_g: 103, XK_h: 104, XK_i: 105, XK_j: 106, XK_k: 107, XK_l: 108, XK_m: 109, XK_n: 110, XK_o: 111, XK_p: 112, XK_q: 113, XK_r: 114, XK_s: 115, XK_t: 116, XK_u: 117, XK_v: 118, XK_w: 119, XK_x: 120, XK_y: 121, XK_z: 122, XK_braceleft: 123, XK_bar: 124, XK_braceright: 125, XK_asciitilde: 126, XK_nobreakspace: 160, XK_exclamdown: 161, XK_cent: 162, XK_sterling: 163, XK_currency: 164, XK_yen: 165, XK_brokenbar: 166, XK_section: 167, XK_diaeresis: 168, XK_copyright: 169, XK_ordfeminine: 170, XK_guillemotleft: 171, XK_notsign: 172, XK_hyphen: 173, XK_registered: 174, XK_macron: 175, XK_degree: 176, XK_plusminus: 177, XK_twosuperior: 178, XK_threesuperior: 179, XK_acute: 180, XK_mu: 181, XK_paragraph: 182, XK_periodcentered: 183, XK_cedilla: 184, XK_onesuperior: 185, XK_masculine: 186, XK_guillemotright: 187, XK_onequarter: 188, XK_onehalf: 189, XK_threequarters: 190, XK_questiondown: 191, XK_Agrave: 192, XK_Aacute: 193, XK_Acircumflex: 194, XK_Atilde: 195, XK_Adiaeresis: 196, XK_Aring: 197, XK_AE: 198, XK_Ccedilla: 199, XK_Egrave: 200, XK_Eacute: 201, XK_Ecircumflex: 202, XK_Ediaeresis: 203, XK_Igrave: 204, XK_Iacute: 205, XK_Icircumflex: 206, XK_Idiaeresis: 207, XK_ETH: 208, XK_Eth: 208, XK_Ntilde: 209, XK_Ograve: 210, XK_Oacute: 211, XK_Ocircumflex: 212, XK_Otilde: 213, XK_Odiaeresis: 214, XK_multiply: 215, XK_Oslash: 216, XK_Ooblique: 216, XK_Ugrave: 217, XK_Uacute: 218, XK_Ucircumflex: 219, XK_Udiaeresis: 220, XK_Yacute: 221, XK_THORN: 222, XK_Thorn: 222, XK_ssharp: 223, XK_agrave: 224, XK_aacute: 225, XK_acircumflex: 226, XK_atilde: 227, XK_adiaeresis: 228, XK_aring: 229, XK_ae: 230, XK_ccedilla: 231, XK_egrave: 232, XK_eacute: 233, XK_ecircumflex: 234, XK_ediaeresis: 235, XK_igrave: 236, XK_iacute: 237, XK_icircumflex: 238, XK_idiaeresis: 239, XK_eth: 240, XK_ntilde: 241, XK_ograve: 242, XK_oacute: 243, XK_ocircumflex: 244, XK_otilde: 245, XK_odiaeresis: 246, XK_division: 247, XK_oslash: 248, XK_ooblique: 248, XK_ugrave: 249, XK_uacute: 250, XK_ucircumflex: 251, XK_udiaeresis: 252, XK_yacute: 253, XK_thorn: 254, XK_ydiaeresis: 255, XK_Hangul: 65329, XK_Hangul_Hanja: 65332, XK_Hangul_Jeonja: 65336, XF86XK_ModeLock: 269025025, XF86XK_MonBrightnessUp: 269025026, XF86XK_MonBrightnessDown: 269025027, XF86XK_KbdLightOnOff: 269025028, XF86XK_KbdBrightnessUp: 269025029, XF86XK_KbdBrightnessDown: 269025030, XF86XK_Standby: 269025040, XF86XK_AudioLowerVolume: 269025041, XF86XK_AudioMute: 269025042, XF86XK_AudioRaiseVolume: 269025043, XF86XK_AudioPlay: 269025044, XF86XK_AudioStop: 269025045, XF86XK_AudioPrev: 269025046, XF86XK_AudioNext: 269025047, XF86XK_HomePage: 269025048, XF86XK_Mail: 269025049, XF86XK_Start: 269025050, XF86XK_Search: 269025051, XF86XK_AudioRecord: 269025052, XF86XK_Calculator: 269025053, XF86XK_Memo: 269025054, XF86XK_ToDoList: 269025055, XF86XK_Calendar: 269025056, XF86XK_PowerDown: 269025057, XF86XK_ContrastAdjust: 269025058, XF86XK_RockerUp: 269025059, XF86XK_RockerDown: 269025060, XF86XK_RockerEnter: 269025061, XF86XK_Back: 269025062, XF86XK_Forward: 269025063, XF86XK_Stop: 269025064, XF86XK_Refresh: 269025065, XF86XK_PowerOff: 269025066, XF86XK_WakeUp: 269025067, XF86XK_Eject: 269025068, XF86XK_ScreenSaver: 269025069, XF86XK_WWW: 269025070, XF86XK_Sleep: 269025071, XF86XK_Favorites: 269025072, XF86XK_AudioPause: 269025073, XF86XK_AudioMedia: 269025074, XF86XK_MyComputer: 269025075, XF86XK_VendorHome: 269025076, XF86XK_LightBulb: 269025077, XF86XK_Shop: 269025078, XF86XK_History: 269025079, XF86XK_OpenURL: 269025080, XF86XK_AddFavorite: 269025081, XF86XK_HotLinks: 269025082, XF86XK_BrightnessAdjust: 269025083, XF86XK_Finance: 269025084, XF86XK_Community: 269025085, XF86XK_AudioRewind: 269025086, XF86XK_BackForward: 269025087, XF86XK_Launch0: 269025088, XF86XK_Launch1: 269025089, XF86XK_Launch2: 269025090, XF86XK_Launch3: 269025091, XF86XK_Launch4: 269025092, XF86XK_Launch5: 269025093, XF86XK_Launch6: 269025094, XF86XK_Launch7: 269025095, XF86XK_Launch8: 269025096, XF86XK_Launch9: 269025097, XF86XK_LaunchA: 269025098, XF86XK_LaunchB: 269025099, XF86XK_LaunchC: 269025100, XF86XK_LaunchD: 269025101, XF86XK_LaunchE: 269025102, XF86XK_LaunchF: 269025103, XF86XK_ApplicationLeft: 269025104, XF86XK_ApplicationRight: 269025105, XF86XK_Book: 269025106, XF86XK_CD: 269025107, XF86XK_Calculater: 269025108, XF86XK_Clear: 269025109, XF86XK_Close: 269025110, XF86XK_Copy: 269025111, XF86XK_Cut: 269025112, XF86XK_Display: 269025113, XF86XK_DOS: 269025114, XF86XK_Documents: 269025115, XF86XK_Excel: 269025116, XF86XK_Explorer: 269025117, XF86XK_Game: 269025118, XF86XK_Go: 269025119, XF86XK_iTouch: 269025120, XF86XK_LogOff: 269025121, XF86XK_Market: 269025122, XF86XK_Meeting: 269025123, XF86XK_MenuKB: 269025125, XF86XK_MenuPB: 269025126, XF86XK_MySites: 269025127, XF86XK_New: 269025128, XF86XK_News: 269025129, XF86XK_OfficeHome: 269025130, XF86XK_Open: 269025131, XF86XK_Option: 269025132, XF86XK_Paste: 269025133, XF86XK_Phone: 269025134, XF86XK_Q: 269025136, XF86XK_Reply: 269025138, XF86XK_Reload: 269025139, XF86XK_RotateWindows: 269025140, XF86XK_RotationPB: 269025141, XF86XK_RotationKB: 269025142, XF86XK_Save: 269025143, XF86XK_ScrollUp: 269025144, XF86XK_ScrollDown: 269025145, XF86XK_ScrollClick: 269025146, XF86XK_Send: 269025147, XF86XK_Spell: 269025148, XF86XK_SplitScreen: 269025149, XF86XK_Support: 269025150, XF86XK_TaskPane: 269025151, XF86XK_Terminal: 269025152, XF86XK_Tools: 269025153, XF86XK_Travel: 269025154, XF86XK_UserPB: 269025156, XF86XK_User1KB: 269025157, XF86XK_User2KB: 269025158, XF86XK_Video: 269025159, XF86XK_WheelButton: 269025160, XF86XK_Word: 269025161, XF86XK_Xfer: 269025162, XF86XK_ZoomIn: 269025163, XF86XK_ZoomOut: 269025164, XF86XK_Away: 269025165, XF86XK_Messenger: 269025166, XF86XK_WebCam: 269025167, XF86XK_MailForward: 269025168, XF86XK_Pictures: 269025169, XF86XK_Music: 269025170, XF86XK_Battery: 269025171, XF86XK_Bluetooth: 269025172, XF86XK_WLAN: 269025173, XF86XK_UWB: 269025174, XF86XK_AudioForward: 269025175, XF86XK_AudioRepeat: 269025176, XF86XK_AudioRandomPlay: 269025177, XF86XK_Subtitle: 269025178, XF86XK_AudioCycleTrack: 269025179, XF86XK_CycleAngle: 269025180, XF86XK_FrameBack: 269025181, XF86XK_FrameForward: 269025182, XF86XK_Time: 269025183, XF86XK_Select: 269025184, XF86XK_View: 269025185, XF86XK_TopMenu: 269025186, XF86XK_Red: 269025187, XF86XK_Green: 269025188, XF86XK_Yellow: 269025189, XF86XK_Blue: 269025190, XF86XK_Suspend: 269025191, XF86XK_Hibernate: 269025192, XF86XK_TouchpadToggle: 269025193, XF86XK_TouchpadOn: 269025200, XF86XK_TouchpadOff: 269025201, XF86XK_AudioMicMute: 269025202, XF86XK_Switch_VT_1: 269024769, XF86XK_Switch_VT_2: 269024770, XF86XK_Switch_VT_3: 269024771, XF86XK_Switch_VT_4: 269024772, XF86XK_Switch_VT_5: 269024773, XF86XK_Switch_VT_6: 269024774, XF86XK_Switch_VT_7: 269024775, XF86XK_Switch_VT_8: 269024776, XF86XK_Switch_VT_9: 269024777, XF86XK_Switch_VT_10: 269024778, XF86XK_Switch_VT_11: 269024779, XF86XK_Switch_VT_12: 269024780, XF86XK_Ungrab: 269024800, XF86XK_ClearGrab: 269024801, XF86XK_Next_VMode: 269024802, XF86XK_Prev_VMode: 269024803, XF86XK_LogWindowTree: 269024804, XF86XK_LogGrabInfo: 269024805 };
+    var la = { 256: 960, 257: 992, 258: 451, 259: 483, 260: 417, 261: 433, 262: 454, 263: 486, 264: 710, 265: 742, 266: 709, 267: 741, 268: 456, 269: 488, 270: 463, 271: 495, 272: 464, 273: 496, 274: 938, 275: 954, 278: 972, 279: 1004, 280: 458, 281: 490, 282: 460, 283: 492, 284: 728, 285: 760, 286: 683, 287: 699, 288: 725, 289: 757, 290: 939, 291: 955, 292: 678, 293: 694, 294: 673, 295: 689, 296: 933, 297: 949, 298: 975, 299: 1007, 302: 967, 303: 999, 304: 681, 305: 697, 308: 684, 309: 700, 310: 979, 311: 1011, 312: 930, 313: 453, 314: 485, 315: 934, 316: 950, 317: 421, 318: 437, 321: 419, 322: 435, 323: 465, 324: 497, 325: 977, 326: 1009, 327: 466, 328: 498, 330: 957, 331: 959, 332: 978, 333: 1010, 336: 469, 337: 501, 338: 5052, 339: 5053, 340: 448, 341: 480, 342: 931, 343: 947, 344: 472, 345: 504, 346: 422, 347: 438, 348: 734, 349: 766, 350: 426, 351: 442, 352: 425, 353: 441, 354: 478, 355: 510, 356: 427, 357: 443, 358: 940, 359: 956, 360: 989, 361: 1021, 362: 990, 363: 1022, 364: 733, 365: 765, 366: 473, 367: 505, 368: 475, 369: 507, 370: 985, 371: 1017, 376: 5054, 377: 428, 378: 444, 379: 431, 380: 447, 381: 430, 382: 446, 402: 2294, 466: 16777681, 711: 439, 728: 418, 729: 511, 731: 434, 733: 445, 901: 1966, 902: 1953, 904: 1954, 905: 1955, 906: 1956, 908: 1959, 910: 1960, 911: 1963, 912: 1974, 913: 1985, 914: 1986, 915: 1987, 916: 1988, 917: 1989, 918: 1990, 919: 1991, 920: 1992, 921: 1993, 922: 1994, 923: 1995, 924: 1996, 925: 1997, 926: 1998, 927: 1999, 928: 2e3, 929: 2001, 931: 2002, 932: 2004, 933: 2005, 934: 2006, 935: 2007, 936: 2008, 937: 2009, 938: 1957, 939: 1961, 940: 1969, 941: 1970, 942: 1971, 943: 1972, 944: 1978, 945: 2017, 946: 2018, 947: 2019, 948: 2020, 949: 2021, 950: 2022, 951: 2023, 952: 2024, 953: 2025, 954: 2026, 955: 2027, 956: 2028, 957: 2029, 958: 2030, 959: 2031, 960: 2032, 961: 2033, 962: 2035, 963: 2034, 964: 2036, 965: 2037, 966: 2038, 967: 2039, 968: 2040, 969: 2041, 970: 1973, 971: 1977, 972: 1975, 973: 1976, 974: 1979, 1025: 1715, 1026: 1713, 1027: 1714, 1028: 1716, 1029: 1717, 1030: 1718, 1031: 1719, 1032: 1720, 1033: 1721, 1034: 1722, 1035: 1723, 1036: 1724, 1038: 1726, 1039: 1727, 1040: 1761, 1041: 1762, 1042: 1783, 1043: 1767, 1044: 1764, 1045: 1765, 1046: 1782, 1047: 1786, 1048: 1769, 1049: 1770, 1050: 1771, 1051: 1772, 1052: 1773, 1053: 1774, 1054: 1775, 1055: 1776, 1056: 1778, 1057: 1779, 1058: 1780, 1059: 1781, 1060: 1766, 1061: 1768, 1062: 1763, 1063: 1790, 1064: 1787, 1065: 1789, 1066: 1791, 1067: 1785, 1068: 1784, 1069: 1788, 1070: 1760, 1071: 1777, 1072: 1729, 1073: 1730, 1074: 1751, 1075: 1735, 1076: 1732, 1077: 1733, 1078: 1750, 1079: 1754, 1080: 1737, 1081: 1738, 1082: 1739, 1083: 1740, 1084: 1741, 1085: 1742, 1086: 1743, 1087: 1744, 1088: 1746, 1089: 1747, 1090: 1748, 1091: 1749, 1092: 1734, 1093: 1736, 1094: 1731, 1095: 1758, 1096: 1755, 1097: 1757, 1098: 1759, 1099: 1753, 1100: 1752, 1101: 1756, 1102: 1728, 1103: 1745, 1105: 1699, 1106: 1697, 1107: 1698, 1108: 1700, 1109: 1701, 1110: 1702, 1111: 1703, 1112: 1704, 1113: 1705, 1114: 1706, 1115: 1707, 1116: 1708, 1118: 1710, 1119: 1711, 1168: 1725, 1169: 1709, 1488: 3296, 1489: 3297, 1490: 3298, 1491: 3299, 1492: 3300, 1493: 3301, 1494: 3302, 1495: 3303, 1496: 3304, 1497: 3305, 1498: 3306, 1499: 3307, 1500: 3308, 1501: 3309, 1502: 3310, 1503: 3311, 1504: 3312, 1505: 3313, 1506: 3314, 1507: 3315, 1508: 3316, 1509: 3317, 1510: 3318, 1511: 3319, 1512: 3320, 1513: 3321, 1514: 3322, 1548: 1452, 1563: 1467, 1567: 1471, 1569: 1473, 1570: 1474, 1571: 1475, 1572: 1476, 1573: 1477, 1574: 1478, 1575: 1479, 1576: 1480, 1577: 1481, 1578: 1482, 1579: 1483, 1580: 1484, 1581: 1485, 1582: 1486, 1583: 1487, 1584: 1488, 1585: 1489, 1586: 1490, 1587: 1491, 1588: 1492, 1589: 1493, 1590: 1494, 1591: 1495, 1592: 1496, 1593: 1497, 1594: 1498, 1600: 1504, 1601: 1505, 1602: 1506, 1603: 1507, 1604: 1508, 1605: 1509, 1606: 1510, 1607: 1511, 1608: 1512, 1609: 1513, 1610: 1514, 1611: 1515, 1612: 1516, 1613: 1517, 1614: 1518, 1615: 1519, 1616: 1520, 1617: 1521, 1618: 1522, 3585: 3489, 3586: 3490, 3587: 3491, 3588: 3492, 3589: 3493, 3590: 3494, 3591: 3495, 3592: 3496, 3593: 3497, 3594: 3498, 3595: 3499, 3596: 3500, 3597: 3501, 3598: 3502, 3599: 3503, 3600: 3504, 3601: 3505, 3602: 3506, 3603: 3507, 3604: 3508, 3605: 3509, 3606: 3510, 3607: 3511, 3608: 3512, 3609: 3513, 3610: 3514, 3611: 3515, 3612: 3516, 3613: 3517, 3614: 3518, 3615: 3519, 3616: 3520, 3617: 3521, 3618: 3522, 3619: 3523, 3620: 3524, 3621: 3525, 3622: 3526, 3623: 3527, 3624: 3528, 3625: 3529, 3626: 3530, 3627: 3531, 3628: 3532, 3629: 3533, 3630: 3534, 3631: 3535, 3632: 3536, 3633: 3537, 3634: 3538, 3635: 3539, 3636: 3540, 3637: 3541, 3638: 3542, 3639: 3543, 3640: 3544, 3641: 3545, 3642: 3546, 3647: 3551, 3648: 3552, 3649: 3553, 3650: 3554, 3651: 3555, 3652: 3556, 3653: 3557, 3654: 3558, 3655: 3559, 3656: 3560, 3657: 3561, 3658: 3562, 3659: 3563, 3660: 3564, 3661: 3565, 3664: 3568, 3665: 3569, 3666: 3570, 3667: 3571, 3668: 3572, 3669: 3573, 3670: 3574, 3671: 3575, 3672: 3576, 3673: 3577, 8194: 2722, 8195: 2721, 8196: 2723, 8197: 2724, 8199: 2725, 8200: 2726, 8201: 2727, 8202: 2728, 8210: 2747, 8211: 2730, 8212: 2729, 8213: 1967, 8215: 3295, 8216: 2768, 8217: 2769, 8218: 2813, 8220: 2770, 8221: 2771, 8222: 2814, 8224: 2801, 8225: 2802, 8226: 2790, 8229: 2735, 8230: 2734, 8240: 2773, 8242: 2774, 8243: 2775, 8248: 2812, 8254: 1150, 8361: 3839, 8364: 8364, 8453: 2744, 8470: 1712, 8471: 2811, 8478: 2772, 8482: 2761, 8531: 2736, 8532: 2737, 8533: 2738, 8534: 2739, 8535: 2740, 8536: 2741, 8537: 2742, 8538: 2743, 8539: 2755, 8540: 2756, 8541: 2757, 8542: 2758, 8592: 2299, 8593: 2300, 8594: 2301, 8595: 2302, 8658: 2254, 8660: 2253, 8706: 2287, 8711: 2245, 8728: 3018, 8730: 2262, 8733: 2241, 8734: 2242, 8743: 2270, 8744: 2271, 8745: 2268, 8746: 2269, 8747: 2239, 8756: 2240, 8764: 2248, 8771: 2249, 8773: 16785992, 8800: 2237, 8801: 2255, 8804: 2236, 8805: 2238, 8834: 2266, 8835: 2267, 8866: 3068, 8867: 3036, 8868: 3010, 8869: 3022, 8968: 3027, 8970: 3012, 8981: 2810, 8992: 2212, 8993: 2213, 9109: 3020, 9115: 2219, 9117: 2220, 9118: 2221, 9120: 2222, 9121: 2215, 9123: 2216, 9124: 2217, 9126: 2218, 9128: 2223, 9132: 2224, 9143: 2209, 9146: 2543, 9147: 2544, 9148: 2546, 9149: 2547, 9225: 2530, 9226: 2533, 9227: 2537, 9228: 2531, 9229: 2532, 9251: 2732, 9252: 2536, 9472: 2211, 9474: 2214, 9484: 2210, 9488: 2539, 9492: 2541, 9496: 2538, 9500: 2548, 9508: 2549, 9516: 2551, 9524: 2550, 9532: 2542, 9618: 2529, 9642: 2791, 9643: 2785, 9644: 2779, 9645: 2786, 9646: 2783, 9647: 2767, 9650: 2792, 9651: 2787, 9654: 2781, 9655: 2765, 9660: 2793, 9661: 2788, 9664: 2780, 9665: 2764, 9670: 2528, 9675: 2766, 9679: 2782, 9702: 2784, 9734: 2789, 9742: 2809, 9747: 2762, 9756: 2794, 9758: 2795, 9792: 2808, 9794: 2807, 9827: 2796, 9829: 2798, 9830: 2797, 9837: 2806, 9839: 2805, 10003: 2803, 10007: 2804, 10013: 2777, 10016: 2800, 10216: 2748, 10217: 2750, 12289: 1188, 12290: 1185, 12300: 1186, 12301: 1187, 12443: 1246, 12444: 1247, 12449: 1191, 12450: 1201, 12451: 1192, 12452: 1202, 12453: 1193, 12454: 1203, 12455: 1194, 12456: 1204, 12457: 1195, 12458: 1205, 12459: 1206, 12461: 1207, 12463: 1208, 12465: 1209, 12467: 1210, 12469: 1211, 12471: 1212, 12473: 1213, 12475: 1214, 12477: 1215, 12479: 1216, 12481: 1217, 12483: 1199, 12484: 1218, 12486: 1219, 12488: 1220, 12490: 1221, 12491: 1222, 12492: 1223, 12493: 1224, 12494: 1225, 12495: 1226, 12498: 1227, 12501: 1228, 12504: 1229, 12507: 1230, 12510: 1231, 12511: 1232, 12512: 1233, 12513: 1234, 12514: 1235, 12515: 1196, 12516: 1236, 12517: 1197, 12518: 1237, 12519: 1198, 12520: 1238, 12521: 1239, 12522: 1240, 12523: 1241, 12524: 1242, 12525: 1243, 12527: 1244, 12530: 1190, 12531: 1245, 12539: 1189, 12540: 1200 }, vr = { lookup(i) {
+      if (i >= 32 && i <= 255) return i;
+      let t2 = la[i];
+      return t2 !== void 0 ? t2 : 16777216 | i;
+    } };
+    var Ui = { 8: "Backspace", 9: "Tab", 10: "NumpadClear", 13: "Enter", 16: "ShiftLeft", 17: "ControlLeft", 18: "AltLeft", 19: "Pause", 20: "CapsLock", 21: "Lang1", 25: "Lang2", 27: "Escape", 28: "Convert", 29: "NonConvert", 32: "Space", 33: "PageUp", 34: "PageDown", 35: "End", 36: "Home", 37: "ArrowLeft", 38: "ArrowUp", 39: "ArrowRight", 40: "ArrowDown", 41: "Select", 44: "PrintScreen", 45: "Insert", 46: "Delete", 47: "Help", 48: "Digit0", 49: "Digit1", 50: "Digit2", 51: "Digit3", 52: "Digit4", 53: "Digit5", 54: "Digit6", 55: "Digit7", 56: "Digit8", 57: "Digit9", 91: "MetaLeft", 92: "MetaRight", 93: "ContextMenu", 95: "Sleep", 96: "Numpad0", 97: "Numpad1", 98: "Numpad2", 99: "Numpad3", 100: "Numpad4", 101: "Numpad5", 102: "Numpad6", 103: "Numpad7", 104: "Numpad8", 105: "Numpad9", 106: "NumpadMultiply", 107: "NumpadAdd", 108: "NumpadDecimal", 109: "NumpadSubtract", 110: "NumpadDecimal", 111: "NumpadDivide", 112: "F1", 113: "F2", 114: "F3", 115: "F4", 116: "F5", 117: "F6", 118: "F7", 119: "F8", 120: "F9", 121: "F10", 122: "F11", 123: "F12", 124: "F13", 125: "F14", 126: "F15", 127: "F16", 128: "F17", 129: "F18", 130: "F19", 131: "F20", 132: "F21", 133: "F22", 134: "F23", 135: "F24", 144: "NumLock", 145: "ScrollLock", 166: "BrowserBack", 167: "BrowserForward", 168: "BrowserRefresh", 169: "BrowserStop", 170: "BrowserSearch", 171: "BrowserFavorites", 172: "BrowserHome", 173: "AudioVolumeMute", 174: "AudioVolumeDown", 175: "AudioVolumeUp", 176: "MediaTrackNext", 177: "MediaTrackPrevious", 178: "MediaStop", 179: "MediaPlayPause", 180: "LaunchMail", 181: "MediaSelect", 182: "LaunchApp1", 183: "LaunchApp2", 225: "AltRight" };
+    var Ni = { Backspace: "Backspace", AltLeft: "Alt", AltRight: "Alt", CapsLock: "CapsLock", ContextMenu: "ContextMenu", ControlLeft: "Control", ControlRight: "Control", Enter: "Enter", MetaLeft: "Meta", MetaRight: "Meta", ShiftLeft: "Shift", ShiftRight: "Shift", Tab: "Tab", Delete: "Delete", End: "End", Help: "Help", Home: "Home", Insert: "Insert", PageDown: "PageDown", PageUp: "PageUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight", ArrowUp: "ArrowUp", NumLock: "NumLock", NumpadBackspace: "Backspace", NumpadClear: "Clear", Escape: "Escape", F1: "F1", F2: "F2", F3: "F3", F4: "F4", F5: "F5", F6: "F6", F7: "F7", F8: "F8", F9: "F9", F10: "F10", F11: "F11", F12: "F12", F13: "F13", F14: "F14", F15: "F15", F16: "F16", F17: "F17", F18: "F18", F19: "F19", F20: "F20", F21: "F21", F22: "F22", F23: "F23", F24: "F24", F25: "F25", F26: "F26", F27: "F27", F28: "F28", F29: "F29", F30: "F30", F31: "F31", F32: "F32", F33: "F33", F34: "F34", F35: "F35", PrintScreen: "PrintScreen", ScrollLock: "ScrollLock", Pause: "Pause", BrowserBack: "BrowserBack", BrowserFavorites: "BrowserFavorites", BrowserForward: "BrowserForward", BrowserHome: "BrowserHome", BrowserRefresh: "BrowserRefresh", BrowserSearch: "BrowserSearch", BrowserStop: "BrowserStop", Eject: "Eject", LaunchApp1: "LaunchMyComputer", LaunchApp2: "LaunchCalendar", LaunchMail: "LaunchMail", MediaPlayPause: "MediaPlay", MediaStop: "MediaStop", MediaTrackNext: "MediaTrackNext", MediaTrackPrevious: "MediaTrackPrevious", Power: "Power", Sleep: "Sleep", AudioVolumeDown: "AudioVolumeDown", AudioVolumeMute: "AudioVolumeMute", AudioVolumeUp: "AudioVolumeUp", WakeUp: "WakeUp" };
+    var De = {};
+    function w(i, t2) {
+      if (t2 === void 0) throw new Error('Undefined keysym for key "' + i + '"');
+      if (i in De) throw new Error('Duplicate entry for key "' + i + '"');
+      De[i] = [t2, t2, t2, t2];
+    }
+    function Zt(i, t2, e) {
+      if (t2 === void 0) throw new Error('Undefined keysym for key "' + i + '"');
+      if (e === void 0) throw new Error('Undefined keysym for key "' + i + '"');
+      if (i in De) throw new Error('Duplicate entry for key "' + i + '"');
+      De[i] = [t2, t2, e, t2];
+    }
+    function H(i, t2, e) {
+      if (t2 === void 0) throw new Error('Undefined keysym for key "' + i + '"');
+      if (e === void 0) throw new Error('Undefined keysym for key "' + i + '"');
+      if (i in De) throw new Error('Duplicate entry for key "' + i + '"');
+      De[i] = [t2, t2, t2, e];
+    }
+    Zt("Alt", f.XK_Alt_L, f.XK_Alt_R);
+    w("AltGraph", f.XK_ISO_Level3_Shift);
+    w("CapsLock", f.XK_Caps_Lock);
+    Zt("Control", f.XK_Control_L, f.XK_Control_R);
+    Zt("Meta", f.XK_Super_L, f.XK_Super_R);
+    w("NumLock", f.XK_Num_Lock);
+    w("ScrollLock", f.XK_Scroll_Lock);
+    Zt("Shift", f.XK_Shift_L, f.XK_Shift_R);
+    H("Enter", f.XK_Return, f.XK_KP_Enter);
+    w("Tab", f.XK_Tab);
+    H(" ", f.XK_space, f.XK_KP_Space);
+    H("ArrowDown", f.XK_Down, f.XK_KP_Down);
+    H("ArrowLeft", f.XK_Left, f.XK_KP_Left);
+    H("ArrowRight", f.XK_Right, f.XK_KP_Right);
+    H("ArrowUp", f.XK_Up, f.XK_KP_Up);
+    H("End", f.XK_End, f.XK_KP_End);
+    H("Home", f.XK_Home, f.XK_KP_Home);
+    H("PageDown", f.XK_Next, f.XK_KP_Next);
+    H("PageUp", f.XK_Prior, f.XK_KP_Prior);
+    w("Backspace", f.XK_BackSpace);
+    H("Clear", f.XK_Clear, f.XK_KP_Begin);
+    w("Copy", f.XF86XK_Copy);
+    w("Cut", f.XF86XK_Cut);
+    H("Delete", f.XK_Delete, f.XK_KP_Delete);
+    H("Insert", f.XK_Insert, f.XK_KP_Insert);
+    w("Paste", f.XF86XK_Paste);
+    w("Redo", f.XK_Redo);
+    w("Undo", f.XK_Undo);
+    w("Cancel", f.XK_Cancel);
+    w("ContextMenu", f.XK_Menu);
+    w("Escape", f.XK_Escape);
+    w("Execute", f.XK_Execute);
+    w("Find", f.XK_Find);
+    w("Help", f.XK_Help);
+    w("Pause", f.XK_Pause);
+    w("Select", f.XK_Select);
+    w("ZoomIn", f.XF86XK_ZoomIn);
+    w("ZoomOut", f.XF86XK_ZoomOut);
+    w("BrightnessDown", f.XF86XK_MonBrightnessDown);
+    w("BrightnessUp", f.XF86XK_MonBrightnessUp);
+    w("Eject", f.XF86XK_Eject);
+    w("LogOff", f.XF86XK_LogOff);
+    w("Power", f.XF86XK_PowerOff);
+    w("PowerOff", f.XF86XK_PowerDown);
+    w("PrintScreen", f.XK_Print);
+    w("Hibernate", f.XF86XK_Hibernate);
+    w("Standby", f.XF86XK_Standby);
+    w("WakeUp", f.XF86XK_WakeUp);
+    w("AllCandidates", f.XK_MultipleCandidate);
+    w("Alphanumeric", f.XK_Eisu_toggle);
+    w("CodeInput", f.XK_Codeinput);
+    w("Compose", f.XK_Multi_key);
+    w("Convert", f.XK_Henkan);
+    w("GroupFirst", f.XK_ISO_First_Group);
+    w("GroupLast", f.XK_ISO_Last_Group);
+    w("GroupNext", f.XK_ISO_Next_Group);
+    w("GroupPrevious", f.XK_ISO_Prev_Group);
+    w("NonConvert", f.XK_Muhenkan);
+    w("PreviousCandidate", f.XK_PreviousCandidate);
+    w("SingleCandidate", f.XK_SingleCandidate);
+    w("HangulMode", f.XK_Hangul);
+    w("HanjaMode", f.XK_Hangul_Hanja);
+    w("JunjaMode", f.XK_Hangul_Jeonja);
+    w("Eisu", f.XK_Eisu_toggle);
+    w("Hankaku", f.XK_Hankaku);
+    w("Hiragana", f.XK_Hiragana);
+    w("HiraganaKatakana", f.XK_Hiragana_Katakana);
+    w("KanaMode", f.XK_Kana_Shift);
+    w("KanjiMode", f.XK_Kanji);
+    w("Katakana", f.XK_Katakana);
+    w("Romaji", f.XK_Romaji);
+    w("Zenkaku", f.XK_Zenkaku);
+    w("ZenkakuHankaku", f.XK_Zenkaku_Hankaku);
+    w("F1", f.XK_F1);
+    w("F2", f.XK_F2);
+    w("F3", f.XK_F3);
+    w("F4", f.XK_F4);
+    w("F5", f.XK_F5);
+    w("F6", f.XK_F6);
+    w("F7", f.XK_F7);
+    w("F8", f.XK_F8);
+    w("F9", f.XK_F9);
+    w("F10", f.XK_F10);
+    w("F11", f.XK_F11);
+    w("F12", f.XK_F12);
+    w("F13", f.XK_F13);
+    w("F14", f.XK_F14);
+    w("F15", f.XK_F15);
+    w("F16", f.XK_F16);
+    w("F17", f.XK_F17);
+    w("F18", f.XK_F18);
+    w("F19", f.XK_F19);
+    w("F20", f.XK_F20);
+    w("F21", f.XK_F21);
+    w("F22", f.XK_F22);
+    w("F23", f.XK_F23);
+    w("F24", f.XK_F24);
+    w("F25", f.XK_F25);
+    w("F26", f.XK_F26);
+    w("F27", f.XK_F27);
+    w("F28", f.XK_F28);
+    w("F29", f.XK_F29);
+    w("F30", f.XK_F30);
+    w("F31", f.XK_F31);
+    w("F32", f.XK_F32);
+    w("F33", f.XK_F33);
+    w("F34", f.XK_F34);
+    w("F35", f.XK_F35);
+    w("Close", f.XF86XK_Close);
+    w("MailForward", f.XF86XK_MailForward);
+    w("MailReply", f.XF86XK_Reply);
+    w("MailSend", f.XF86XK_Send);
+    w("MediaFastForward", f.XF86XK_AudioForward);
+    w("MediaPause", f.XF86XK_AudioPause);
+    w("MediaPlay", f.XF86XK_AudioPlay);
+    w("MediaRecord", f.XF86XK_AudioRecord);
+    w("MediaRewind", f.XF86XK_AudioRewind);
+    w("MediaStop", f.XF86XK_AudioStop);
+    w("MediaTrackNext", f.XF86XK_AudioNext);
+    w("MediaTrackPrevious", f.XF86XK_AudioPrev);
+    w("New", f.XF86XK_New);
+    w("Open", f.XF86XK_Open);
+    w("Print", f.XK_Print);
+    w("Save", f.XF86XK_Save);
+    w("SpellCheck", f.XF86XK_Spell);
+    w("AudioVolumeDown", f.XF86XK_AudioLowerVolume);
+    w("AudioVolumeUp", f.XF86XK_AudioRaiseVolume);
+    w("AudioVolumeMute", f.XF86XK_AudioMute);
+    w("MicrophoneVolumeMute", f.XF86XK_AudioMicMute);
+    w("LaunchApplication1", f.XF86XK_MyComputer);
+    w("LaunchApplication2", f.XF86XK_Calculator);
+    w("LaunchCalendar", f.XF86XK_Calendar);
+    w("LaunchMail", f.XF86XK_Mail);
+    w("LaunchMediaPlayer", f.XF86XK_AudioMedia);
+    w("LaunchMusicPlayer", f.XF86XK_Music);
+    w("LaunchPhone", f.XF86XK_Phone);
+    w("LaunchScreenSaver", f.XF86XK_ScreenSaver);
+    w("LaunchSpreadsheet", f.XF86XK_Excel);
+    w("LaunchWebBrowser", f.XF86XK_WWW);
+    w("LaunchWebCam", f.XF86XK_WebCam);
+    w("LaunchWordProcessor", f.XF86XK_Word);
+    w("BrowserBack", f.XF86XK_Back);
+    w("BrowserFavorites", f.XF86XK_Favorites);
+    w("BrowserForward", f.XF86XK_Forward);
+    w("BrowserHome", f.XF86XK_HomePage);
+    w("BrowserRefresh", f.XF86XK_Refresh);
+    w("BrowserSearch", f.XF86XK_Search);
+    w("BrowserStop", f.XF86XK_Stop);
+    w("Dimmer", f.XF86XK_BrightnessAdjust);
+    w("MediaAudioTrack", f.XF86XK_AudioCycleTrack);
+    w("RandomToggle", f.XF86XK_AudioRandomPlay);
+    w("SplitScreenToggle", f.XF86XK_SplitScreen);
+    w("Subtitle", f.XF86XK_Subtitle);
+    w("VideoModeNext", f.XF86XK_Next_VMode);
+    H("=", f.XK_equal, f.XK_KP_Equal);
+    H("+", f.XK_plus, f.XK_KP_Add);
+    H("-", f.XK_minus, f.XK_KP_Subtract);
+    H("*", f.XK_asterisk, f.XK_KP_Multiply);
+    H("/", f.XK_slash, f.XK_KP_Divide);
+    H(".", f.XK_period, f.XK_KP_Decimal);
+    H(",", f.XK_comma, f.XK_KP_Separator);
+    H("0", f.XK_0, f.XK_KP_0);
+    H("1", f.XK_1, f.XK_KP_1);
+    H("2", f.XK_2, f.XK_KP_2);
+    H("3", f.XK_3, f.XK_KP_3);
+    H("4", f.XK_4, f.XK_KP_4);
+    H("5", f.XK_5, f.XK_KP_5);
+    H("6", f.XK_6, f.XK_KP_6);
+    H("7", f.XK_7, f.XK_KP_7);
+    H("8", f.XK_8, f.XK_KP_8);
+    H("9", f.XK_9, f.XK_KP_9);
+    var Oi = De;
+    function $e(i) {
+      if (i.code) {
+        switch (i.code) {
+          case "OSLeft":
+            return "MetaLeft";
+          case "OSRight":
+            return "MetaRight";
+        }
+        return i.code;
+      }
+      if (i.keyCode in Ui) {
+        let t2 = Ui[i.keyCode];
+        if (me() && t2 === "ContextMenu" && (t2 = "MetaRight"), i.location === 2) switch (t2) {
+          case "ShiftLeft":
+            return "ShiftRight";
+          case "ControlLeft":
+            return "ControlRight";
+          case "AltLeft":
+            return "AltRight";
+        }
+        if (i.location === 3) switch (t2) {
+          case "Delete":
+            return "NumpadDecimal";
+          case "Insert":
+            return "Numpad0";
+          case "End":
+            return "Numpad1";
+          case "ArrowDown":
+            return "Numpad2";
+          case "PageDown":
+            return "Numpad3";
+          case "ArrowLeft":
+            return "Numpad4";
+          case "ArrowRight":
+            return "Numpad6";
+          case "Home":
+            return "Numpad7";
+          case "ArrowUp":
+            return "Numpad8";
+          case "PageUp":
+            return "Numpad9";
+          case "Enter":
+            return "NumpadEnter";
+        }
+        return t2;
+      }
+      return "Unidentified";
+    }
+    function ca(i) {
+      if (i.key !== void 0 && i.key !== "Unidentified") {
+        switch (i.key) {
+          case "OS":
+            return "Meta";
+          case "LaunchMyComputer":
+            return "LaunchApplication1";
+          case "LaunchCalculator":
+            return "LaunchApplication2";
+        }
+        switch (i.key) {
+          case "UIKeyInputUpArrow":
+            return "ArrowUp";
+          case "UIKeyInputDownArrow":
+            return "ArrowDown";
+          case "UIKeyInputLeftArrow":
+            return "ArrowLeft";
+          case "UIKeyInputRightArrow":
+            return "ArrowRight";
+          case "UIKeyInputEscape":
+            return "Escape";
+        }
+        return i.key === "\0" && i.code === "NumpadDecimal" ? "Delete" : i.key;
+      }
+      let t2 = $e(i);
+      return t2 in Ni ? Ni[t2] : i.charCode ? String.fromCharCode(i.charCode) : "Unidentified";
+    }
+    function yr(i) {
+      let t2 = ca(i);
+      if (t2 === "Unidentified") return null;
+      if (t2 in Oi) {
+        let s = i.location;
+        if (t2 === "Meta" && s === 0 && (s = 2), t2 === "Clear" && s === 3 && $e(i) === "NumLock" && (s = 0), (s === void 0 || s > 3) && (s = 0), t2 === "Meta") {
+          let r = $e(i);
+          if (r === "AltLeft") return f.XK_Meta_L;
+          if (r === "AltRight") return f.XK_Meta_R;
+        }
+        if (t2 === "Clear" && $e(i) === "NumLock") return f.XK_Num_Lock;
+        if (He()) switch (t2) {
+          case "Zenkaku":
+          case "Hankaku":
+            return f.XK_Zenkaku_Hankaku;
+          case "Romaji":
+          case "KanaMode":
+            return f.XK_Romaji;
+        }
+        return Oi[t2][s];
+      }
+      if (t2.length !== 1) return null;
+      let e = t2.charCodeAt();
+      return e ? vr.lookup(e) : null;
+    }
+    var bt = class {
+      constructor(t2) {
+        this._target = t2 || null, this._keyDownList = {}, this._altGrArmed = false, this._eventHandlers = { keyup: this._handleKeyUp.bind(this), keydown: this._handleKeyDown.bind(this), blur: this._allKeysUp.bind(this) }, this.onkeyevent = () => {
+        };
+      }
+      _sendKeyEvent(t2, e, s, r = null, n = null) {
+        if (s) this._keyDownList[e] = t2;
+        else {
+          if (!(e in this._keyDownList)) return;
+          delete this._keyDownList[e];
+        }
+        L("onkeyevent " + (s ? "down" : "up") + ", keysym: " + t2, ", code: " + e + ", numlock: " + r + ", capslock: " + n), this.onkeyevent(t2, e, s, r, n);
+      }
+      _getKeyCode(t2) {
+        let e = $e(t2);
+        if (e !== "Unidentified") return e;
+        if (t2.keyCode && t2.keyCode !== 229) return "Platform" + t2.keyCode;
+        if (t2.keyIdentifier) {
+          if (t2.keyIdentifier.substr(0, 2) !== "U+") return t2.keyIdentifier;
+          let s = parseInt(t2.keyIdentifier.substr(2), 16);
+          return "Platform" + String.fromCharCode(s).toUpperCase().charCodeAt();
+        }
+        return "Unidentified";
+      }
+      _handleKeyDown(t2) {
+        let e = this._getKeyCode(t2), s = yr(t2), r = t2.getModifierState("NumLock"), n = t2.getModifierState("CapsLock");
+        if ((me() || Ue()) && (r = null), this._altGrArmed && (this._altGrArmed = false, clearTimeout(this._altGrTimeout), e === "AltRight" && t2.timeStamp - this._altGrCtrlTime < 50 ? s = f.XK_ISO_Level3_Shift : this._sendKeyEvent(f.XK_Control_L, "ControlLeft", true, r, n)), e === "Unidentified") {
+          s && (this._sendKeyEvent(s, e, true, r, n), this._sendKeyEvent(s, e, false, r, n)), Se(t2);
+          return;
+        }
+        if (me() || Ue()) switch (s) {
+          case f.XK_Super_L:
+            s = f.XK_Alt_L;
+            break;
+          case f.XK_Super_R:
+            s = f.XK_Super_L;
+            break;
+          case f.XK_Alt_L:
+            s = f.XK_Mode_switch;
+            break;
+          case f.XK_Alt_R:
+            s = f.XK_ISO_Level3_Shift;
+            break;
+        }
+        if (e in this._keyDownList && (s = this._keyDownList[e]), (me() || Ue()) && t2.metaKey && e !== "MetaLeft" && e !== "MetaRight") {
+          this._sendKeyEvent(s, e, true, r, n), this._sendKeyEvent(s, e, false, r, n), Se(t2);
+          return;
+        }
+        if ((me() || Ue()) && e === "CapsLock") {
+          this._sendKeyEvent(f.XK_Caps_Lock, "CapsLock", true, r, n), this._sendKeyEvent(f.XK_Caps_Lock, "CapsLock", false, r, n), Se(t2);
+          return;
+        }
+        let a = [f.XK_Zenkaku_Hankaku, f.XK_Eisu_toggle, f.XK_Katakana, f.XK_Hiragana, f.XK_Romaji];
+        if (He() && a.includes(s)) {
+          this._sendKeyEvent(s, e, true, r, n), this._sendKeyEvent(s, e, false, r, n), Se(t2);
+          return;
+        }
+        if (Se(t2), e === "ControlLeft" && He() && !("ControlLeft" in this._keyDownList)) {
+          this._altGrArmed = true, this._altGrTimeout = setTimeout(this._interruptAltGrSequence.bind(this), 100), this._altGrCtrlTime = t2.timeStamp;
+          return;
+        }
+        this._sendKeyEvent(s, e, true, r, n);
+      }
+      _handleKeyUp(t2) {
+        Se(t2);
+        let e = this._getKeyCode(t2);
+        if (this._interruptAltGrSequence(), (me() || Ue()) && e === "CapsLock") {
+          this._sendKeyEvent(f.XK_Caps_Lock, "CapsLock", true), this._sendKeyEvent(f.XK_Caps_Lock, "CapsLock", false);
+          return;
+        }
+        this._sendKeyEvent(this._keyDownList[e], e, false), He() && (e === "ShiftLeft" || e === "ShiftRight") && ("ShiftRight" in this._keyDownList && this._sendKeyEvent(this._keyDownList.ShiftRight, "ShiftRight", false), "ShiftLeft" in this._keyDownList && this._sendKeyEvent(this._keyDownList.ShiftLeft, "ShiftLeft", false));
+      }
+      _interruptAltGrSequence() {
+        this._altGrArmed && (this._altGrArmed = false, clearTimeout(this._altGrTimeout), this._sendKeyEvent(f.XK_Control_L, "ControlLeft", true));
+      }
+      _allKeysUp() {
+        L(">> Keyboard.allKeysUp"), this._interruptAltGrSequence();
+        for (let t2 in this._keyDownList) this._sendKeyEvent(this._keyDownList[t2], t2, false);
+        L("<< Keyboard.allKeysUp");
+      }
+      grab() {
+        this._target.addEventListener("keydown", this._eventHandlers.keydown), this._target.addEventListener("keyup", this._eventHandlers.keyup), window.addEventListener("blur", this._eventHandlers.blur);
+      }
+      ungrab() {
+        this._target.removeEventListener("keydown", this._eventHandlers.keydown), this._target.removeEventListener("keyup", this._eventHandlers.keyup), window.removeEventListener("blur", this._eventHandlers.blur), this._allKeysUp();
+      }
+    };
+    var mt = class {
+      constructor() {
+        this._target = null, this._state = 127, this._tracked = [], this._ignored = [], this._waitingRelease = false, this._releaseStart = 0, this._longpressTimeoutId = null, this._twoTouchTimeoutId = null, this._boundEventHandler = this._eventHandler.bind(this);
+      }
+      attach(t2) {
+        this.detach(), this._target = t2, this._target.addEventListener("touchstart", this._boundEventHandler), this._target.addEventListener("touchmove", this._boundEventHandler), this._target.addEventListener("touchend", this._boundEventHandler), this._target.addEventListener("touchcancel", this._boundEventHandler);
+      }
+      detach() {
+        this._target && (this._stopLongpressTimeout(), this._stopTwoTouchTimeout(), this._target.removeEventListener("touchstart", this._boundEventHandler), this._target.removeEventListener("touchmove", this._boundEventHandler), this._target.removeEventListener("touchend", this._boundEventHandler), this._target.removeEventListener("touchcancel", this._boundEventHandler), this._target = null);
+      }
+      _eventHandler(t2) {
+        let e;
+        switch (t2.stopPropagation(), t2.preventDefault(), t2.type) {
+          case "touchstart":
+            e = this._touchStart;
+            break;
+          case "touchmove":
+            e = this._touchMove;
+            break;
+          case "touchend":
+          case "touchcancel":
+            e = this._touchEnd;
+            break;
+        }
+        for (let s = 0; s < t2.changedTouches.length; s++) {
+          let r = t2.changedTouches[s];
+          e.call(this, r.identifier, r.clientX, r.clientY);
+        }
+      }
+      _touchStart(t2, e, s) {
+        if (this._hasDetectedGesture() || this._state === 0) {
+          this._ignored.push(t2);
+          return;
+        }
+        if (this._tracked.length > 0 && Date.now() - this._tracked[0].started > 250) {
+          this._state = 0, this._ignored.push(t2);
+          return;
+        }
+        if (this._waitingRelease) {
+          this._state = 0, this._ignored.push(t2);
+          return;
+        }
+        switch (this._tracked.push({ id: t2, started: Date.now(), active: true, firstX: e, firstY: s, lastX: e, lastY: s, angle: 0 }), this._tracked.length) {
+          case 1:
+            this._startLongpressTimeout();
+            break;
+          case 2:
+            this._state &= -26, this._stopLongpressTimeout();
+            break;
+          case 3:
+            this._state &= -99;
+            break;
+          default:
+            this._state = 0;
+        }
+      }
+      _touchMove(t2, e, s) {
+        let r = this._tracked.find((h55) => h55.id === t2);
+        if (r === void 0) return;
+        r.lastX = e, r.lastY = s;
+        let n = e - r.firstX, a = s - r.firstY;
+        if ((r.firstX !== r.lastX || r.firstY !== r.lastY) && (r.angle = Math.atan2(a, n) * 180 / Math.PI), !this._hasDetectedGesture()) {
+          if (Math.hypot(n, a) < 50) return;
+          if (this._state &= -24, this._stopLongpressTimeout(), this._tracked.length !== 1 && (this._state &= -9), this._tracked.length !== 2 && (this._state &= -97), this._tracked.length === 2) {
+            let h55 = this._tracked.find((o) => o.id !== t2);
+            if (Math.hypot(h55.firstX - h55.lastX, h55.firstY - h55.lastY) > 50) {
+              let o = Math.abs(r.angle - h55.angle);
+              o = Math.abs((o + 180) % 360 - 180), o > 90 ? this._state &= -33 : this._state &= -65, this._isTwoTouchTimeoutRunning() && this._stopTwoTouchTimeout();
+            } else this._isTwoTouchTimeoutRunning() || this._startTwoTouchTimeout();
+          }
+          if (!this._hasDetectedGesture()) return;
+          this._pushEvent("gesturestart");
+        }
+        this._pushEvent("gesturemove");
+      }
+      _touchEnd(t2, e, s) {
+        if (this._ignored.indexOf(t2) !== -1) {
+          this._ignored.splice(this._ignored.indexOf(t2), 1), this._ignored.length === 0 && this._tracked.length === 0 && (this._state = 127, this._waitingRelease = false);
+          return;
+        }
+        if (!this._hasDetectedGesture() && this._isTwoTouchTimeoutRunning() && (this._stopTwoTouchTimeout(), this._state = 0), !this._hasDetectedGesture() && (this._state &= -105, this._state &= -17, this._stopLongpressTimeout(), !this._waitingRelease)) switch (this._releaseStart = Date.now(), this._waitingRelease = true, this._tracked.length) {
+          case 1:
+            this._state &= -7;
+            break;
+          case 2:
+            this._state &= -6;
+            break;
+        }
+        if (this._waitingRelease) {
+          Date.now() - this._releaseStart > 250 && (this._state = 0), this._tracked.some((n) => Date.now() - n.started > 1e3) && (this._state = 0);
+          let r = this._tracked.find((n) => n.id === t2);
+          if (r.active = false, this._hasDetectedGesture()) this._pushEvent("gesturestart");
+          else if (this._state !== 0) return;
+        }
+        this._hasDetectedGesture() && this._pushEvent("gestureend");
+        for (let r = 0; r < this._tracked.length; r++) this._tracked[r].active && this._ignored.push(this._tracked[r].id);
+        this._tracked = [], this._state = 0, this._ignored.indexOf(t2) !== -1 && this._ignored.splice(this._ignored.indexOf(t2), 1), this._ignored.length === 0 && (this._state = 127, this._waitingRelease = false);
+      }
+      _hasDetectedGesture() {
+        return !(this._state === 0 || this._state & this._state - 1 || this._state & 7 && this._tracked.some((t2) => t2.active));
+      }
+      _startLongpressTimeout() {
+        this._stopLongpressTimeout(), this._longpressTimeoutId = setTimeout(() => this._longpressTimeout(), 1e3);
+      }
+      _stopLongpressTimeout() {
+        clearTimeout(this._longpressTimeoutId), this._longpressTimeoutId = null;
+      }
+      _longpressTimeout() {
+        if (this._hasDetectedGesture()) throw new Error("A longpress gesture failed, conflict with a different gesture");
+        this._state = 16, this._pushEvent("gesturestart");
+      }
+      _startTwoTouchTimeout() {
+        this._stopTwoTouchTimeout(), this._twoTouchTimeoutId = setTimeout(() => this._twoTouchTimeout(), 50);
+      }
+      _stopTwoTouchTimeout() {
+        clearTimeout(this._twoTouchTimeoutId), this._twoTouchTimeoutId = null;
+      }
+      _isTwoTouchTimeoutRunning() {
+        return this._twoTouchTimeoutId !== null;
+      }
+      _twoTouchTimeout() {
+        if (this._tracked.length === 0) throw new Error("A pinch or two drag gesture failed, no tracked touches");
+        let t2 = this._getAverageMovement(), e = Math.abs(t2.x), s = Math.abs(t2.y), r = this._getAverageDistance(), n = Math.abs(Math.hypot(r.first.x, r.first.y) - Math.hypot(r.last.x, r.last.y));
+        s < n && e < n ? this._state = 64 : this._state = 32, this._pushEvent("gesturestart"), this._pushEvent("gesturemove");
+      }
+      _pushEvent(t2) {
+        let e = { type: this._stateToGesture(this._state) }, s = this._getPosition(), r = s.last;
+        switch (t2 === "gesturestart" && (r = s.first), this._state) {
+          case 32:
+          case 64:
+            r = s.first;
+            break;
+        }
+        if (e.clientX = r.x, e.clientY = r.y, this._state === 64) {
+          let a = this._getAverageDistance();
+          t2 === "gesturestart" ? (e.magnitudeX = a.first.x, e.magnitudeY = a.first.y) : (e.magnitudeX = a.last.x, e.magnitudeY = a.last.y);
+        } else if (this._state === 32) if (t2 === "gesturestart") e.magnitudeX = 0, e.magnitudeY = 0;
+        else {
+          let a = this._getAverageMovement();
+          e.magnitudeX = a.x, e.magnitudeY = a.y;
+        }
+        let n = new CustomEvent(t2, { detail: e });
+        this._target.dispatchEvent(n);
+      }
+      _stateToGesture(t2) {
+        switch (t2) {
+          case 1:
+            return "onetap";
+          case 2:
+            return "twotap";
+          case 4:
+            return "threetap";
+          case 8:
+            return "drag";
+          case 16:
+            return "longpress";
+          case 32:
+            return "twodrag";
+          case 64:
+            return "pinch";
+        }
+        throw new Error("Unknown gesture state: " + t2);
+      }
+      _getPosition() {
+        if (this._tracked.length === 0) throw new Error("Failed to get gesture position, no tracked touches");
+        let t2 = this._tracked.length, e = 0, s = 0, r = 0, n = 0;
+        for (let a = 0; a < this._tracked.length; a++) e += this._tracked[a].firstX, s += this._tracked[a].firstY, r += this._tracked[a].lastX, n += this._tracked[a].lastY;
+        return { first: { x: e / t2, y: s / t2 }, last: { x: r / t2, y: n / t2 } };
+      }
+      _getAverageMovement() {
+        if (this._tracked.length === 0) throw new Error("Failed to get gesture movement, no tracked touches");
+        let t2, e;
+        t2 = e = 0;
+        let s = this._tracked.length;
+        for (let r = 0; r < this._tracked.length; r++) t2 += this._tracked[r].lastX - this._tracked[r].firstX, e += this._tracked[r].lastY - this._tracked[r].firstY;
+        return { x: t2 / s, y: e / s };
+      }
+      _getAverageDistance() {
+        if (this._tracked.length === 0) throw new Error("Failed to get gesture distance, no tracked touches");
+        let t2 = this._tracked[0], e = this._tracked[this._tracked.length - 1], s = Math.abs(e.firstX - t2.firstX), r = Math.abs(e.firstY - t2.firstY), n = Math.abs(e.lastX - t2.lastX), a = Math.abs(e.lastY - t2.lastY);
+        return { first: { x: s, y: r }, last: { x: n, y: a } };
+      }
+    };
+    var wt = !$i || _i, vt = class {
+      constructor() {
+        this._target = null, this._canvas = document.createElement("canvas"), wt && (this._canvas.style.position = "fixed", this._canvas.style.zIndex = "65535", this._canvas.style.pointerEvents = "none", this._canvas.style.userSelect = "none", this._canvas.style.WebkitUserSelect = "none", this._canvas.style.visibility = "hidden"), this._position = { x: 0, y: 0 }, this._hotSpot = { x: 0, y: 0 }, this._eventHandlers = { mouseover: this._handleMouseOver.bind(this), mouseleave: this._handleMouseLeave.bind(this), mousemove: this._handleMouseMove.bind(this), mouseup: this._handleMouseUp.bind(this) };
+      }
+      attach(t2) {
+        if (this._target && this.detach(), this._target = t2, wt) {
+          document.body.appendChild(this._canvas);
+          let e = { capture: true, passive: true };
+          this._target.addEventListener("mouseover", this._eventHandlers.mouseover, e), this._target.addEventListener("mouseleave", this._eventHandlers.mouseleave, e), this._target.addEventListener("mousemove", this._eventHandlers.mousemove, e), this._target.addEventListener("mouseup", this._eventHandlers.mouseup, e);
+        }
+        this.clear();
+      }
+      detach() {
+        if (this._target) {
+          if (wt) {
+            let t2 = { capture: true, passive: true };
+            this._target.removeEventListener("mouseover", this._eventHandlers.mouseover, t2), this._target.removeEventListener("mouseleave", this._eventHandlers.mouseleave, t2), this._target.removeEventListener("mousemove", this._eventHandlers.mousemove, t2), this._target.removeEventListener("mouseup", this._eventHandlers.mouseup, t2), document.contains(this._canvas) && document.body.removeChild(this._canvas);
+          }
+          this._target = null;
+        }
+      }
+      change(t2, e, s, r, n) {
+        if (r === 0 || n === 0) {
+          this.clear();
+          return;
+        }
+        this._position.x = this._position.x + this._hotSpot.x - e, this._position.y = this._position.y + this._hotSpot.y - s, this._hotSpot.x = e, this._hotSpot.y = s;
+        let a = this._canvas.getContext("2d");
+        this._canvas.width = r, this._canvas.height = n;
+        let h55 = new ImageData(new Uint8ClampedArray(t2), r, n);
+        if (a.clearRect(0, 0, r, n), a.putImageData(h55, 0, 0), wt) this._updatePosition();
+        else {
+          let c = this._canvas.toDataURL();
+          this._target.style.cursor = "url(" + c + ")" + e + " " + s + ", default";
+        }
+      }
+      clear() {
+        this._target.style.cursor = "none", this._canvas.width = 0, this._canvas.height = 0, this._position.x = this._position.x + this._hotSpot.x, this._position.y = this._position.y + this._hotSpot.y, this._hotSpot.x = 0, this._hotSpot.y = 0;
+      }
+      move(t2, e) {
+        if (!wt) return;
+        window.visualViewport ? (this._position.x = t2 + window.visualViewport.offsetLeft, this._position.y = e + window.visualViewport.offsetTop) : (this._position.x = t2, this._position.y = e), this._updatePosition();
+        let s = document.elementFromPoint(t2, e);
+        this._updateVisibility(s);
+      }
+      _handleMouseOver(t2) {
+        this._handleMouseMove(t2);
+      }
+      _handleMouseLeave(t2) {
+        this._updateVisibility(t2.relatedTarget);
+      }
+      _handleMouseMove(t2) {
+        this._updateVisibility(t2.target), this._position.x = t2.clientX - this._hotSpot.x, this._position.y = t2.clientY - this._hotSpot.y, this._updatePosition();
+      }
+      _handleMouseUp(t2) {
+        let e = document.elementFromPoint(t2.clientX, t2.clientY);
+        this._updateVisibility(e), this._captureIsActive() && window.setTimeout(() => {
+          this._target && (e = document.elementFromPoint(t2.clientX, t2.clientY), this._updateVisibility(e));
+        }, 0);
+      }
+      _showCursor() {
+        this._canvas.style.visibility === "hidden" && (this._canvas.style.visibility = "");
+      }
+      _hideCursor() {
+        this._canvas.style.visibility !== "hidden" && (this._canvas.style.visibility = "hidden");
+      }
+      _shouldShowCursor(t2) {
+        return t2 ? t2 === this._target ? true : !(!this._target.contains(t2) || window.getComputedStyle(t2).cursor !== "none") : false;
+      }
+      _updateVisibility(t2) {
+        this._captureIsActive() && (t2 = document.captureElement), this._shouldShowCursor(t2) ? this._showCursor() : this._hideCursor();
+      }
+      _updatePosition() {
+        this._canvas.style.left = this._position.x + "px", this._canvas.style.top = this._position.y + "px";
+      }
+      _captureIsActive() {
+        return document.captureElement && document.documentElement.contains(document.captureElement);
+      }
+    };
+    var zi = 40 * 1024 * 1024, Yt = { CONNECTING: "connecting", OPEN: "open", CLOSING: "closing", CLOSED: "closed" }, jt = { CONNECTING: [WebSocket.CONNECTING, Yt.CONNECTING], OPEN: [WebSocket.OPEN, Yt.OPEN], CLOSING: [WebSocket.CLOSING, Yt.CLOSING], CLOSED: [WebSocket.CLOSED, Yt.CLOSED] }, Xr = ["send", "close", "binaryType", "onerror", "onmessage", "onopen", "protocol", "readyState"], yt = class {
+      constructor() {
+        this._websocket = null, this._rQi = 0, this._rQlen = 0, this._rQbufferSize = 1024 * 1024 * 4, this._rQ = null, this._sQbufferSize = 1024 * 10, this._sQlen = 0, this._sQ = null, this._eventHandlers = { message: () => {
+        }, open: () => {
+        }, close: () => {
+        }, error: () => {
+        } };
+      }
+      get readyState() {
+        let t2;
+        return this._websocket === null ? "unused" : (t2 = this._websocket.readyState, jt.CONNECTING.includes(t2) ? "connecting" : jt.OPEN.includes(t2) ? "open" : jt.CLOSING.includes(t2) ? "closing" : jt.CLOSED.includes(t2) ? "closed" : "unknown");
+      }
+      rQpeek8() {
+        return this._rQ[this._rQi];
+      }
+      rQskipBytes(t2) {
+        this._rQi += t2;
+      }
+      rQshift8() {
+        return this._rQshift(1);
+      }
+      rQshift16() {
+        return this._rQshift(2);
+      }
+      rQshift32() {
+        return this._rQshift(4);
+      }
+      _rQshift(t2) {
+        let e = 0;
+        for (let s = t2 - 1; s >= 0; s--) e += this._rQ[this._rQi++] << s * 8;
+        return e >>> 0;
+      }
+      rQlen() {
+        return this._rQlen - this._rQi;
+      }
+      rQshiftStr(t2) {
+        let e = "";
+        for (let s = 0; s < t2; s += 4096) {
+          let r = this.rQshiftBytes(Math.min(4096, t2 - s), false);
+          e += String.fromCharCode.apply(null, r);
+        }
+        return e;
+      }
+      rQshiftBytes(t2, e = true) {
+        return this._rQi += t2, e ? this._rQ.slice(this._rQi - t2, this._rQi) : this._rQ.subarray(this._rQi - t2, this._rQi);
+      }
+      rQshiftTo(t2, e) {
+        t2.set(new Uint8Array(this._rQ.buffer, this._rQi, e)), this._rQi += e;
+      }
+      rQpeekBytes(t2, e = true) {
+        return e ? this._rQ.slice(this._rQi, this._rQi + t2) : this._rQ.subarray(this._rQi, this._rQi + t2);
+      }
+      rQwait(t2, e, s) {
+        if (this._rQlen - this._rQi < e) {
+          if (s) {
+            if (this._rQi < s) throw new Error("rQwait cannot backup " + s + " bytes");
+            this._rQi -= s;
+          }
+          return true;
+        }
+        return false;
+      }
+      sQpush8(t2) {
+        this._sQensureSpace(1), this._sQ[this._sQlen++] = t2;
+      }
+      sQpush16(t2) {
+        this._sQensureSpace(2), this._sQ[this._sQlen++] = t2 >> 8 & 255, this._sQ[this._sQlen++] = t2 >> 0 & 255;
+      }
+      sQpush32(t2) {
+        this._sQensureSpace(4), this._sQ[this._sQlen++] = t2 >> 24 & 255, this._sQ[this._sQlen++] = t2 >> 16 & 255, this._sQ[this._sQlen++] = t2 >> 8 & 255, this._sQ[this._sQlen++] = t2 >> 0 & 255;
+      }
+      sQpushString(t2) {
+        let e = t2.split("").map((s) => s.charCodeAt(0));
+        this.sQpushBytes(new Uint8Array(e));
+      }
+      sQpushBytes(t2) {
+        for (let e = 0; e < t2.length; ) {
+          this._sQensureSpace(1);
+          let s = this._sQbufferSize - this._sQlen;
+          s > t2.length - e && (s = t2.length - e), this._sQ.set(t2.subarray(e, e + s), this._sQlen), this._sQlen += s, e += s;
+        }
+      }
+      flush() {
+        this._sQlen > 0 && this.readyState === "open" && (this._websocket.send(new Uint8Array(this._sQ.buffer, 0, this._sQlen)), this._sQlen = 0);
+      }
+      _sQensureSpace(t2) {
+        this._sQbufferSize - this._sQlen < t2 && this.flush();
+      }
+      off(t2) {
+        this._eventHandlers[t2] = () => {
+        };
+      }
+      on(t2, e) {
+        this._eventHandlers[t2] = e;
+      }
+      _allocateBuffers() {
+        this._rQ = new Uint8Array(this._rQbufferSize), this._sQ = new Uint8Array(this._sQbufferSize);
+      }
+      init() {
+        this._allocateBuffers(), this._rQi = 0, this._websocket = null;
+      }
+      open(t2, e) {
+        this.attach(new WebSocket(t2, e));
+      }
+      attach(t2) {
+        this.init();
+        let e = [...Object.keys(t2), ...Object.getOwnPropertyNames(Object.getPrototypeOf(t2))];
+        for (let s = 0; s < Xr.length; s++) {
+          let r = Xr[s];
+          if (e.indexOf(r) < 0) throw new Error("Raw channel missing property: " + r);
+        }
+        this._websocket = t2, this._websocket.binaryType = "arraybuffer", this._websocket.onmessage = this._recvMessage.bind(this), this._websocket.onopen = () => {
+          L(">> WebSock.onopen"), this._websocket.protocol && V("Server choose sub-protocol: " + this._websocket.protocol), this._eventHandlers.open(), L("<< WebSock.onopen");
+        }, this._websocket.onclose = (s) => {
+          L(">> WebSock.onclose"), this._eventHandlers.close(s), L("<< WebSock.onclose");
+        }, this._websocket.onerror = (s) => {
+          L(">> WebSock.onerror: " + s), this._eventHandlers.error(s), L("<< WebSock.onerror: " + s);
+        };
+      }
+      close() {
+        this._websocket && ((this.readyState === "connecting" || this.readyState === "open") && (V("Closing WebSocket connection"), this._websocket.close()), this._websocket.onmessage = () => {
+        });
+      }
+      _expandCompactRQ(t2) {
+        let e = (this._rQlen - this._rQi + t2) * 8, s = this._rQbufferSize < e;
+        if (s && (this._rQbufferSize = Math.max(this._rQbufferSize * 2, e)), this._rQbufferSize > zi && (this._rQbufferSize = zi, this._rQbufferSize - (this._rQlen - this._rQi) < t2)) throw new Error("Receive queue buffer exceeded " + zi + " bytes, and the new message could not fit");
+        if (s) {
+          let r = this._rQ.buffer;
+          this._rQ = new Uint8Array(this._rQbufferSize), this._rQ.set(new Uint8Array(r, this._rQi, this._rQlen - this._rQi));
+        } else this._rQ.copyWithin(0, this._rQi, this._rQlen);
+        this._rQlen = this._rQlen - this._rQi, this._rQi = 0;
+      }
+      _recvMessage(t2) {
+        this._rQlen == this._rQi && (this._rQlen = 0, this._rQi = 0);
+        let e = new Uint8Array(t2.data);
+        e.length > this._rQbufferSize - this._rQlen && this._expandCompactRQ(e.length), this._rQ.set(e, this._rQlen), this._rQlen += e.length, this._rQlen - this._rQi > 0 ? this._eventHandlers.message() : L("Ignoring empty message");
+      }
+    };
+    var Kr = { Again: 57349, AltLeft: 56, AltRight: 57400, ArrowDown: 57424, ArrowLeft: 57419, ArrowRight: 57421, ArrowUp: 57416, AudioVolumeDown: 57390, AudioVolumeMute: 57376, AudioVolumeUp: 57392, Backquote: 41, Backslash: 43, Backspace: 14, BracketLeft: 26, BracketRight: 27, BrowserBack: 57450, BrowserFavorites: 57446, BrowserForward: 57449, BrowserHome: 57394, BrowserRefresh: 57447, BrowserSearch: 57445, BrowserStop: 57448, CapsLock: 58, Comma: 51, ContextMenu: 57437, ControlLeft: 29, ControlRight: 57373, Convert: 121, Copy: 57464, Cut: 57404, Delete: 57427, Digit0: 11, Digit1: 2, Digit2: 3, Digit3: 4, Digit4: 5, Digit5: 6, Digit6: 7, Digit7: 8, Digit8: 9, Digit9: 10, Eject: 57469, End: 57423, Enter: 28, Equal: 13, Escape: 1, F1: 59, F10: 68, F11: 87, F12: 88, F13: 93, F14: 94, F15: 95, F16: 85, F17: 57347, F18: 57463, F19: 57348, F2: 60, F20: 90, F21: 116, F22: 57465, F23: 109, F24: 111, F3: 61, F4: 62, F5: 63, F6: 64, F7: 65, F8: 66, F9: 67, Find: 57409, Help: 57461, Hiragana: 119, Home: 57415, Insert: 57426, IntlBackslash: 86, IntlRo: 115, IntlYen: 125, KanaMode: 112, Katakana: 120, KeyA: 30, KeyB: 48, KeyC: 46, KeyD: 32, KeyE: 18, KeyF: 33, KeyG: 34, KeyH: 35, KeyI: 23, KeyJ: 36, KeyK: 37, KeyL: 38, KeyM: 50, KeyN: 49, KeyO: 24, KeyP: 25, KeyQ: 16, KeyR: 19, KeyS: 31, KeyT: 20, KeyU: 22, KeyV: 47, KeyW: 17, KeyX: 45, KeyY: 21, KeyZ: 44, Lang1: 114, Lang2: 113, Lang3: 120, Lang4: 119, Lang5: 118, LaunchApp1: 57451, LaunchApp2: 57377, LaunchMail: 57452, MediaPlayPause: 57378, MediaSelect: 57453, MediaStop: 57380, MediaTrackNext: 57369, MediaTrackPrevious: 57360, MetaLeft: 57435, MetaRight: 57436, Minus: 12, NonConvert: 123, NumLock: 69, Numpad0: 82, Numpad1: 79, Numpad2: 80, Numpad3: 81, Numpad4: 75, Numpad5: 76, Numpad6: 77, Numpad7: 71, Numpad8: 72, Numpad9: 73, NumpadAdd: 78, NumpadComma: 126, NumpadDecimal: 83, NumpadDivide: 57397, NumpadEnter: 57372, NumpadEqual: 89, NumpadMultiply: 55, NumpadParenLeft: 57462, NumpadParenRight: 57467, NumpadSubtract: 74, Open: 100, PageDown: 57425, PageUp: 57417, Paste: 101, Pause: 57414, Period: 52, Power: 57438, PrintScreen: 84, Props: 57350, Quote: 40, ScrollLock: 70, Semicolon: 39, ShiftLeft: 42, ShiftRight: 54, Slash: 53, Sleep: 57439, Space: 57, Suspend: 57381, Tab: 15, Undo: 57351, WakeUp: 57443 };
+    var R = { encodingRaw: 0, encodingCopyRect: 1, encodingRRE: 2, encodingHextile: 5, encodingZlib: 6, encodingTight: 7, encodingZRLE: 16, encodingTightPNG: -260, encodingJPEG: 21, encodingH264: 50, pseudoEncodingQualityLevel9: -23, pseudoEncodingQualityLevel0: -32, pseudoEncodingDesktopSize: -223, pseudoEncodingLastRect: -224, pseudoEncodingCursor: -239, pseudoEncodingQEMUExtendedKeyEvent: -258, pseudoEncodingQEMULedEvent: -261, pseudoEncodingDesktopName: -307, pseudoEncodingExtendedDesktopSize: -308, pseudoEncodingXvp: -309, pseudoEncodingFence: -312, pseudoEncodingContinuousUpdates: -313, pseudoEncodingExtendedMouseButtons: -316, pseudoEncodingCompressLevel9: -247, pseudoEncodingCompressLevel0: -256, pseudoEncodingVMwareCursor: 1464686180, pseudoEncodingExtendedClipboard: 3231835598 };
+    var qt = class i {
+      constructor() {
+        this._key = null;
+      }
+      get algorithm() {
+        return { name: "AES-ECB" };
+      }
+      static async importKey(t2, e, s, r) {
+        let n = new i();
+        return await n._importKey(t2, s, r), n;
+      }
+      async _importKey(t2, e, s) {
+        this._key = await window.crypto.subtle.importKey("raw", t2, { name: "AES-CBC" }, e, s);
+      }
+      async encrypt(t2, e) {
+        let s = new Uint8Array(e);
+        if (s.length % 16 !== 0 || this._key === null) return null;
+        let r = s.length / 16;
+        for (let n = 0; n < r; n++) {
+          let a = new Uint8Array(await window.crypto.subtle.encrypt({ name: "AES-CBC", iv: new Uint8Array(16) }, this._key, s.slice(n * 16, n * 16 + 16))).slice(0, 16);
+          s.set(a, n * 16);
+        }
+        return s;
+      }
+    }, Jt = class i {
+      constructor() {
+        this._rawKey = null, this._ctrKey = null, this._cbcKey = null, this._zeroBlock = new Uint8Array(16), this._prefixBlock0 = this._zeroBlock, this._prefixBlock1 = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]), this._prefixBlock2 = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]);
+      }
+      get algorithm() {
+        return { name: "AES-EAX" };
+      }
+      async _encryptBlock(t2) {
+        let e = await window.crypto.subtle.encrypt({ name: "AES-CBC", iv: this._zeroBlock }, this._cbcKey, t2);
+        return new Uint8Array(e).slice(0, 16);
+      }
+      async _initCMAC() {
+        let t2 = await this._encryptBlock(this._zeroBlock), e = new Uint8Array(16), s = t2[0] >>> 6;
+        for (let n = 0; n < 15; n++) e[n] = t2[n + 1] >> 6 | t2[n] << 2, t2[n] = t2[n + 1] >> 7 | t2[n] << 1;
+        let r = [0, 135, 14, 137];
+        e[14] ^= s >>> 1, e[15] = t2[15] << 2 ^ r[s], t2[15] = t2[15] << 1 ^ r[s >> 1], this._k1 = t2, this._k2 = e;
+      }
+      async _encryptCTR(t2, e) {
+        let s = await window.crypto.subtle.encrypt({ name: "AES-CTR", counter: e, length: 128 }, this._ctrKey, t2);
+        return new Uint8Array(s);
+      }
+      async _decryptCTR(t2, e) {
+        let s = await window.crypto.subtle.decrypt({ name: "AES-CTR", counter: e, length: 128 }, this._ctrKey, t2);
+        return new Uint8Array(s);
+      }
+      async _computeCMAC(t2, e) {
+        if (e.length !== 16) return null;
+        let s = Math.floor(t2.length / 16), r = Math.ceil(t2.length / 16), n = t2.length - s * 16, a = new Uint8Array((r + 1) * 16);
+        if (a.set(e), a.set(t2, 16), n === 0) for (let o = 0; o < 16; o++) a[s * 16 + o] ^= this._k1[o];
+        else {
+          a[(s + 1) * 16 + n] = 128;
+          for (let o = 0; o < 16; o++) a[(s + 1) * 16 + o] ^= this._k2[o];
+        }
+        let h55 = await window.crypto.subtle.encrypt({ name: "AES-CBC", iv: this._zeroBlock }, this._cbcKey, a);
+        return h55 = new Uint8Array(h55), h55.slice(h55.length - 32, h55.length - 16);
+      }
+      static async importKey(t2, e, s, r) {
+        let n = new i();
+        return await n._importKey(t2), n;
+      }
+      async _importKey(t2) {
+        this._rawKey = t2, this._ctrKey = await window.crypto.subtle.importKey("raw", t2, { name: "AES-CTR" }, false, ["encrypt", "decrypt"]), this._cbcKey = await window.crypto.subtle.importKey("raw", t2, { name: "AES-CBC" }, false, ["encrypt"]), await this._initCMAC();
+      }
+      async encrypt(t2, e) {
+        let s = t2.additionalData, r = t2.iv, n = await this._computeCMAC(r, this._prefixBlock0), a = await this._encryptCTR(e, n), h55 = await this._computeCMAC(s, this._prefixBlock1), c = await this._computeCMAC(a, this._prefixBlock2);
+        for (let l = 0; l < 16; l++) c[l] ^= n[l] ^ h55[l];
+        let o = new Uint8Array(16 + a.length);
+        return o.set(a), o.set(c, a.length), o;
+      }
+      async decrypt(t2, e) {
+        let s = e.slice(0, e.length - 16), r = t2.additionalData, n = t2.iv, a = e.slice(e.length - 16), h55 = await this._computeCMAC(n, this._prefixBlock0), c = await this._computeCMAC(r, this._prefixBlock1), o = await this._computeCMAC(s, this._prefixBlock2);
+        for (let x = 0; x < 16; x++) o[x] ^= h55[x] ^ c[x];
+        if (o.length !== a.length) return null;
+        for (let x = 0; x < a.length; x++) if (o[x] !== a[x]) return null;
+        return await this._decryptCTR(s, h55);
+      }
+    };
+    var Fr = [13, 16, 10, 23, 0, 4, 2, 27, 14, 5, 20, 9, 22, 18, 11, 3, 25, 7, 15, 6, 26, 19, 12, 1, 40, 51, 30, 36, 46, 54, 29, 39, 50, 44, 32, 47, 43, 48, 38, 55, 33, 52, 45, 41, 49, 35, 28, 31], fa = [1, 2, 4, 6, 8, 10, 12, 14, 15, 17, 19, 21, 23, 25, 27, 28], _ = 0, p, g, v, b, m, y;
+    p = 65536;
+    g = 1 << 24;
+    v = p | g;
+    b = 4;
+    m = 1024;
+    y = b | m;
+    var kr = [v | m, _ | _, p | _, v | y, v | b, p | y, _ | b, p | _, _ | m, v | m, v | y, _ | m, g | y, v | b, g | _, _ | b, _ | y, g | m, g | m, p | m, p | m, v | _, v | _, g | y, p | b, g | b, g | b, p | b, _ | _, _ | y, p | y, g | _, p | _, v | y, _ | b, v | _, v | m, g | _, g | _, _ | m, v | b, p | _, p | m, g | b, _ | m, _ | b, g | y, p | y, v | y, p | b, v | _, g | y, g | b, _ | y, p | y, v | m, _ | y, g | m, g | m, _ | _, p | b, p | m, _ | _, v | b];
+    p = 1 << 20;
+    g = 1 << 31;
+    v = p | g;
+    b = 32;
+    m = 32768;
+    y = b | m;
+    var Sr = [v | y, g | m, _ | m, p | y, p | _, _ | b, v | b, g | y, g | b, v | y, v | m, g | _, g | m, p | _, _ | b, v | b, p | m, p | b, g | y, _ | _, g | _, _ | m, p | y, v | _, p | b, g | b, _ | _, p | m, _ | y, v | m, v | _, _ | y, _ | _, p | y, v | b, p | _, g | y, v | _, v | m, _ | m, v | _, g | m, _ | b, v | y, p | y, _ | b, _ | m, g | _, _ | y, v | m, p | _, g | b, p | b, g | y, g | b, p | b, p | m, _ | _, g | m, _ | y, g | _, v | b, v | y, p | m];
+    p = 1 << 17;
+    g = 1 << 27;
+    v = p | g;
+    b = 8;
+    m = 512;
+    y = b | m;
+    var Er = [_ | y, v | m, _ | _, v | b, g | m, _ | _, p | y, g | m, p | b, g | b, g | b, p | _, v | y, p | b, v | _, _ | y, g | _, _ | b, v | m, _ | m, p | m, v | _, v | b, p | y, g | y, p | m, p | _, g | y, _ | b, v | y, _ | m, g | _, v | m, g | _, p | b, _ | y, p | _, v | m, g | m, _ | _, _ | m, p | b, v | y, g | m, g | b, _ | m, _ | _, v | b, g | y, p | _, g | _, v | y, _ | b, p | y, p | m, g | b, v | _, g | y, _ | y, v | _, p | y, _ | b, v | b, p | m];
+    p = 8192;
+    g = 1 << 23;
+    v = p | g;
+    b = 1;
+    m = 128;
+    y = b | m;
+    var Ar = [v | b, p | y, p | y, _ | m, v | m, g | y, g | b, p | b, _ | _, v | _, v | _, v | y, _ | y, _ | _, g | m, g | b, _ | b, p | _, g | _, v | b, _ | m, g | _, p | b, p | m, g | y, _ | b, p | m, g | m, p | _, v | m, v | y, _ | y, g | m, g | b, v | _, v | y, _ | y, _ | _, _ | _, v | _, p | m, g | m, g | y, _ | b, v | b, p | y, p | y, _ | m, v | y, _ | y, _ | b, p | _, g | b, p | b, v | m, g | y, p | b, p | m, g | _, v | b, _ | m, g | _, p | _, v | m];
+    p = 1 << 25;
+    g = 1 << 30;
+    v = p | g;
+    b = 256;
+    m = 1 << 19;
+    y = b | m;
+    var Cr = [_ | b, p | y, p | m, v | b, _ | m, _ | b, g | _, p | m, g | y, _ | m, p | b, g | y, v | b, v | m, _ | y, g | _, p | _, g | m, g | m, _ | _, g | b, v | y, v | y, p | b, v | m, g | b, _ | _, v | _, p | y, p | _, v | _, _ | y, _ | m, v | b, _ | b, p | _, g | _, p | m, v | b, g | y, p | b, g | _, v | m, p | y, g | y, _ | b, p | _, v | m, v | y, _ | y, v | _, v | y, p | m, _ | _, g | m, v | _, _ | y, p | b, g | b, _ | m, _ | _, g | m, p | y, g | b];
+    p = 1 << 22;
+    g = 1 << 29;
+    v = p | g;
+    b = 16;
+    m = 16384;
+    y = b | m;
+    var Lr = [g | b, v | _, _ | m, v | y, v | _, _ | b, v | y, p | _, g | m, p | y, p | _, g | b, p | b, g | m, g | _, _ | y, _ | _, p | b, g | y, _ | m, p | m, g | y, _ | b, v | b, v | b, _ | _, p | y, v | m, _ | y, p | m, v | m, g | _, g | m, _ | b, v | b, p | m, v | y, p | _, _ | y, g | b, p | _, g | m, g | _, _ | y, g | b, v | y, p | m, v | _, p | y, v | m, _ | _, v | b, _ | b, _ | m, v | _, p | y, _ | m, p | b, g | y, _ | _, v | m, g | _, p | b, g | y];
+    p = 1 << 21;
+    g = 1 << 26;
+    v = p | g;
+    b = 2;
+    m = 2048;
+    y = b | m;
+    var Tr = [p | _, v | b, g | y, _ | _, _ | m, g | y, p | y, v | m, v | y, p | _, _ | _, g | b, _ | b, g | _, v | b, _ | y, g | m, p | y, p | b, g | m, g | b, v | _, v | m, p | b, v | _, _ | m, _ | y, v | y, p | m, _ | b, g | _, p | m, g | _, p | m, p | _, g | y, g | y, v | b, v | b, _ | b, p | b, g | _, g | m, p | _, v | m, _ | y, p | y, v | m, _ | y, g | b, v | y, v | _, p | m, _ | _, _ | b, v | y, _ | _, p | y, v | _, _ | m, g | b, g | m, _ | m, p | b];
+    p = 1 << 18;
+    g = 1 << 28;
+    v = p | g;
+    b = 64;
+    m = 4096;
+    y = b | m;
+    var Mr = [g | y, _ | m, p | _, v | y, g | _, g | y, _ | b, g | _, p | b, v | _, v | y, p | m, v | m, p | y, _ | m, _ | b, v | _, g | b, g | m, _ | y, p | m, p | b, v | b, v | m, _ | y, _ | _, _ | _, v | b, g | b, g | m, p | y, p | _, p | y, p | _, v | m, _ | m, _ | b, v | b, _ | m, p | y, g | m, _ | b, g | b, v | _, v | b, g | _, p | _, g | y, _ | _, v | y, p | b, g | b, v | _, g | m, g | y, _ | _, v | y, p | m, p | m, _ | y, _ | y, p | b, g | _, v | m], $t = class {
+      constructor(t2) {
+        this.keys = [];
+        let e = [], s = [], r = [];
+        for (let n = 0, a = 56; n < 56; ++n, a -= 8) {
+          a += a < -5 ? 65 : a < -3 ? 31 : a < -1 ? 63 : a === 27 ? 35 : 0;
+          let h55 = a & 7;
+          e[n] = (t2[a >>> 3] & 1 << h55) !== 0 ? 1 : 0;
+        }
+        for (let n = 0; n < 16; ++n) {
+          let a = n << 1, h55 = a + 1;
+          r[a] = r[h55] = 0;
+          for (let c = 28; c < 59; c += 28) for (let o = c - 28; o < c; ++o) {
+            let l = o + fa[n];
+            s[o] = l < c ? e[l] : e[l - 28];
+          }
+          for (let c = 0; c < 24; ++c) s[Fr[c]] !== 0 && (r[a] |= 1 << 23 - c), s[Fr[c + 24]] !== 0 && (r[h55] |= 1 << 23 - c);
+        }
+        for (let n = 0, a = 0, h55 = 0; n < 16; ++n) {
+          let c = r[a++], o = r[a++];
+          this.keys[h55] = (c & 16515072) << 6, this.keys[h55] |= (c & 4032) << 10, this.keys[h55] |= (o & 16515072) >>> 10, this.keys[h55] |= (o & 4032) >>> 6, ++h55, this.keys[h55] = (c & 258048) << 12, this.keys[h55] |= (c & 63) << 16, this.keys[h55] |= (o & 258048) >>> 4, this.keys[h55] |= o & 63, ++h55;
+        }
+      }
+      enc8(t2) {
+        let e = t2.slice(), s = 0, r, n, a;
+        r = e[s++] << 24 | e[s++] << 16 | e[s++] << 8 | e[s++], n = e[s++] << 24 | e[s++] << 16 | e[s++] << 8 | e[s++], a = (r >>> 4 ^ n) & 252645135, n ^= a, r ^= a << 4, a = (r >>> 16 ^ n) & 65535, n ^= a, r ^= a << 16, a = (n >>> 2 ^ r) & 858993459, r ^= a, n ^= a << 2, a = (n >>> 8 ^ r) & 16711935, r ^= a, n ^= a << 8, n = n << 1 | n >>> 31 & 1, a = (r ^ n) & 2863311530, r ^= a, n ^= a, r = r << 1 | r >>> 31 & 1;
+        for (let h55 = 0, c = 0; h55 < 8; ++h55) {
+          a = n << 28 | n >>> 4, a ^= this.keys[c++];
+          let o = Tr[a & 63];
+          o |= Cr[a >>> 8 & 63], o |= Er[a >>> 16 & 63], o |= kr[a >>> 24 & 63], a = n ^ this.keys[c++], o |= Mr[a & 63], o |= Lr[a >>> 8 & 63], o |= Ar[a >>> 16 & 63], o |= Sr[a >>> 24 & 63], r ^= o, a = r << 28 | r >>> 4, a ^= this.keys[c++], o = Tr[a & 63], o |= Cr[a >>> 8 & 63], o |= Er[a >>> 16 & 63], o |= kr[a >>> 24 & 63], a = r ^ this.keys[c++], o |= Mr[a & 63], o |= Lr[a >>> 8 & 63], o |= Ar[a >>> 16 & 63], o |= Sr[a >>> 24 & 63], n ^= o;
+        }
+        for (n = n << 31 | n >>> 1, a = (r ^ n) & 2863311530, r ^= a, n ^= a, r = r << 31 | r >>> 1, a = (r >>> 8 ^ n) & 16711935, n ^= a, r ^= a << 8, a = (r >>> 2 ^ n) & 858993459, n ^= a, r ^= a << 2, a = (n >>> 16 ^ r) & 65535, r ^= a, n ^= a << 16, a = (n >>> 4 ^ r) & 252645135, r ^= a, n ^= a << 4, a = [n, r], s = 0; s < 8; s++) e[s] = (a[s >>> 2] >>> 8 * (3 - s % 4)) % 256, e[s] < 0 && (e[s] += 256);
+        return e;
+      }
+    }, ei = class i {
+      constructor() {
+        this._cipher = null;
+      }
+      get algorithm() {
+        return { name: "DES-ECB" };
+      }
+      static importKey(t2, e, s, r) {
+        let n = new i();
+        return n._importKey(t2), n;
+      }
+      _importKey(t2, e, s) {
+        this._cipher = new $t(t2);
+      }
+      encrypt(t2, e) {
+        let s = new Uint8Array(e);
+        if (s.length % 8 !== 0 || this._cipher === null) return null;
+        let r = s.length / 8;
+        for (let n = 0; n < r; n++) s.set(this._cipher.enc8(s.slice(n * 8, n * 8 + 8)), n * 8);
+        return s;
+      }
+    }, ti = class i {
+      constructor() {
+        this._cipher = null;
+      }
+      get algorithm() {
+        return { name: "DES-CBC" };
+      }
+      static importKey(t2, e, s, r) {
+        let n = new i();
+        return n._importKey(t2), n;
+      }
+      _importKey(t2) {
+        this._cipher = new $t(t2);
+      }
+      encrypt(t2, e) {
+        let s = new Uint8Array(e), r = new Uint8Array(t2.iv);
+        if (s.length % 8 !== 0 || this._cipher === null) return null;
+        let n = s.length / 8;
+        for (let a = 0; a < n; a++) {
+          for (let h55 = 0; h55 < 8; h55++) r[h55] ^= e[a * 8 + h55];
+          r = this._cipher.enc8(r), s.set(r, a * 8);
+        }
+        return s;
+      }
+    };
+    function et(i, t2, e) {
+      let s = 1n;
+      for (i = i % e; t2 > 0n; ) (t2 & 1n) === 1n && (s = s * i % e), t2 = t2 >> 1n, i = i * i % e;
+      return s;
+    }
+    function tt(i, t2 = 0) {
+      let e = i.toString(16);
+      t2 === 0 && (t2 = Math.ceil(e.length / 2)), e = e.padStart(t2 * 2, "0");
+      let s = e.length / 2, r = new Uint8Array(s);
+      for (let n = 0; n < s; n++) r[n] = parseInt(e.slice(n * 2, n * 2 + 2), 16);
+      return r;
+    }
+    function ne(i) {
+      let t2 = "0x";
+      for (let e = 0; e < i.length; e++) t2 += i[e].toString(16).padStart(2, "0");
+      return BigInt(t2);
+    }
+    var ii = class i {
+      constructor() {
+        this._keyLength = 0, this._keyBytes = 0, this._n = null, this._e = null, this._d = null, this._nBigInt = null, this._eBigInt = null, this._dBigInt = null, this._extractable = false;
+      }
+      get algorithm() {
+        return { name: "RSA-PKCS1-v1_5" };
+      }
+      _base64urlDecode(t2) {
+        return t2 = t2.replace(/-/g, "+").replace(/_/g, "/"), t2 = t2.padEnd(Math.ceil(t2.length / 4) * 4, "="), Pe.decode(t2);
+      }
+      _padArray(t2, e) {
+        let s = new Uint8Array(e);
+        return s.set(t2, e - t2.length), s;
+      }
+      static async generateKey(t2, e, s) {
+        let r = new i();
+        return await r._generateKey(t2, e), { privateKey: r };
+      }
+      async _generateKey(t2, e) {
+        this._keyLength = t2.modulusLength, this._keyBytes = Math.ceil(this._keyLength / 8);
+        let s = await window.crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: t2.modulusLength, publicExponent: t2.publicExponent, hash: { name: "SHA-256" } }, true, ["encrypt", "decrypt"]), r = await window.crypto.subtle.exportKey("jwk", s.privateKey);
+        this._n = this._padArray(this._base64urlDecode(r.n), this._keyBytes), this._nBigInt = ne(this._n), this._e = this._padArray(this._base64urlDecode(r.e), this._keyBytes), this._eBigInt = ne(this._e), this._d = this._padArray(this._base64urlDecode(r.d), this._keyBytes), this._dBigInt = ne(this._d), this._extractable = e;
+      }
+      static async importKey(t2, e, s, r) {
+        if (r.length !== 1 || r[0] !== "encrypt") throw new Error("only support importing RSA public key");
+        let n = new i();
+        return await n._importKey(t2, s), n;
+      }
+      async _importKey(t2, e) {
+        let s = t2.n, r = t2.e;
+        if (s.length !== r.length) throw new Error("the sizes of modulus and public exponent do not match");
+        this._keyBytes = s.length, this._keyLength = this._keyBytes * 8, this._n = new Uint8Array(this._keyBytes), this._e = new Uint8Array(this._keyBytes), this._n.set(s), this._e.set(r), this._nBigInt = ne(this._n), this._eBigInt = ne(this._e), this._extractable = e;
+      }
+      async encrypt(t2, e) {
+        if (e.length > this._keyBytes - 11) return null;
+        let s = new Uint8Array(this._keyBytes - e.length - 3);
+        window.crypto.getRandomValues(s);
+        for (let h55 = 0; h55 < s.length; h55++) s[h55] = Math.floor(s[h55] * 254 / 255 + 1);
+        let r = new Uint8Array(this._keyBytes);
+        r[1] = 2, r.set(s, 2), r.set(e, s.length + 3);
+        let n = ne(r), a = et(n, this._eBigInt, this._nBigInt);
+        return tt(a, this._keyBytes);
+      }
+      async decrypt(t2, e) {
+        if (e.length !== this._keyBytes) return null;
+        let s = ne(e), r = et(s, this._dBigInt, this._nBigInt), n = tt(r, this._keyBytes);
+        if (n[0] !== 0 || n[1] !== 2) return null;
+        let a = 2;
+        for (; a < n.length && n[a] !== 0; a++) ;
+        return a === n.length ? null : n.slice(a + 1, n.length);
+      }
+      async exportKey() {
+        if (!this._extractable) throw new Error("key is not extractable");
+        return { n: this._n, e: this._e, d: this._d };
+      }
+    };
+    var Gi = class {
+      constructor(t2) {
+        this._key = t2;
+      }
+      get algorithm() {
+        return { name: "DH" };
+      }
+      exportKey() {
+        return this._key;
+      }
+    }, si = class i {
+      constructor() {
+        this._g = null, this._p = null, this._gBigInt = null, this._pBigInt = null, this._privateKey = null;
+      }
+      get algorithm() {
+        return { name: "DH" };
+      }
+      static generateKey(t2, e) {
+        let s = new i();
+        return s._generateKey(t2), { privateKey: s, publicKey: new Gi(s._publicKey) };
+      }
+      _generateKey(t2) {
+        let e = t2.g, s = t2.p;
+        this._keyBytes = s.length, this._gBigInt = ne(e), this._pBigInt = ne(s), this._privateKey = window.crypto.getRandomValues(new Uint8Array(this._keyBytes)), this._privateKeyBigInt = ne(this._privateKey), this._publicKey = tt(et(this._gBigInt, this._privateKeyBigInt, this._pBigInt), this._keyBytes);
+      }
+      deriveBits(t2, e) {
+        let s = Math.ceil(e / 8), r = new Uint8Array(t2.public), n = s > this._keyBytes ? s : this._keyBytes, a = et(ne(r), this._privateKeyBigInt, this._pBigInt);
+        return tt(a, n).slice(0, n);
+      }
+    };
+    async function Rr(i) {
+      let t2 = "";
+      for (let e = 0; e < i.length; e++) t2 += String.fromCharCode(i[e]);
+      return ua(xa(pa(da(t2), 8 * t2.length)));
+    }
+    function ua(i) {
+      let t2 = new Uint8Array(i.length);
+      for (let e = 0; e < i.length; e++) t2[e] = i.charCodeAt(e);
+      return t2;
+    }
+    function da(i) {
+      let t2 = Array(i.length >> 2);
+      for (let e = 0; e < t2.length; e++) t2[e] = 0;
+      for (let e = 0; e < 8 * i.length; e += 8) t2[e >> 5] |= (255 & i.charCodeAt(e / 8)) << e % 32;
+      return t2;
+    }
+    function xa(i) {
+      let t2 = "";
+      for (let e = 0; e < 32 * i.length; e += 8) t2 += String.fromCharCode(i[e >> 5] >>> e % 32 & 255);
+      return t2;
+    }
+    function pa(i, t2) {
+      i[t2 >> 5] |= 128 << t2 % 32, i[14 + (t2 + 64 >>> 9 << 4)] = t2;
+      let e = 1732584193, s = -271733879, r = -1732584194, n = 271733878;
+      for (let a = 0; a < i.length; a += 16) {
+        let h55 = e, c = s, o = r, l = n;
+        s = ee(s = ee(s = ee(s = ee(s = $(s = $(s = $(s = $(s = J(s = J(s = J(s = J(s = q(s = q(s = q(s = q(s, r = q(r, n = q(n, e = q(e, s, r, n, i[a + 0], 7, -680876936), s, r, i[a + 1], 12, -389564586), e, s, i[a + 2], 17, 606105819), n, e, i[a + 3], 22, -1044525330), r = q(r, n = q(n, e = q(e, s, r, n, i[a + 4], 7, -176418897), s, r, i[a + 5], 12, 1200080426), e, s, i[a + 6], 17, -1473231341), n, e, i[a + 7], 22, -45705983), r = q(r, n = q(n, e = q(e, s, r, n, i[a + 8], 7, 1770035416), s, r, i[a + 9], 12, -1958414417), e, s, i[a + 10], 17, -42063), n, e, i[a + 11], 22, -1990404162), r = q(r, n = q(n, e = q(e, s, r, n, i[a + 12], 7, 1804603682), s, r, i[a + 13], 12, -40341101), e, s, i[a + 14], 17, -1502002290), n, e, i[a + 15], 22, 1236535329), r = J(r, n = J(n, e = J(e, s, r, n, i[a + 1], 5, -165796510), s, r, i[a + 6], 9, -1069501632), e, s, i[a + 11], 14, 643717713), n, e, i[a + 0], 20, -373897302), r = J(r, n = J(n, e = J(e, s, r, n, i[a + 5], 5, -701558691), s, r, i[a + 10], 9, 38016083), e, s, i[a + 15], 14, -660478335), n, e, i[a + 4], 20, -405537848), r = J(r, n = J(n, e = J(e, s, r, n, i[a + 9], 5, 568446438), s, r, i[a + 14], 9, -1019803690), e, s, i[a + 3], 14, -187363961), n, e, i[a + 8], 20, 1163531501), r = J(r, n = J(n, e = J(e, s, r, n, i[a + 13], 5, -1444681467), s, r, i[a + 2], 9, -51403784), e, s, i[a + 7], 14, 1735328473), n, e, i[a + 12], 20, -1926607734), r = $(r, n = $(n, e = $(e, s, r, n, i[a + 5], 4, -378558), s, r, i[a + 8], 11, -2022574463), e, s, i[a + 11], 16, 1839030562), n, e, i[a + 14], 23, -35309556), r = $(r, n = $(n, e = $(e, s, r, n, i[a + 1], 4, -1530992060), s, r, i[a + 4], 11, 1272893353), e, s, i[a + 7], 16, -155497632), n, e, i[a + 10], 23, -1094730640), r = $(r, n = $(n, e = $(e, s, r, n, i[a + 13], 4, 681279174), s, r, i[a + 0], 11, -358537222), e, s, i[a + 3], 16, -722521979), n, e, i[a + 6], 23, 76029189), r = $(r, n = $(n, e = $(e, s, r, n, i[a + 9], 4, -640364487), s, r, i[a + 12], 11, -421815835), e, s, i[a + 15], 16, 530742520), n, e, i[a + 2], 23, -995338651), r = ee(r, n = ee(n, e = ee(e, s, r, n, i[a + 0], 6, -198630844), s, r, i[a + 7], 10, 1126891415), e, s, i[a + 14], 15, -1416354905), n, e, i[a + 5], 21, -57434055), r = ee(r, n = ee(n, e = ee(e, s, r, n, i[a + 12], 6, 1700485571), s, r, i[a + 3], 10, -1894986606), e, s, i[a + 10], 15, -1051523), n, e, i[a + 1], 21, -2054922799), r = ee(r, n = ee(n, e = ee(e, s, r, n, i[a + 8], 6, 1873313359), s, r, i[a + 15], 10, -30611744), e, s, i[a + 6], 15, -1560198380), n, e, i[a + 13], 21, 1309151649), r = ee(r, n = ee(n, e = ee(e, s, r, n, i[a + 4], 6, -145523070), s, r, i[a + 11], 10, -1120210379), e, s, i[a + 2], 15, 718787259), n, e, i[a + 9], 21, -343485551), e = Xe(e, h55), s = Xe(s, c), r = Xe(r, o), n = Xe(n, l);
+      }
+      return Array(e, s, r, n);
+    }
+    function ri(i, t2, e, s, r, n) {
+      return Xe(ga(Xe(Xe(t2, i), Xe(s, n)), r), e);
+    }
+    function q(i, t2, e, s, r, n, a) {
+      return ri(t2 & e | ~t2 & s, i, t2, r, n, a);
+    }
+    function J(i, t2, e, s, r, n, a) {
+      return ri(t2 & s | e & ~s, i, t2, r, n, a);
+    }
+    function $(i, t2, e, s, r, n, a) {
+      return ri(t2 ^ e ^ s, i, t2, r, n, a);
+    }
+    function ee(i, t2, e, s, r, n, a) {
+      return ri(e ^ (t2 | ~s), i, t2, r, n, a);
+    }
+    function Xe(i, t2) {
+      let e = (65535 & i) + (65535 & t2);
+      return (i >> 16) + (t2 >> 16) + (e >> 16) << 16 | 65535 & e;
+    }
+    function ga(i, t2) {
+      return i << t2 | i >>> 32 - t2;
+    }
+    var Vi = class {
+      constructor() {
+        this._algorithms = { "AES-ECB": qt, "AES-EAX": Jt, "DES-ECB": ei, "DES-CBC": ti, "RSA-PKCS1-v1_5": ii, DH: si, MD5: Rr };
+      }
+      encrypt(t2, e, s) {
+        if (e.algorithm.name !== t2.name) throw new Error("algorithm does not match");
+        if (typeof e.encrypt != "function") throw new Error("key does not support encryption");
+        return e.encrypt(t2, s);
+      }
+      decrypt(t2, e, s) {
+        if (e.algorithm.name !== t2.name) throw new Error("algorithm does not match");
+        if (typeof e.decrypt != "function") throw new Error("key does not support encryption");
+        return e.decrypt(t2, s);
+      }
+      importKey(t2, e, s, r, n) {
+        if (t2 !== "raw") throw new Error("key format is not supported");
+        let a = this._algorithms[s.name];
+        if (typeof a > "u" || typeof a.importKey != "function") throw new Error("algorithm is not supported");
+        return a.importKey(e, s, r, n);
+      }
+      generateKey(t2, e, s) {
+        let r = this._algorithms[t2.name];
+        if (typeof r > "u" || typeof r.generateKey != "function") throw new Error("algorithm is not supported");
+        return r.generateKey(t2, e, s);
+      }
+      exportKey(t2, e) {
+        if (t2 !== "raw") throw new Error("key format is not supported");
+        if (typeof e.exportKey != "function") throw new Error("key does not support exportKey");
+        return e.exportKey();
+      }
+      digest(t2, e) {
+        let s = this._algorithms[t2];
+        if (typeof s != "function") throw new Error("algorithm is not supported");
+        return s(e);
+      }
+      deriveBits(t2, e, s) {
+        if (e.algorithm.name !== t2.name) throw new Error("algorithm does not match");
+        if (typeof e.deriveBits != "function") throw new Error("key does not support deriveBits");
+        return e.deriveBits(t2, s);
+      }
+    }, O = new Vi();
+    var ni = class {
+      constructor() {
+        this._cipher = null, this._counter = new Uint8Array(16);
+      }
+      async setKey(t2) {
+        this._cipher = await O.importKey("raw", t2, { name: "AES-EAX" }, false, ["encrypt, decrypt"]);
+      }
+      async makeMessage(t2) {
+        let e = new Uint8Array([(t2.length & 65280) >>> 8, t2.length & 255]), s = await O.encrypt({ name: "AES-EAX", iv: this._counter, additionalData: e }, this._cipher, t2);
+        for (let n = 0; n < 16 && this._counter[n]++ === 255; n++) ;
+        let r = new Uint8Array(t2.length + 2 + 16);
+        return r.set(e), r.set(s, 2), r;
+      }
+      async receiveMessage(t2, e) {
+        let s = new Uint8Array([(t2 & 65280) >>> 8, t2 & 255]), r = await O.decrypt({ name: "AES-EAX", iv: this._counter, additionalData: s }, this._cipher, e);
+        for (let n = 0; n < 16 && this._counter[n]++ === 255; n++) ;
+        return r;
+      }
+    }, Xt = class extends Ee {
+      constructor(t2, e) {
+        super(), this._hasStarted = false, this._checkSock = null, this._checkCredentials = null, this._approveServerResolve = null, this._sockReject = null, this._credentialsReject = null, this._approveServerReject = null, this._sock = t2, this._getCredentials = e;
+      }
+      _waitSockAsync(t2) {
+        return new Promise((e, s) => {
+          let r = () => !this._sock.rQwait("RA2", t2);
+          r() ? e() : (this._checkSock = () => {
+            r() && (e(), this._checkSock = null, this._sockReject = null);
+          }, this._sockReject = s);
+        });
+      }
+      _waitApproveKeyAsync() {
+        return new Promise((t2, e) => {
+          this._approveServerResolve = t2, this._approveServerReject = e;
+        });
+      }
+      _waitCredentialsAsync(t2) {
+        let e = () => t2 === 1 && this._getCredentials().username !== void 0 && this._getCredentials().password !== void 0 ? true : t2 === 2 && this._getCredentials().password !== void 0;
+        return new Promise((s, r) => {
+          e() ? s() : (this._checkCredentials = () => {
+            e() && (s(), this._checkCredentials = null, this._credentialsReject = null);
+          }, this._credentialsReject = r);
+        });
+      }
+      checkInternalEvents() {
+        this._checkSock !== null && this._checkSock(), this._checkCredentials !== null && this._checkCredentials();
+      }
+      approveServer() {
+        this._approveServerResolve !== null && (this._approveServerResolve(), this._approveServerResolve = null);
+      }
+      disconnect() {
+        this._sockReject !== null && (this._sockReject(new Error("disconnect normally")), this._sockReject = null), this._credentialsReject !== null && (this._credentialsReject(new Error("disconnect normally")), this._credentialsReject = null), this._approveServerReject !== null && (this._approveServerReject(new Error("disconnect normally")), this._approveServerReject = null);
+      }
+      async negotiateRA2neAuthAsync() {
+        this._hasStarted = true, await this._waitSockAsync(4);
+        let t2 = this._sock.rQpeekBytes(4), e = this._sock.rQshift32();
+        if (e < 1024) throw new Error("RA2: server public key is too short: " + e);
+        if (e > 8192) throw new Error("RA2: server public key is too long: " + e);
+        let s = Math.ceil(e / 8);
+        await this._waitSockAsync(s * 2);
+        let r = this._sock.rQshiftBytes(s), n = this._sock.rQshiftBytes(s), a = await O.importKey("raw", { n: r, e: n }, { name: "RSA-PKCS1-v1_5" }, false, ["encrypt"]), h55 = new Uint8Array(4 + s * 2);
+        h55.set(t2), h55.set(r, 4), h55.set(n, 4 + s);
+        let c = this._waitApproveKeyAsync();
+        this.dispatchEvent(new CustomEvent("serververification", { detail: { type: "RSA", publickey: h55 } })), await c;
+        let o = 2048, l = Math.ceil(o / 8), x = (await O.generateKey({ name: "RSA-PKCS1-v1_5", modulusLength: o, publicExponent: new Uint8Array([1, 0, 1]) }, true, ["encrypt"])).privateKey, u = await O.exportKey("raw", x), d = u.n, X = u.e, F = new Uint8Array(4 + l * 2);
+        F[0] = (o & 4278190080) >>> 24, F[1] = (o & 16711680) >>> 16, F[2] = (o & 65280) >>> 8, F[3] = o & 255, F.set(d, 4), F.set(X, 4 + l), this._sock.sQpushBytes(F), this._sock.flush();
+        let A = new Uint8Array(16);
+        window.crypto.getRandomValues(A);
+        let k = await O.encrypt({ name: "RSA-PKCS1-v1_5" }, a, A), T = new Uint8Array(2 + s);
+        if (T[0] = (s & 65280) >>> 8, T[1] = s & 255, T.set(k, 2), this._sock.sQpushBytes(T), this._sock.flush(), await this._waitSockAsync(2), this._sock.rQshift16() !== l) throw new Error("RA2: wrong encrypted message length");
+        let E = this._sock.rQshiftBytes(l), K = await O.decrypt({ name: "RSA-PKCS1-v1_5" }, x, E);
+        if (K === null || K.length !== 16) throw new Error("RA2: corrupted server encrypted random");
+        let C = new Uint8Array(32), I = new Uint8Array(32);
+        C.set(K), C.set(A, 16), I.set(A), I.set(K, 16), C = await window.crypto.subtle.digest("SHA-1", C), C = new Uint8Array(C).slice(0, 16), I = await window.crypto.subtle.digest("SHA-1", I), I = new Uint8Array(I).slice(0, 16);
+        let S = new ni();
+        await S.setKey(C);
+        let D = new ni();
+        await D.setKey(I);
+        let B = new Uint8Array(8 + s * 2 + l * 2), M = new Uint8Array(8 + s * 2 + l * 2);
+        if (B.set(h55), B.set(F, 4 + s * 2), M.set(F), M.set(h55, 4 + l * 2), B = await window.crypto.subtle.digest("SHA-1", B), M = await window.crypto.subtle.digest("SHA-1", M), B = new Uint8Array(B), M = new Uint8Array(M), this._sock.sQpushBytes(await S.makeMessage(M)), this._sock.flush(), await this._waitSockAsync(38), this._sock.rQshift16() !== 20) throw new Error("RA2: wrong server hash");
+        let z = await D.receiveMessage(20, this._sock.rQshiftBytes(36));
+        if (z === null) throw new Error("RA2: failed to authenticate the message");
+        for (let W = 0; W < 20; W++) if (z[W] !== B[W]) throw new Error("RA2: wrong server hash");
+        if (await this._waitSockAsync(19), this._sock.rQshift16() !== 1) throw new Error("RA2: wrong subtype");
+        let te = await D.receiveMessage(1, this._sock.rQshiftBytes(17));
+        if (te === null) throw new Error("RA2: failed to authenticate the message");
+        te = te[0];
+        let Ie = this._waitCredentialsAsync(te);
+        if (te === 1) (this._getCredentials().username === void 0 || this._getCredentials().password === void 0) && this.dispatchEvent(new CustomEvent("credentialsrequired", { detail: { types: ["username", "password"] } }));
+        else if (te === 2) this._getCredentials().password === void 0 && this.dispatchEvent(new CustomEvent("credentialsrequired", { detail: { types: ["password"] } }));
+        else throw new Error("RA2: wrong subtype");
+        await Ie;
+        let oe;
+        te === 1 ? oe = he(this._getCredentials().username).slice(0, 255) : oe = "";
+        let Fe = he(this._getCredentials().password).slice(0, 255), _e = new Uint8Array(oe.length + Fe.length + 2);
+        _e[0] = oe.length, _e[oe.length + 1] = Fe.length;
+        for (let W = 0; W < oe.length; W++) _e[W + 1] = oe.charCodeAt(W);
+        for (let W = 0; W < Fe.length; W++) _e[oe.length + 2 + W] = Fe.charCodeAt(W);
+        this._sock.sQpushBytes(await S.makeMessage(_e)), this._sock.flush();
+      }
+      get hasStarted() {
+        return this._hasStarted;
+      }
+      set hasStarted(t2) {
+        this._hasStarted = t2;
+      }
+    };
+    var Kt = class {
+      constructor() {
+        this._lines = 0;
+      }
+      decodeRect(t2, e, s, r, n, a, h55) {
+        if (s === 0 || r === 0) return true;
+        this._lines === 0 && (this._lines = r);
+        let c = h55 == 8 ? 1 : 4, o = s * c;
+        for (; this._lines > 0; ) {
+          if (n.rQwait("RAW", o)) return false;
+          let l = e + (r - this._lines), x = n.rQshiftBytes(o, false);
+          if (h55 == 8) {
+            let u = new Uint8Array(s * 4);
+            for (let d = 0; d < s; d++) u[d * 4 + 0] = (x[d] >> 0 & 3) * 255 / 3, u[d * 4 + 1] = (x[d] >> 2 & 3) * 255 / 3, u[d * 4 + 2] = (x[d] >> 4 & 3) * 255 / 3, u[d * 4 + 3] = 255;
+            x = u;
+          }
+          for (let u = 0; u < s; u++) x[u * 4 + 3] = 255;
+          a.blitImage(t2, l, s, 1, x, 0), this._lines--;
+        }
+        return true;
+      }
+    };
+    var Ft = class {
+      decodeRect(t2, e, s, r, n, a, h55) {
+        if (n.rQwait("COPYRECT", 4)) return false;
+        let c = n.rQshift16(), o = n.rQshift16();
+        return s === 0 || r === 0 || a.copyImage(c, o, t2, e, s, r), true;
+      }
+    };
+    var kt = class {
+      constructor() {
+        this._subrects = 0;
+      }
+      decodeRect(t2, e, s, r, n, a, h55) {
+        if (this._subrects === 0) {
+          if (n.rQwait("RRE", 8)) return false;
+          this._subrects = n.rQshift32();
+          let c = n.rQshiftBytes(4);
+          a.fillRect(t2, e, s, r, c);
+        }
+        for (; this._subrects > 0; ) {
+          if (n.rQwait("RRE", 12)) return false;
+          let c = n.rQshiftBytes(4), o = n.rQshift16(), l = n.rQshift16(), x = n.rQshift16(), u = n.rQshift16();
+          a.fillRect(t2 + o, e + l, x, u, c), this._subrects--;
+        }
+        return true;
+      }
+    };
+    var St = class {
+      constructor() {
+        this._tiles = 0, this._lastsubencoding = 0, this._tileBuffer = new Uint8Array(256 * 4);
+      }
+      decodeRect(t2, e, s, r, n, a, h55) {
+        for (this._tiles === 0 && (this._tilesX = Math.ceil(s / 16), this._tilesY = Math.ceil(r / 16), this._totalTiles = this._tilesX * this._tilesY, this._tiles = this._totalTiles); this._tiles > 0; ) {
+          let c = 1;
+          if (n.rQwait("HEXTILE", c)) return false;
+          let o = n.rQpeek8();
+          if (o > 30) throw new Error("Illegal hextile subencoding (subencoding: " + o + ")");
+          let l = this._totalTiles - this._tiles, x = l % this._tilesX, u = Math.floor(l / this._tilesX), d = t2 + x * 16, X = e + u * 16, F = Math.min(16, t2 + s - d), A = Math.min(16, e + r - X);
+          if (o & 1) c += F * A * 4;
+          else if (o & 2 && (c += 4), o & 4 && (c += 4), o & 8) {
+            if (c++, n.rQwait("HEXTILE", c)) return false;
+            let k = n.rQpeekBytes(c).at(-1);
+            o & 16 ? c += k * 6 : c += k * 2;
+          }
+          if (n.rQwait("HEXTILE", c)) return false;
+          if (n.rQshift8(), o === 0) this._lastsubencoding & 1 ? L("     Ignoring blank after RAW") : a.fillRect(d, X, F, A, this._background);
+          else if (o & 1) {
+            let k = F * A, T = n.rQshiftBytes(k * 4, false);
+            for (let E = 0; E < k; E++) T[E * 4 + 3] = 255;
+            a.blitImage(d, X, F, A, T, 0);
+          } else {
+            if (o & 2 && (this._background = new Uint8Array(n.rQshiftBytes(4))), o & 4 && (this._foreground = new Uint8Array(n.rQshiftBytes(4))), this._startTile(d, X, F, A, this._background), o & 8) {
+              let k = n.rQshift8();
+              for (let T = 0; T < k; T++) {
+                let E;
+                o & 16 ? E = n.rQshiftBytes(4) : E = this._foreground;
+                let K = n.rQshift8(), C = K >> 4, I = K & 15, S = n.rQshift8(), D = (S >> 4) + 1, B = (S & 15) + 1;
+                this._subTile(C, I, D, B, E);
+              }
+            }
+            this._finishTile(a);
+          }
+          this._lastsubencoding = o, this._tiles--;
+        }
+        return true;
+      }
+      _startTile(t2, e, s, r, n) {
+        this._tileX = t2, this._tileY = e, this._tileW = s, this._tileH = r;
+        let a = n[0], h55 = n[1], c = n[2], o = this._tileBuffer;
+        for (let l = 0; l < s * r * 4; l += 4) o[l] = a, o[l + 1] = h55, o[l + 2] = c, o[l + 3] = 255;
+      }
+      _subTile(t2, e, s, r, n) {
+        let a = n[0], h55 = n[1], c = n[2], o = t2 + s, l = e + r, x = this._tileBuffer, u = this._tileW;
+        for (let d = e; d < l; d++) for (let X = t2; X < o; X++) {
+          let F = (X + d * u) * 4;
+          x[F] = a, x[F + 1] = h55, x[F + 2] = c, x[F + 3] = 255;
+        }
+      }
+      _finishTile(t2) {
+        t2.blitImage(this._tileX, this._tileY, this._tileW, this._tileH, this._tileBuffer, 0);
+      }
+    };
+    var Et = class {
+      constructor() {
+        this._zlib = new le(), this._length = 0;
+      }
+      decodeRect(t2, e, s, r, n, a, h55) {
+        if (s === 0 || r === 0) return true;
+        if (this._length === 0) {
+          if (n.rQwait("ZLIB", 4)) return false;
+          this._length = n.rQshift32();
+        }
+        if (n.rQwait("ZLIB", this._length)) return false;
+        let c = new Uint8Array(n.rQshiftBytes(this._length, false));
+        this._length = 0, this._zlib.setInput(c), c = this._zlib.inflate(s * r * 4), this._zlib.setInput(null);
+        for (let o = 0; o < s * r; o++) c[o * 4 + 3] = 255;
+        return a.blitImage(t2, e, s, r, c, 0), true;
+      }
+    };
+    var Qe = class {
+      constructor() {
+        this._ctl = null, this._filter = null, this._numColors = 0, this._palette = new Uint8Array(1024), this._len = 0, this._zlibs = [];
+        for (let t2 = 0; t2 < 4; t2++) this._zlibs[t2] = new le();
+      }
+      decodeRect(t2, e, s, r, n, a, h55) {
+        if (this._ctl === null) {
+          if (n.rQwait("TIGHT compression-control", 1)) return false;
+          this._ctl = n.rQshift8();
+          for (let o = 0; o < 4; o++) this._ctl >> o & 1 && (this._zlibs[o].reset(), V("Reset zlib stream " + o));
+          this._ctl = this._ctl >> 4;
+        }
+        let c;
+        if (this._ctl === 8) c = this._fillRect(t2, e, s, r, n, a, h55);
+        else if (this._ctl === 9) c = this._jpegRect(t2, e, s, r, n, a, h55);
+        else if (this._ctl === 10) c = this._pngRect(t2, e, s, r, n, a, h55);
+        else if ((this._ctl & 8) == 0) c = this._basicRect(this._ctl, t2, e, s, r, n, a, h55);
+        else throw new Error("Illegal tight compression received (ctl: " + this._ctl + ")");
+        return c && (this._ctl = null), c;
+      }
+      _fillRect(t2, e, s, r, n, a, h55) {
+        if (n.rQwait("TIGHT", 3)) return false;
+        let c = n.rQshiftBytes(3);
+        return a.fillRect(t2, e, s, r, c, false), true;
+      }
+      _jpegRect(t2, e, s, r, n, a, h55) {
+        let c = this._readData(n);
+        return c === null ? false : (a.imageRect(t2, e, s, r, "image/jpeg", c), true);
+      }
+      _pngRect(t2, e, s, r, n, a, h55) {
+        throw new Error("PNG received in standard Tight rect");
+      }
+      _basicRect(t2, e, s, r, n, a, h55, c) {
+        if (this._filter === null) if (t2 & 4) {
+          if (a.rQwait("TIGHT", 1)) return false;
+          this._filter = a.rQshift8();
+        } else this._filter = 0;
+        let o = t2 & 3, l;
+        switch (this._filter) {
+          case 0:
+            l = this._copyFilter(o, e, s, r, n, a, h55, c);
+            break;
+          case 1:
+            l = this._paletteFilter(o, e, s, r, n, a, h55, c);
+            break;
+          case 2:
+            l = this._gradientFilter(o, e, s, r, n, a, h55, c);
+            break;
+          default:
+            throw new Error("Illegal tight filter received (ctl: " + this._filter + ")");
+        }
+        return l && (this._filter = null), l;
+      }
+      _copyFilter(t2, e, s, r, n, a, h55, c) {
+        let o = r * n * 3, l;
+        if (o === 0) return true;
+        if (o < 12) {
+          if (a.rQwait("TIGHT", o)) return false;
+          l = a.rQshiftBytes(o);
+        } else {
+          if (l = this._readData(a), l === null) return false;
+          this._zlibs[t2].setInput(l), l = this._zlibs[t2].inflate(o), this._zlibs[t2].setInput(null);
+        }
+        let x = new Uint8Array(r * n * 4);
+        for (let u = 0, d = 0; u < r * n * 4; u += 4, d += 3) x[u] = l[d], x[u + 1] = l[d + 1], x[u + 2] = l[d + 2], x[u + 3] = 255;
+        return h55.blitImage(e, s, r, n, x, 0, false), true;
+      }
+      _paletteFilter(t2, e, s, r, n, a, h55, c) {
+        if (this._numColors === 0) {
+          if (a.rQwait("TIGHT palette", 1)) return false;
+          let d = a.rQpeek8() + 1, X = d * 3;
+          if (a.rQwait("TIGHT palette", 1 + X)) return false;
+          this._numColors = d, a.rQskipBytes(1), a.rQshiftTo(this._palette, X);
+        }
+        let o = this._numColors <= 2 ? 1 : 8, x = Math.floor((r * o + 7) / 8) * n, u;
+        if (x === 0) return true;
+        if (x < 12) {
+          if (a.rQwait("TIGHT", x)) return false;
+          u = a.rQshiftBytes(x);
+        } else {
+          if (u = this._readData(a), u === null) return false;
+          this._zlibs[t2].setInput(u), u = this._zlibs[t2].inflate(x), this._zlibs[t2].setInput(null);
+        }
+        return this._numColors == 2 ? this._monoRect(e, s, r, n, u, this._palette, h55) : this._paletteRect(e, s, r, n, u, this._palette, h55), this._numColors = 0, true;
+      }
+      _monoRect(t2, e, s, r, n, a, h55) {
+        let c = this._getScratchBuffer(s * r * 4), o = Math.floor((s + 7) / 8), l = Math.floor(s / 8);
+        for (let x = 0; x < r; x++) {
+          let u, d, X;
+          for (X = 0; X < l; X++) for (let F = 7; F >= 0; F--) u = (x * s + X * 8 + 7 - F) * 4, d = (n[x * o + X] >> F & 1) * 3, c[u] = a[d], c[u + 1] = a[d + 1], c[u + 2] = a[d + 2], c[u + 3] = 255;
+          for (let F = 7; F >= 8 - s % 8; F--) u = (x * s + X * 8 + 7 - F) * 4, d = (n[x * o + X] >> F & 1) * 3, c[u] = a[d], c[u + 1] = a[d + 1], c[u + 2] = a[d + 2], c[u + 3] = 255;
+        }
+        h55.blitImage(t2, e, s, r, c, 0, false);
+      }
+      _paletteRect(t2, e, s, r, n, a, h55) {
+        let c = this._getScratchBuffer(s * r * 4), o = s * r * 4;
+        for (let l = 0, x = 0; l < o; l += 4, x++) {
+          let u = n[x] * 3;
+          c[l] = a[u], c[l + 1] = a[u + 1], c[l + 2] = a[u + 2], c[l + 3] = 255;
+        }
+        h55.blitImage(t2, e, s, r, c, 0, false);
+      }
+      _gradientFilter(t2, e, s, r, n, a, h55, c) {
+        let o = r * n * 3, l;
+        if (o === 0) return true;
+        if (o < 12) {
+          if (a.rQwait("TIGHT", o)) return false;
+          l = a.rQshiftBytes(o);
+        } else {
+          if (l = this._readData(a), l === null) return false;
+          this._zlibs[t2].setInput(l), l = this._zlibs[t2].inflate(o), this._zlibs[t2].setInput(null);
+        }
+        let x = new Uint8Array(4 * r * n), u = 0, d = 0, X = new Uint8Array(3);
+        for (let T = 0; T < r; T++) {
+          for (let E = 0; E < 3; E++) {
+            let K = X[E], C = l[d++] + K;
+            x[u++] = C, X[E] = C;
+          }
+          x[u++] = 255;
+        }
+        let F = 0, A = new Uint8Array(3), k = new Uint8Array(3);
+        for (let T = 1; T < n; T++) {
+          X.fill(0), k.fill(0);
+          for (let E = 0; E < r; E++) {
+            for (let K = 0; K < 3; K++) {
+              A[K] = x[F++];
+              let C = X[K] + A[K] - k[K];
+              C < 0 ? C = 0 : C > 255 && (C = 255);
+              let I = l[d++] + C;
+              x[u++] = I, k[K] = A[K], X[K] = I;
+            }
+            x[u++] = 255, F++;
+          }
+        }
+        return h55.blitImage(e, s, r, n, x, 0, false), true;
+      }
+      _readData(t2) {
+        if (this._len === 0) {
+          if (t2.rQwait("TIGHT", 3)) return null;
+          let s;
+          s = t2.rQshift8(), this._len = s & 127, s & 128 && (s = t2.rQshift8(), this._len |= (s & 127) << 7, s & 128 && (s = t2.rQshift8(), this._len |= s << 14));
+        }
+        if (t2.rQwait("TIGHT", this._len)) return null;
+        let e = t2.rQshiftBytes(this._len, false);
+        return this._len = 0, e;
+      }
+      _getScratchBuffer(t2) {
+        return (!this._scratchBuffer || this._scratchBuffer.length < t2) && (this._scratchBuffer = new Uint8Array(t2)), this._scratchBuffer;
+      }
+    };
+    var At = class extends Qe {
+      _pngRect(t2, e, s, r, n, a, h55) {
+        let c = this._readData(n);
+        return c === null ? false : (a.imageRect(t2, e, s, r, "image/png", c), true);
+      }
+      _basicRect(t2, e, s, r, n, a, h55, c) {
+        throw new Error("BasicCompression received in TightPNG rect");
+      }
+    };
+    var ai = 64, oi = 64, Ct = class {
+      constructor() {
+        this._length = 0, this._inflator = new le(), this._pixelBuffer = new Uint8Array(ai * oi * 4), this._tileBuffer = new Uint8Array(ai * oi * 4);
+      }
+      decodeRect(t2, e, s, r, n, a, h55) {
+        if (this._length === 0) {
+          if (n.rQwait("ZLib data length", 4)) return false;
+          this._length = n.rQshift32();
+        }
+        if (n.rQwait("Zlib data", this._length)) return false;
+        let c = n.rQshiftBytes(this._length, false);
+        this._inflator.setInput(c);
+        for (let o = e; o < e + r; o += oi) {
+          let l = Math.min(oi, e + r - o);
+          for (let x = t2; x < t2 + s; x += ai) {
+            let u = Math.min(ai, t2 + s - x), d = u * l, X = this._inflator.inflate(1)[0];
+            if (X === 0) {
+              let F = this._readPixels(d);
+              a.blitImage(x, o, u, l, F, 0, false);
+            } else if (X === 1) {
+              let F = this._readPixels(1);
+              a.fillRect(x, o, u, l, [F[0], F[1], F[2]]);
+            } else if (X >= 2 && X <= 16) {
+              let F = this._decodePaletteTile(X, d, u, l);
+              a.blitImage(x, o, u, l, F, 0, false);
+            } else if (X === 128) {
+              let F = this._decodeRLETile(d);
+              a.blitImage(x, o, u, l, F, 0, false);
+            } else if (X >= 130 && X <= 255) {
+              let F = this._decodeRLEPaletteTile(X - 128, d);
+              a.blitImage(x, o, u, l, F, 0, false);
+            } else throw new Error("Unknown subencoding: " + X);
+          }
+        }
+        return this._length = 0, true;
+      }
+      _getBitsPerPixelInPalette(t2) {
+        if (t2 <= 2) return 1;
+        if (t2 <= 4) return 2;
+        if (t2 <= 16) return 4;
+      }
+      _readPixels(t2) {
+        let e = this._pixelBuffer, s = this._inflator.inflate(3 * t2);
+        for (let r = 0, n = 0; r < t2 * 4; r += 4, n += 3) e[r] = s[n], e[r + 1] = s[n + 1], e[r + 2] = s[n + 2], e[r + 3] = 255;
+        return e;
+      }
+      _decodePaletteTile(t2, e, s, r) {
+        let n = this._tileBuffer, a = this._readPixels(t2), h55 = this._getBitsPerPixelInPalette(t2), c = (1 << h55) - 1, o = 0, l = this._inflator.inflate(1)[0];
+        for (let x = 0; x < r; x++) {
+          let u = 8 - h55;
+          for (let d = 0; d < s; d++) {
+            u < 0 && (u = 8 - h55, l = this._inflator.inflate(1)[0]);
+            let X = l >> u & c;
+            n[o] = a[X * 4], n[o + 1] = a[X * 4 + 1], n[o + 2] = a[X * 4 + 2], n[o + 3] = a[X * 4 + 3], o += 4, u -= h55;
+          }
+          u < 8 - h55 && x < r - 1 && (l = this._inflator.inflate(1)[0]);
+        }
+        return n;
+      }
+      _decodeRLETile(t2) {
+        let e = this._tileBuffer, s = 0;
+        for (; s < t2; ) {
+          let r = this._readPixels(1), n = this._readRLELength();
+          for (let a = 0; a < n; a++) e[s * 4] = r[0], e[s * 4 + 1] = r[1], e[s * 4 + 2] = r[2], e[s * 4 + 3] = r[3], s++;
+        }
+        return e;
+      }
+      _decodeRLEPaletteTile(t2, e) {
+        let s = this._tileBuffer, r = this._readPixels(t2), n = 0;
+        for (; n < e; ) {
+          let a = this._inflator.inflate(1)[0], h55 = 1;
+          if (a >= 128 && (a -= 128, h55 = this._readRLELength()), a > t2) throw new Error("Too big index in palette: " + a + ", palette size: " + t2);
+          if (n + h55 > e) throw new Error("Too big rle length in palette mode: " + h55 + ", allowed length is: " + (e - n));
+          for (let c = 0; c < h55; c++) s[n * 4] = r[a * 4], s[n * 4 + 1] = r[a * 4 + 1], s[n * 4 + 2] = r[a * 4 + 2], s[n * 4 + 3] = r[a * 4 + 3], n++;
+        }
+        return s;
+      }
+      _readRLELength() {
+        let t2 = 0, e = 0;
+        do
+          e = this._inflator.inflate(1)[0], t2 += e;
+        while (e === 255);
+        return t2 + 1;
+      }
+    };
+    var Lt = class {
+      constructor() {
+        this._cachedQuantTables = [], this._cachedHuffmanTables = [], this._segments = [];
+      }
+      decodeRect(t2, e, s, r, n, a, h55) {
+        for (; ; ) {
+          let d = this._readSegment(n);
+          if (d === null) return false;
+          if (this._segments.push(d), d[1] === 217) break;
+        }
+        let c = [], o = [];
+        for (let d of this._segments) {
+          let X = d[1];
+          X === 196 ? c.push(d) : X === 219 && o.push(d);
+        }
+        let l = this._segments.findIndex((d) => d[1] == 192 || d[1] == 194);
+        if (l == -1) throw new Error("Illegal JPEG image without SOF");
+        o.length === 0 && this._segments.splice(l + 1, 0, ...this._cachedQuantTables), c.length === 0 && this._segments.splice(l + 1, 0, ...this._cachedHuffmanTables);
+        let x = 0;
+        for (let d of this._segments) x += d.length;
+        let u = new Uint8Array(x);
+        x = 0;
+        for (let d of this._segments) u.set(d, x), x += d.length;
+        return a.imageRect(t2, e, s, r, "image/jpeg", u), c.length !== 0 && (this._cachedHuffmanTables = c), o.length !== 0 && (this._cachedQuantTables = o), this._segments = [], true;
+      }
+      _readSegment(t2) {
+        if (t2.rQwait("JPEG", 2)) return null;
+        let e = t2.rQshift8();
+        if (e != 255) throw new Error("Illegal JPEG marker received (byte: " + e + ")");
+        let s = t2.rQshift8();
+        if (s >= 208 && s <= 217 || s == 1) return new Uint8Array([e, s]);
+        if (t2.rQwait("JPEG", 2, 2)) return null;
+        let r = t2.rQshift16();
+        if (r < 2) throw new Error("Illegal JPEG length received (length: " + r + ")");
+        if (t2.rQwait("JPEG", r - 2, 4)) return null;
+        let n = 0;
+        if (s === 218) {
+          if (t2.rQwait("JPEG", r - 2 + 2, 4)) return null;
+          let h55 = t2.rQlen(), c = t2.rQpeekBytes(h55, false);
+          for (; ; ) {
+            let o = c.indexOf(255, r - 2 + n);
+            if (o === -1 || o === h55 - 1) return t2.rQwait("JPEG", 1 / 0, 4), null;
+            if (c.at(o + 1) === 0 || c.at(o + 1) >= 208 && c.at(o + 1) <= 215) {
+              n = o + 2 - (r - 2);
+              continue;
+            }
+            n = o - (r - 2);
+            break;
+          }
+        }
+        let a = new Uint8Array(2 + r + n);
+        return a[0] = e, a[1] = s, a[2] = r >> 8, a[3] = r, a.set(t2.rQshiftBytes(r - 2 + n, false), 4), a;
+      }
+    };
+    var Wi = class {
+      constructor(t2) {
+        this._data = t2, this._index = 0, this.profileIdc = null, this.constraintSet = null, this.levelIdc = null;
+      }
+      _getStartSequenceLen(t2) {
+        let e = this._data;
+        return e[t2 + 0] == 0 && e[t2 + 1] == 0 && e[t2 + 2] == 0 && e[t2 + 3] == 1 ? 4 : e[t2 + 0] == 0 && e[t2 + 1] == 0 && e[t2 + 2] == 1 ? 3 : 0;
+      }
+      _indexOfNextNalUnit(t2) {
+        let e = this._data;
+        for (let s = t2; s < e.length; ++s) if (this._getStartSequenceLen(s) != 0) return s;
+        return -1;
+      }
+      _parseSps(t2) {
+        this.profileIdc = this._data[t2], this.constraintSet = this._data[t2 + 1], this.levelIdc = this._data[t2 + 2];
+      }
+      _parseNalUnit(t2) {
+        let e = this._data[t2];
+        if (e & 128) throw new Error("H264 parsing sanity check failed, forbidden zero bit is set");
+        let s = e & 31;
+        switch (s) {
+          case 1:
+            return { slice: true };
+          case 5:
+            return { slice: true, key: true };
+          case 6:
+            return {};
+          case 7:
+            return this._parseSps(t2 + 1), {};
+          case 8:
+            return {};
+          default:
+            Z("Unhandled unit type: ", s);
+            break;
+        }
+        return {};
+      }
+      parse() {
+        let t2 = this._index, e = false;
+        for (; this._index < this._data.length; ) {
+          let s = this._getStartSequenceLen(this._index);
+          if (s == 0) throw new Error("Invalid start sequence in bit stream");
+          let { slice: r, key: n } = this._parseNalUnit(this._index + s), a = this._indexOfNextNalUnit(this._index + s);
+          if (a == -1 ? this._index = this._data.length : this._index = a, n && (e = true), r) break;
+        }
+        return t2 === this._index ? null : { frame: this._data.subarray(t2, this._index), key: e };
+      }
+    }, Zi = class {
+      constructor(t2, e) {
+        this.lastUsed = 0, this._width = t2, this._height = e, this._profileIdc = null, this._constraintSet = null, this._levelIdc = null, this._decoder = null, this._pendingFrames = [];
+      }
+      _handleFrame(t2) {
+        let e = this._pendingFrames.shift();
+        if (e === void 0) throw new Error("Pending frame queue empty when receiving frame from decoder");
+        if (e.timestamp != t2.timestamp) throw new Error("Video frame timestamp mismatch. Expected " + t2.timestamp + " but but got " + e.timestamp);
+        e.frame = t2, e.ready = true, e.resolve(), e.keep || t2.close();
+      }
+      _handleError(t2) {
+        throw new Error("Failed to decode frame: " + t2.message);
+      }
+      _configureDecoder(t2, e, s) {
+        (this._decoder === null || this._decoder.state === "closed") && (this._decoder = new VideoDecoder({ output: (n) => this._handleFrame(n), error: (n) => this._handleError(n) }));
+        let r = "avc1." + t2.toString(16).padStart(2, "0") + e.toString(16).padStart(2, "0") + s.toString(16).padStart(2, "0");
+        this._decoder.configure({ codec: r, codedWidth: this._width, codedHeight: this._height, optimizeForLatency: true });
+      }
+      _preparePendingFrame(t2) {
+        let e = { timestamp: t2, promise: null, resolve: null, frame: null, ready: false, keep: false };
+        return e.promise = new Promise((s) => {
+          e.resolve = s;
+        }), this._pendingFrames.push(e), e;
+      }
+      decode(t2) {
+        let e = new Wi(t2), s = null, r = Math.round(window.performance.now() * 1e3);
+        for (; ; ) {
+          let n = e.parse();
+          if (n === null) break;
+          if (e.profileIdc !== null && (self._profileIdc = e.profileIdc, self._constraintSet = e.constraintSet, self._levelIdc = e.levelIdc), this._decoder === null || this._decoder.state !== "configured") {
+            if (!n.key) {
+              Z("Missing key frame. Can't decode until one arrives");
+              continue;
+            }
+            if (self._profileIdc === null) {
+              Z("Cannot config decoder. Have not received SPS and PPS yet.");
+              continue;
+            }
+            this._configureDecoder(self._profileIdc, self._constraintSet, self._levelIdc);
+          }
+          s = this._preparePendingFrame(r);
+          let a = new EncodedVideoChunk({ timestamp: r, type: n.key ? "key" : "delta", data: n.frame });
+          try {
+            this._decoder.decode(a);
+          } catch (h55) {
+            Z("Failed to decode:", h55);
+          }
+        }
+        return s !== null && (s.keep = true), s;
+      }
+    }, Tt = class {
+      constructor() {
+        this._tick = 0, this._contexts = {};
+      }
+      _contextId(t2, e, s, r) {
+        return [t2, e, s, r].join(",");
+      }
+      _findOldestContextId() {
+        let t2 = Number.MAX_VALUE, e;
+        for (let [s, r] of Object.entries(this._contexts)) r.lastUsed < t2 && (t2 = r.lastUsed, e = s);
+        return e;
+      }
+      _createContext(t2, e, s, r) {
+        if (Object.keys(this._contexts).length >= 64) {
+          let h55 = this._findOldestContextId();
+          delete this._contexts[h55];
+        }
+        let a = new Zi(s, r);
+        return this._contexts[this._contextId(t2, e, s, r)] = a, a;
+      }
+      _getContext(t2, e, s, r) {
+        let n = this._contexts[this._contextId(t2, e, s, r)];
+        return n !== void 0 ? n : this._createContext(t2, e, s, r);
+      }
+      _resetContext(t2, e, s, r) {
+        delete this._contexts[this._contextId(t2, e, s, r)];
+      }
+      _resetAllContexts() {
+        this._contexts = {};
+      }
+      decodeRect(t2, e, s, r, n, a, h55) {
+        if (n.rQwait("h264 header", 8)) return false;
+        let l = n.rQshift32(), x = n.rQshift32();
+        if (n.rQwait("h264 payload", l, 8)) return false;
+        x & 2 ? this._resetAllContexts() : x & 1 && this._resetContext(t2, e, s, r);
+        let u = this._getContext(t2, e, s, r);
+        if (u.lastUsed = this._tick++, l !== 0) {
+          let d = n.rQshiftBytes(l, false), X = u.decode(d);
+          X !== null && a.videoFrame(t2, e, s, r, X);
+        }
+        return true;
+      }
+    };
+    var ba = 3, ma = "rgb(40, 40, 40)", Br = 17, Dr = 50, Qr = 19, Mt = 75, Ke = 50, wa = 1e3, va = 50, Ir = 1, hi = 2, Pr = 6, Hr = 16, Yi = 19, Ur = 22, Nr = 30, Or = 113, zr = 129, Gr = 256, de = 1;
+    var Vr = 1 << 24, li = 1 << 25, Wr = 1 << 26, Rt = 1 << 27, ci = 1 << 28, re = class i extends Ee {
+      constructor(t2, e, s) {
+        if (!t2) throw new Error("Must specify target");
+        if (!e) throw new Error("Must specify URL, WebSocket or RTCDataChannel");
+        window.isSecureContext || U("noVNC requires a secure context (TLS). Expect crashes!"), super(), this._target = t2, typeof e == "string" ? this._url = e : (this._url = null, this._rawChannel = e), s = s || {}, this._rfbCredentials = s.credentials || {}, this._shared = "shared" in s ? !!s.shared : true, this._repeaterID = s.repeaterID || "", this._wsProtocols = s.wsProtocols || [], this._rfbConnectionState = "", this._rfbInitState = "", this._rfbAuthScheme = -1, this._rfbCleanDisconnect = true, this._rfbRSAAESAuthenticationState = null, this._rfbVersion = 0, this._rfbMaxVersion = 3.8, this._rfbTightVNC = false, this._rfbVeNCryptState = 0, this._rfbXvpVer = 0, this._fbWidth = 0, this._fbHeight = 0, this._fbName = "", this._capabilities = { power: false }, this._supportsFence = false, this._supportsContinuousUpdates = false, this._enabledContinuousUpdates = false, this._supportsSetDesktopSize = false, this._screenID = 0, this._screenFlags = 0, this._pendingRemoteResize = false, this._lastResize = 0, this._qemuExtKeyEventSupported = false, this._extendedPointerEventSupported = false, this._clipboardText = null, this._clipboardServerCapabilitiesActions = {}, this._clipboardServerCapabilitiesFormats = {}, this._sock = null, this._display = null, this._flushing = false, this._keyboard = null, this._gestures = null, this._resizeObserver = null, this._disconnTimer = null, this._resizeTimeout = null, this._mouseMoveTimer = null, this._decoders = {}, this._FBU = { rects: 0, x: 0, y: 0, width: 0, height: 0, encoding: null }, this._mousePos = {}, this._mouseButtonMask = 0, this._mouseLastMoveTime = 0, this._viewportDragging = false, this._viewportDragPos = {}, this._viewportHasMoved = false, this._accumulatedWheelDeltaX = 0, this._accumulatedWheelDeltaY = 0, this._gestureLastTapTime = null, this._gestureFirstDoubleTapEv = null, this._gestureLastMagnitudeX = 0, this._gestureLastMagnitudeY = 0, this._eventHandlers = { focusCanvas: this._focusCanvas.bind(this), handleResize: this._handleResize.bind(this), handleMouse: this._handleMouse.bind(this), handleWheel: this._handleWheel.bind(this), handleGesture: this._handleGesture.bind(this), handleRSAAESCredentialsRequired: this._handleRSAAESCredentialsRequired.bind(this), handleRSAAESServerVerification: this._handleRSAAESServerVerification.bind(this) }, L(">> RFB.constructor"), this._screen = document.createElement("div"), this._screen.style.display = "flex", this._screen.style.width = "100%", this._screen.style.height = "100%", this._screen.style.overflow = "auto", this._screen.style.background = ma, this._canvas = document.createElement("canvas"), this._canvas.style.margin = "auto", this._canvas.style.outline = "none", this._canvas.width = 0, this._canvas.height = 0, this._canvas.tabIndex = -1, this._screen.appendChild(this._canvas), this._cursor = new vt(), this._cursorImage = i.cursors.none, this._decoders[R.encodingRaw] = new Kt(), this._decoders[R.encodingCopyRect] = new Ft(), this._decoders[R.encodingRRE] = new kt(), this._decoders[R.encodingHextile] = new St(), this._decoders[R.encodingZlib] = new Et(), this._decoders[R.encodingTight] = new Qe(), this._decoders[R.encodingTightPNG] = new At(), this._decoders[R.encodingZRLE] = new Ct(), this._decoders[R.encodingJPEG] = new Lt(), this._decoders[R.encodingH264] = new Tt();
+        try {
+          this._display = new rt(this._canvas);
+        } catch (r) {
+          throw U("Display exception: " + r), r;
+        }
+        this._keyboard = new bt(this._canvas), this._keyboard.onkeyevent = this._handleKeyEvent.bind(this), this._remoteCapsLock = null, this._remoteNumLock = null, this._gestures = new mt(), this._sock = new yt(), this._sock.on("open", this._socketOpen.bind(this)), this._sock.on("close", this._socketClose.bind(this)), this._sock.on("message", this._handleMessage.bind(this)), this._sock.on("error", this._socketError.bind(this)), this._expectedClientWidth = null, this._expectedClientHeight = null, this._resizeObserver = new ResizeObserver(this._eventHandlers.handleResize), this._updateConnectionState("connecting"), L("<< RFB.constructor"), this.dragViewport = false, this.focusOnClick = true, this._viewOnly = false, this._clipViewport = false, this._clippingViewport = false, this._scaleViewport = false, this._resizeSession = false, this._showDotCursor = false, this._qualityLevel = 6, this._compressionLevel = 2;
+      }
+      get viewOnly() {
+        return this._viewOnly;
+      }
+      set viewOnly(t2) {
+        this._viewOnly = t2, (this._rfbConnectionState === "connecting" || this._rfbConnectionState === "connected") && (t2 ? this._keyboard.ungrab() : this._keyboard.grab());
+      }
+      get capabilities() {
+        return this._capabilities;
+      }
+      get clippingViewport() {
+        return this._clippingViewport;
+      }
+      _setClippingViewport(t2) {
+        t2 !== this._clippingViewport && (this._clippingViewport = t2, this.dispatchEvent(new CustomEvent("clippingviewport", { detail: this._clippingViewport })));
+      }
+      get touchButton() {
+        return 0;
+      }
+      set touchButton(t2) {
+        Z("Using old API!");
+      }
+      get clipViewport() {
+        return this._clipViewport;
+      }
+      set clipViewport(t2) {
+        this._clipViewport = t2, this._updateClip();
+      }
+      get scaleViewport() {
+        return this._scaleViewport;
+      }
+      set scaleViewport(t2) {
+        this._scaleViewport = t2, t2 && this._clipViewport && this._updateClip(), this._updateScale(), !t2 && this._clipViewport && this._updateClip();
+      }
+      get resizeSession() {
+        return this._resizeSession;
+      }
+      set resizeSession(t2) {
+        this._resizeSession = t2, t2 && this._requestRemoteResize();
+      }
+      get showDotCursor() {
+        return this._showDotCursor;
+      }
+      set showDotCursor(t2) {
+        this._showDotCursor = t2, this._refreshCursor();
+      }
+      get background() {
+        return this._screen.style.background;
+      }
+      set background(t2) {
+        this._screen.style.background = t2;
+      }
+      get qualityLevel() {
+        return this._qualityLevel;
+      }
+      set qualityLevel(t2) {
+        if (!Number.isInteger(t2) || t2 < 0 || t2 > 9) {
+          U("qualityLevel must be an integer between 0 and 9");
+          return;
+        }
+        this._qualityLevel !== t2 && (this._qualityLevel = t2, this._rfbConnectionState === "connected" && this._sendEncodings());
+      }
+      get compressionLevel() {
+        return this._compressionLevel;
+      }
+      set compressionLevel(t2) {
+        if (!Number.isInteger(t2) || t2 < 0 || t2 > 9) {
+          U("compressionLevel must be an integer between 0 and 9");
+          return;
+        }
+        this._compressionLevel !== t2 && (this._compressionLevel = t2, this._rfbConnectionState === "connected" && this._sendEncodings());
+      }
+      disconnect() {
+        this._updateConnectionState("disconnecting"), this._sock.off("error"), this._sock.off("message"), this._sock.off("open"), this._rfbRSAAESAuthenticationState !== null && this._rfbRSAAESAuthenticationState.disconnect();
+      }
+      approveServer() {
+        this._rfbRSAAESAuthenticationState !== null && this._rfbRSAAESAuthenticationState.approveServer();
+      }
+      sendCredentials(t2) {
+        this._rfbCredentials = t2, this._resumeAuthentication();
+      }
+      sendCtrlAltDel() {
+        this._rfbConnectionState !== "connected" || this._viewOnly || (V("Sending Ctrl-Alt-Del"), this.sendKey(f.XK_Control_L, "ControlLeft", true), this.sendKey(f.XK_Alt_L, "AltLeft", true), this.sendKey(f.XK_Delete, "Delete", true), this.sendKey(f.XK_Delete, "Delete", false), this.sendKey(f.XK_Alt_L, "AltLeft", false), this.sendKey(f.XK_Control_L, "ControlLeft", false));
+      }
+      machineShutdown() {
+        this._xvpOp(1, 2);
+      }
+      machineReboot() {
+        this._xvpOp(1, 3);
+      }
+      machineReset() {
+        this._xvpOp(1, 4);
+      }
+      sendKey(t2, e, s) {
+        if (this._rfbConnectionState !== "connected" || this._viewOnly) return;
+        if (s === void 0) {
+          this.sendKey(t2, e, true), this.sendKey(t2, e, false);
+          return;
+        }
+        let r = Kr[e];
+        if (this._qemuExtKeyEventSupported && r) t2 = t2 || 0, V("Sending key (" + (s ? "down" : "up") + "): keysym " + t2 + ", scancode " + r), i.messages.QEMUExtendedKeyEvent(this._sock, t2, s, r);
+        else {
+          if (!t2) return;
+          V("Sending keysym (" + (s ? "down" : "up") + "): " + t2), i.messages.keyEvent(this._sock, t2, s ? 1 : 0);
+        }
+      }
+      focus(t2) {
+        this._canvas.focus(t2);
+      }
+      blur() {
+        this._canvas.blur();
+      }
+      clipboardPasteFrom(t2) {
+        if (!(this._rfbConnectionState !== "connected" || this._viewOnly)) if (this._clipboardServerCapabilitiesFormats[de] && this._clipboardServerCapabilitiesActions[Rt]) this._clipboardText = t2, i.messages.extendedClipboardNotify(this._sock, [de]);
+        else {
+          let e, s, r;
+          e = 0;
+          for (let n of t2) e++;
+          r = new Uint8Array(e), s = 0;
+          for (let n of t2) {
+            let a = n.codePointAt(0);
+            a > 255 && (a = 63), r[s++] = a;
+          }
+          i.messages.clientCutText(this._sock, r);
+        }
+      }
+      getImageData() {
+        return this._display.getImageData();
+      }
+      toDataURL(t2, e) {
+        return this._display.toDataURL(t2, e);
+      }
+      toBlob(t2, e, s) {
+        return this._display.toBlob(t2, e, s);
+      }
+      _connect() {
+        if (L(">> RFB.connect"), this._url) V(`connecting to ${this._url}`), this._sock.open(this._url, this._wsProtocols);
+        else {
+          if (V(`attaching ${this._rawChannel} to Websock`), this._sock.attach(this._rawChannel), this._sock.readyState === "closed") throw Error("Cannot use already closed WebSocket/RTCDataChannel");
+          this._sock.readyState === "open" && this._socketOpen();
+        }
+        this._target.appendChild(this._screen), this._gestures.attach(this._canvas), this._cursor.attach(this._canvas), this._refreshCursor(), this._resizeObserver.observe(this._screen), this._canvas.addEventListener("mousedown", this._eventHandlers.focusCanvas), this._canvas.addEventListener("touchstart", this._eventHandlers.focusCanvas), this._canvas.addEventListener("mousedown", this._eventHandlers.handleMouse), this._canvas.addEventListener("mouseup", this._eventHandlers.handleMouse), this._canvas.addEventListener("mousemove", this._eventHandlers.handleMouse), this._canvas.addEventListener("click", this._eventHandlers.handleMouse), this._canvas.addEventListener("contextmenu", this._eventHandlers.handleMouse), this._canvas.addEventListener("wheel", this._eventHandlers.handleWheel), this._canvas.addEventListener("gesturestart", this._eventHandlers.handleGesture), this._canvas.addEventListener("gesturemove", this._eventHandlers.handleGesture), this._canvas.addEventListener("gestureend", this._eventHandlers.handleGesture), L("<< RFB.connect");
+      }
+      _disconnect() {
+        L(">> RFB.disconnect"), this._cursor.detach(), this._canvas.removeEventListener("gesturestart", this._eventHandlers.handleGesture), this._canvas.removeEventListener("gesturemove", this._eventHandlers.handleGesture), this._canvas.removeEventListener("gestureend", this._eventHandlers.handleGesture), this._canvas.removeEventListener("wheel", this._eventHandlers.handleWheel), this._canvas.removeEventListener("mousedown", this._eventHandlers.handleMouse), this._canvas.removeEventListener("mouseup", this._eventHandlers.handleMouse), this._canvas.removeEventListener("mousemove", this._eventHandlers.handleMouse), this._canvas.removeEventListener("click", this._eventHandlers.handleMouse), this._canvas.removeEventListener("contextmenu", this._eventHandlers.handleMouse), this._canvas.removeEventListener("mousedown", this._eventHandlers.focusCanvas), this._canvas.removeEventListener("touchstart", this._eventHandlers.focusCanvas), this._resizeObserver.disconnect(), this._keyboard.ungrab(), this._gestures.detach(), this._sock.close();
+        try {
+          this._target.removeChild(this._screen);
+        } catch (t2) {
+          if (t2.name !== "NotFoundError") throw t2;
+        }
+        clearTimeout(this._resizeTimeout), clearTimeout(this._mouseMoveTimer), L("<< RFB.disconnect");
+      }
+      _socketOpen() {
+        this._rfbConnectionState === "connecting" && this._rfbInitState === "" ? (this._rfbInitState = "ProtocolVersion", L("Starting VNC handshake")) : this._fail("Unexpected server connection while " + this._rfbConnectionState);
+      }
+      _socketClose(t2) {
+        L("WebSocket on-close event");
+        let e = "";
+        switch (t2.code && (e = "(code: " + t2.code, t2.reason && (e += ", reason: " + t2.reason), e += ")"), this._rfbConnectionState) {
+          case "connecting":
+            this._fail("Connection closed " + e);
+            break;
+          case "connected":
+            this._updateConnectionState("disconnecting"), this._updateConnectionState("disconnected");
+            break;
+          case "disconnecting":
+            this._updateConnectionState("disconnected");
+            break;
+          case "disconnected":
+            this._fail("Unexpected server disconnect when already disconnected " + e);
+            break;
+          default:
+            this._fail("Unexpected server disconnect before connecting " + e);
+            break;
+        }
+        this._sock.off("close"), this._rawChannel = null;
+      }
+      _socketError(t2) {
+        Z("WebSocket on-error event");
+      }
+      _focusCanvas(t2) {
+        this.focusOnClick && this.focus({ preventScroll: true });
+      }
+      _setDesktopName(t2) {
+        this._fbName = t2, this.dispatchEvent(new CustomEvent("desktopname", { detail: { name: this._fbName } }));
+      }
+      _saveExpectedClientSize() {
+        this._expectedClientWidth = this._screen.clientWidth, this._expectedClientHeight = this._screen.clientHeight;
+      }
+      _currentClientSize() {
+        return [this._screen.clientWidth, this._screen.clientHeight];
+      }
+      _clientHasExpectedSize() {
+        let [t2, e] = this._currentClientSize();
+        return t2 == this._expectedClientWidth && e == this._expectedClientHeight;
+      }
+      _handleResize() {
+        this._clientHasExpectedSize() || (window.requestAnimationFrame(() => {
+          this._updateClip(), this._updateScale(), this._saveExpectedClientSize();
+        }), this._requestRemoteResize());
+      }
+      _updateClip() {
+        let t2 = this._display.clipViewport, e = this._clipViewport;
+        if (this._scaleViewport && (e = false), t2 !== e && (this._display.clipViewport = e), e) {
+          let s = this._screenSize();
+          this._display.viewportChangeSize(s.w, s.h), this._fixScrollbars(), this._setClippingViewport(s.w < this._display.width || s.h < this._display.height);
+        } else this._setClippingViewport(false);
+        t2 !== e && this._saveExpectedClientSize();
+      }
+      _updateScale() {
+        if (!this._scaleViewport) this._display.scale = 1;
+        else {
+          let t2 = this._screenSize();
+          this._display.autoscale(t2.w, t2.h);
+        }
+        this._fixScrollbars();
+      }
+      _requestRemoteResize() {
+        if (!this._resizeSession || this._viewOnly || !this._supportsSetDesktopSize || this._pendingRemoteResize) return;
+        if (Date.now() - this._lastResize < 100) {
+          clearTimeout(this._resizeTimeout), this._resizeTimeout = setTimeout(this._requestRemoteResize.bind(this), 100 - (Date.now() - this._lastResize));
+          return;
+        }
+        this._resizeTimeout = null;
+        let t2 = this._screenSize();
+        t2.w === this._fbWidth && t2.h === this._fbHeight || (this._pendingRemoteResize = true, this._lastResize = Date.now(), i.messages.setDesktopSize(this._sock, Math.floor(t2.w), Math.floor(t2.h), this._screenID, this._screenFlags), L("Requested new desktop size: " + t2.w + "x" + t2.h));
+      }
+      _screenSize() {
+        let t2 = this._screen.getBoundingClientRect();
+        return { w: t2.width, h: t2.height };
+      }
+      _fixScrollbars() {
+        let t2 = this._screen.style.overflow;
+        this._screen.style.overflow = "hidden", this._screen.getBoundingClientRect(), this._screen.style.overflow = t2;
+      }
+      _updateConnectionState(t2) {
+        let e = this._rfbConnectionState;
+        if (t2 === e) {
+          L("Already in state '" + t2 + "', ignoring");
+          return;
+        }
+        if (e === "disconnected") {
+          U("Tried changing state of a disconnected RFB object");
+          return;
+        }
+        switch (t2) {
+          case "connected":
+            if (e !== "connecting") {
+              U("Bad transition to connected state, previous connection state: " + e);
+              return;
+            }
+            break;
+          case "disconnected":
+            if (e !== "disconnecting") {
+              U("Bad transition to disconnected state, previous connection state: " + e);
+              return;
+            }
+            break;
+          case "connecting":
+            if (e !== "") {
+              U("Bad transition to connecting state, previous connection state: " + e);
+              return;
+            }
+            break;
+          case "disconnecting":
+            if (e !== "connected" && e !== "connecting") {
+              U("Bad transition to disconnecting state, previous connection state: " + e);
+              return;
+            }
+            break;
+          default:
+            U("Unknown connection state: " + t2);
+            return;
+        }
+        switch (this._rfbConnectionState = t2, L("New state '" + t2 + "', was '" + e + "'."), this._disconnTimer && t2 !== "disconnecting" && (L("Clearing disconnect timer"), clearTimeout(this._disconnTimer), this._disconnTimer = null, this._sock.off("close")), t2) {
+          case "connecting":
+            this._connect();
+            break;
+          case "connected":
+            this.dispatchEvent(new CustomEvent("connect", { detail: {} }));
+            break;
+          case "disconnecting":
+            this._disconnect(), this._disconnTimer = setTimeout(() => {
+              U("Disconnection timed out."), this._updateConnectionState("disconnected");
+            }, ba * 1e3);
+            break;
+          case "disconnected":
+            this.dispatchEvent(new CustomEvent("disconnect", { detail: { clean: this._rfbCleanDisconnect } }));
+            break;
+        }
+      }
+      _fail(t2) {
+        switch (this._rfbConnectionState) {
+          case "disconnecting":
+            U("Failed when disconnecting: " + t2);
+            break;
+          case "connected":
+            U("Failed while connected: " + t2);
+            break;
+          case "connecting":
+            U("Failed when connecting: " + t2);
+            break;
+          default:
+            U("RFB failure: " + t2);
+            break;
+        }
+        return this._rfbCleanDisconnect = false, this._updateConnectionState("disconnecting"), this._updateConnectionState("disconnected"), false;
+      }
+      _setCapability(t2, e) {
+        this._capabilities[t2] = e, this.dispatchEvent(new CustomEvent("capabilities", { detail: { capabilities: this._capabilities } }));
+      }
+      _handleMessage() {
+        if (this._sock.rQwait("message", 1)) {
+          Z("handleMessage called on an empty receive queue");
+          return;
+        }
+        switch (this._rfbConnectionState) {
+          case "disconnected":
+            U("Got data while disconnected");
+            break;
+          case "connected":
+            for (; !(this._flushing || !this._normalMsg() || this._sock.rQwait("message", 1)); ) ;
+            break;
+          case "connecting":
+            for (; this._rfbConnectionState === "connecting" && this._initMsg(); ) ;
+            break;
+          default:
+            U("Got data while in an invalid state");
+            break;
+        }
+      }
+      _handleKeyEvent(t2, e, s, r, n) {
+        e == "CapsLock" && s && (this._remoteCapsLock = null), this._remoteCapsLock !== null && n !== null && this._remoteCapsLock !== n && s && (L("Fixing remote caps lock"), this.sendKey(f.XK_Caps_Lock, "CapsLock", true), this.sendKey(f.XK_Caps_Lock, "CapsLock", false), this._remoteCapsLock = null), e == "NumLock" && s && (this._remoteNumLock = null), this._remoteNumLock !== null && r !== null && this._remoteNumLock !== r && s && (L("Fixing remote num lock"), this.sendKey(f.XK_Num_Lock, "NumLock", true), this.sendKey(f.XK_Num_Lock, "NumLock", false), this._remoteNumLock = null), this.sendKey(t2, e, s);
+      }
+      static _convertButtonMask(t2) {
+        let e = { 0: 1, 1: 4, 2: 2, 3: 128, 4: 256 }, s = 0;
+        for (let r = 0; r < 5; r++) t2 & 1 << r && (s |= e[r]);
+        return s;
+      }
+      _handleMouse(t2) {
+        if (t2.type === "click" && t2.target !== this._canvas || (t2.stopPropagation(), t2.preventDefault(), t2.type === "click" || t2.type === "contextmenu")) return;
+        let e = Ne(t2.clientX, t2.clientY, this._canvas), s = i._convertButtonMask(t2.buttons), r = t2.type == "mousedown";
+        switch (t2.type) {
+          case "mousedown":
+          case "mouseup":
+            if (this.dragViewport) if (r && !this._viewportDragging) {
+              this._viewportDragging = true, this._viewportDragPos = { x: e.x, y: e.y }, this._viewportHasMoved = false, this._flushMouseMoveTimer(e.x, e.y), this._mouseButtonMask = s;
+              break;
+            } else {
+              if (this._viewportDragging = false, this._viewportHasMoved) {
+                this._mouseButtonMask = s;
+                break;
+              }
+              this._sendMouse(e.x, e.y, this._mouseButtonMask);
+            }
+            r && rs(this._canvas), this._handleMouseButton(e.x, e.y, s);
+            break;
+          case "mousemove":
+            if (this._viewportDragging) {
+              let n = this._viewportDragPos.x - e.x, a = this._viewportDragPos.y - e.y;
+              (this._viewportHasMoved || Math.abs(n) > st || Math.abs(a) > st) && (this._viewportHasMoved = true, this._viewportDragPos = { x: e.x, y: e.y }, this._display.viewportChangePos(n, a));
+              break;
+            }
+            this._handleMouseMove(e.x, e.y);
+            break;
+        }
+      }
+      _handleMouseButton(t2, e, s) {
+        this._flushMouseMoveTimer(t2, e), this._mouseButtonMask = s, this._sendMouse(t2, e, this._mouseButtonMask);
+      }
+      _handleMouseMove(t2, e) {
+        if (this._mousePos = { x: t2, y: e }, this._mouseMoveTimer == null) {
+          let s = Date.now() - this._mouseLastMoveTime;
+          s > Br ? (this._sendMouse(t2, e, this._mouseButtonMask), this._mouseLastMoveTime = Date.now()) : this._mouseMoveTimer = setTimeout(() => {
+            this._handleDelayedMouseMove();
+          }, Br - s);
+        }
+      }
+      _handleDelayedMouseMove() {
+        this._mouseMoveTimer = null, this._sendMouse(this._mousePos.x, this._mousePos.y, this._mouseButtonMask), this._mouseLastMoveTime = Date.now();
+      }
+      _sendMouse(t2, e, s) {
+        if (this._rfbConnectionState !== "connected" || this._viewOnly) return;
+        if (s & 32768) throw new Error("Illegal mouse button mask (mask: " + s + ")");
+        let r = s & 32640;
+        this._extendedPointerEventSupported && r ? i.messages.extendedPointerEvent(this._sock, this._display.absX(t2), this._display.absY(e), s) : i.messages.pointerEvent(this._sock, this._display.absX(t2), this._display.absY(e), s);
+      }
+      _handleWheel(t2) {
+        if (this._rfbConnectionState !== "connected" || this._viewOnly) return;
+        t2.stopPropagation(), t2.preventDefault();
+        let e = Ne(t2.clientX, t2.clientY, this._canvas), s = i._convertButtonMask(t2.buttons), r = t2.deltaX, n = t2.deltaY;
+        t2.deltaMode !== 0 && (r *= Qr, n *= Qr), this._accumulatedWheelDeltaX += r, this._accumulatedWheelDeltaY += n, Math.abs(this._accumulatedWheelDeltaX) >= Dr && (this._accumulatedWheelDeltaX < 0 ? (this._handleMouseButton(e.x, e.y, s | 32), this._handleMouseButton(e.x, e.y, s)) : this._accumulatedWheelDeltaX > 0 && (this._handleMouseButton(e.x, e.y, s | 64), this._handleMouseButton(e.x, e.y, s)), this._accumulatedWheelDeltaX = 0), Math.abs(this._accumulatedWheelDeltaY) >= Dr && (this._accumulatedWheelDeltaY < 0 ? (this._handleMouseButton(e.x, e.y, s | 8), this._handleMouseButton(e.x, e.y, s)) : this._accumulatedWheelDeltaY > 0 && (this._handleMouseButton(e.x, e.y, s | 16), this._handleMouseButton(e.x, e.y, s)), this._accumulatedWheelDeltaY = 0);
+      }
+      _fakeMouseMove(t2, e, s) {
+        this._handleMouseMove(e, s), this._cursor.move(t2.detail.clientX, t2.detail.clientY);
+      }
+      _handleTapEvent(t2, e) {
+        let s = Ne(t2.detail.clientX, t2.detail.clientY, this._canvas);
+        if (this._gestureLastTapTime !== null && Date.now() - this._gestureLastTapTime < wa && this._gestureFirstDoubleTapEv.detail.type === t2.detail.type) {
+          let r = this._gestureFirstDoubleTapEv.detail.clientX - t2.detail.clientX, n = this._gestureFirstDoubleTapEv.detail.clientY - t2.detail.clientY;
+          Math.hypot(r, n) < va ? s = Ne(this._gestureFirstDoubleTapEv.detail.clientX, this._gestureFirstDoubleTapEv.detail.clientY, this._canvas) : this._gestureFirstDoubleTapEv = t2;
+        } else this._gestureFirstDoubleTapEv = t2;
+        this._gestureLastTapTime = Date.now(), this._fakeMouseMove(this._gestureFirstDoubleTapEv, s.x, s.y), this._handleMouseButton(s.x, s.y, e), this._handleMouseButton(s.x, s.y, 0);
+      }
+      _handleGesture(t2) {
+        let e, s = Ne(t2.detail.clientX, t2.detail.clientY, this._canvas);
+        switch (t2.type) {
+          case "gesturestart":
+            switch (t2.detail.type) {
+              case "onetap":
+                this._handleTapEvent(t2, 1);
+                break;
+              case "twotap":
+                this._handleTapEvent(t2, 4);
+                break;
+              case "threetap":
+                this._handleTapEvent(t2, 2);
+                break;
+              case "drag":
+                this.dragViewport ? (this._viewportHasMoved = false, this._viewportDragging = true, this._viewportDragPos = { x: s.x, y: s.y }) : (this._fakeMouseMove(t2, s.x, s.y), this._handleMouseButton(s.x, s.y, 1));
+                break;
+              case "longpress":
+                this.dragViewport ? (this._viewportHasMoved = false, this._viewportDragPos = { x: s.x, y: s.y }) : (this._fakeMouseMove(t2, s.x, s.y), this._handleMouseButton(s.x, s.y, 4));
+                break;
+              case "twodrag":
+                this._gestureLastMagnitudeX = t2.detail.magnitudeX, this._gestureLastMagnitudeY = t2.detail.magnitudeY, this._fakeMouseMove(t2, s.x, s.y);
+                break;
+              case "pinch":
+                this._gestureLastMagnitudeX = Math.hypot(t2.detail.magnitudeX, t2.detail.magnitudeY), this._fakeMouseMove(t2, s.x, s.y);
+                break;
+            }
+            break;
+          case "gesturemove":
+            switch (t2.detail.type) {
+              case "onetap":
+              case "twotap":
+              case "threetap":
+                break;
+              case "drag":
+              case "longpress":
+                if (this.dragViewport) {
+                  this._viewportDragging = true;
+                  let r = this._viewportDragPos.x - s.x, n = this._viewportDragPos.y - s.y;
+                  (this._viewportHasMoved || Math.abs(r) > st || Math.abs(n) > st) && (this._viewportHasMoved = true, this._viewportDragPos = { x: s.x, y: s.y }, this._display.viewportChangePos(r, n));
+                } else this._fakeMouseMove(t2, s.x, s.y);
+                break;
+              case "twodrag":
+                for (this._fakeMouseMove(t2, s.x, s.y); t2.detail.magnitudeY - this._gestureLastMagnitudeY > Ke; ) this._handleMouseButton(s.x, s.y, 8), this._handleMouseButton(s.x, s.y, 0), this._gestureLastMagnitudeY += Ke;
+                for (; t2.detail.magnitudeY - this._gestureLastMagnitudeY < -Ke; ) this._handleMouseButton(s.x, s.y, 16), this._handleMouseButton(s.x, s.y, 0), this._gestureLastMagnitudeY -= Ke;
+                for (; t2.detail.magnitudeX - this._gestureLastMagnitudeX > Ke; ) this._handleMouseButton(s.x, s.y, 32), this._handleMouseButton(s.x, s.y, 0), this._gestureLastMagnitudeX += Ke;
+                for (; t2.detail.magnitudeX - this._gestureLastMagnitudeX < -Ke; ) this._handleMouseButton(s.x, s.y, 64), this._handleMouseButton(s.x, s.y, 0), this._gestureLastMagnitudeX -= Ke;
+                break;
+              case "pinch":
+                if (this._fakeMouseMove(t2, s.x, s.y), e = Math.hypot(t2.detail.magnitudeX, t2.detail.magnitudeY), Math.abs(e - this._gestureLastMagnitudeX) > Mt) {
+                  for (this._handleKeyEvent(f.XK_Control_L, "ControlLeft", true); e - this._gestureLastMagnitudeX > Mt; ) this._handleMouseButton(s.x, s.y, 8), this._handleMouseButton(s.x, s.y, 0), this._gestureLastMagnitudeX += Mt;
+                  for (; e - this._gestureLastMagnitudeX < -Mt; ) this._handleMouseButton(s.x, s.y, 16), this._handleMouseButton(s.x, s.y, 0), this._gestureLastMagnitudeX -= Mt;
+                }
+                this._handleKeyEvent(f.XK_Control_L, "ControlLeft", false);
+                break;
+            }
+            break;
+          case "gestureend":
+            switch (t2.detail.type) {
+              case "onetap":
+              case "twotap":
+              case "threetap":
+              case "pinch":
+              case "twodrag":
+                break;
+              case "drag":
+                this.dragViewport ? this._viewportDragging = false : (this._fakeMouseMove(t2, s.x, s.y), this._handleMouseButton(s.x, s.y, 0));
+                break;
+              case "longpress":
+                if (this._viewportHasMoved) break;
+                this.dragViewport && !this._viewportHasMoved ? (this._fakeMouseMove(t2, s.x, s.y), this._handleMouseButton(s.x, s.y, 4), this._handleMouseButton(s.x, s.y, 0), this._viewportDragging = false) : (this._fakeMouseMove(t2, s.x, s.y), this._handleMouseButton(s.x, s.y, 0));
+                break;
+            }
+            break;
+        }
+      }
+      _flushMouseMoveTimer(t2, e) {
+        this._mouseMoveTimer !== null && (clearTimeout(this._mouseMoveTimer), this._mouseMoveTimer = null, this._sendMouse(t2, e, this._mouseButtonMask));
+      }
+      _negotiateProtocolVersion() {
+        if (this._sock.rQwait("version", 12)) return false;
+        let t2 = this._sock.rQshiftStr(12).substr(4, 7);
+        V("Server ProtocolVersion: " + t2);
+        let e = 0;
+        switch (t2) {
+          case "000.000":
+            e = 1;
+            break;
+          case "003.003":
+          case "003.006":
+            this._rfbVersion = 3.3;
+            break;
+          case "003.007":
+            this._rfbVersion = 3.7;
+            break;
+          case "003.008":
+          case "003.889":
+          case "004.000":
+          case "004.001":
+          case "005.000":
+            this._rfbVersion = 3.8;
+            break;
+          default:
+            return this._fail("Invalid server version " + t2);
+        }
+        if (e) {
+          let r = "ID:" + this._repeaterID;
+          for (; r.length < 250; ) r += "\0";
+          return this._sock.sQpushString(r), this._sock.flush(), true;
+        }
+        this._rfbVersion > this._rfbMaxVersion && (this._rfbVersion = this._rfbMaxVersion);
+        let s = "00" + parseInt(this._rfbVersion, 10) + ".00" + this._rfbVersion * 10 % 10;
+        this._sock.sQpushString("RFB " + s + `
+`), this._sock.flush(), L("Sent ProtocolVersion: " + s), this._rfbInitState = "Security";
+      }
+      _isSupportedSecurityType(t2) {
+        return [Ir, hi, Pr, Hr, Yi, Ur, Nr, Or, Gr].includes(t2);
+      }
+      _negotiateSecurity() {
+        if (this._rfbVersion >= 3.7) {
+          let t2 = this._sock.rQshift8();
+          if (this._sock.rQwait("security type", t2, 1)) return false;
+          if (t2 === 0) return this._rfbInitState = "SecurityReason", this._securityContext = "no security types", this._securityStatus = 1, true;
+          let e = this._sock.rQshiftBytes(t2);
+          L("Server security types: " + e), this._rfbAuthScheme = -1;
+          for (let s of e) if (this._isSupportedSecurityType(s)) {
+            this._rfbAuthScheme = s;
+            break;
+          }
+          if (this._rfbAuthScheme === -1) return this._fail("Unsupported security types (types: " + e + ")");
+          this._sock.sQpush8(this._rfbAuthScheme), this._sock.flush();
+        } else {
+          if (this._sock.rQwait("security scheme", 4)) return false;
+          if (this._rfbAuthScheme = this._sock.rQshift32(), this._rfbAuthScheme == 0) return this._rfbInitState = "SecurityReason", this._securityContext = "authentication scheme", this._securityStatus = 1, true;
+        }
+        return this._rfbInitState = "Authentication", L("Authenticating using scheme: " + this._rfbAuthScheme), true;
+      }
+      _handleSecurityReason() {
+        if (this._sock.rQwait("reason length", 4)) return false;
+        let t2 = this._sock.rQshift32(), e = "";
+        if (t2 > 0) {
+          if (this._sock.rQwait("reason", t2, 4)) return false;
+          e = this._sock.rQshiftStr(t2);
+        }
+        return e !== "" ? (this.dispatchEvent(new CustomEvent("securityfailure", { detail: { status: this._securityStatus, reason: e } })), this._fail("Security negotiation failed on " + this._securityContext + " (reason: " + e + ")")) : (this.dispatchEvent(new CustomEvent("securityfailure", { detail: { status: this._securityStatus } })), this._fail("Security negotiation failed on " + this._securityContext));
+      }
+      _negotiateXvpAuth() {
+        return this._rfbCredentials.username === void 0 || this._rfbCredentials.password === void 0 || this._rfbCredentials.target === void 0 ? (this.dispatchEvent(new CustomEvent("credentialsrequired", { detail: { types: ["username", "password", "target"] } })), false) : (this._sock.sQpush8(this._rfbCredentials.username.length), this._sock.sQpush8(this._rfbCredentials.target.length), this._sock.sQpushString(this._rfbCredentials.username), this._sock.sQpushString(this._rfbCredentials.target), this._sock.flush(), this._rfbAuthScheme = hi, this._negotiateAuthentication());
+      }
+      _negotiateVeNCryptAuth() {
+        if (this._rfbVeNCryptState == 0) {
+          if (this._sock.rQwait("vencrypt version", 2)) return false;
+          let t2 = this._sock.rQshift8(), e = this._sock.rQshift8();
+          if (!(t2 == 0 && e == 2)) return this._fail("Unsupported VeNCrypt version " + t2 + "." + e);
+          this._sock.sQpush8(0), this._sock.sQpush8(2), this._sock.flush(), this._rfbVeNCryptState = 1;
+        }
+        if (this._rfbVeNCryptState == 1) {
+          if (this._sock.rQwait("vencrypt ack", 1)) return false;
+          let t2 = this._sock.rQshift8();
+          if (t2 != 0) return this._fail("VeNCrypt failure " + t2);
+          this._rfbVeNCryptState = 2;
+        }
+        if (this._rfbVeNCryptState == 2) {
+          if (this._sock.rQwait("vencrypt subtypes length", 1)) return false;
+          let t2 = this._sock.rQshift8();
+          if (t2 < 1) return this._fail("VeNCrypt subtypes empty");
+          this._rfbVeNCryptSubtypesLength = t2, this._rfbVeNCryptState = 3;
+        }
+        if (this._rfbVeNCryptState == 3) {
+          if (this._sock.rQwait("vencrypt subtypes", 4 * this._rfbVeNCryptSubtypesLength)) return false;
+          let t2 = [];
+          for (let e = 0; e < this._rfbVeNCryptSubtypesLength; e++) t2.push(this._sock.rQshift32());
+          this._rfbAuthScheme = -1;
+          for (let e of t2) if (e !== Yi && this._isSupportedSecurityType(e)) {
+            this._rfbAuthScheme = e;
+            break;
+          }
+          return this._rfbAuthScheme === -1 ? this._fail("Unsupported security types (types: " + t2 + ")") : (this._sock.sQpush32(this._rfbAuthScheme), this._sock.flush(), this._rfbVeNCryptState = 4, true);
+        }
+      }
+      _negotiatePlainAuth() {
+        if (this._rfbCredentials.username === void 0 || this._rfbCredentials.password === void 0) return this.dispatchEvent(new CustomEvent("credentialsrequired", { detail: { types: ["username", "password"] } })), false;
+        let t2 = he(this._rfbCredentials.username), e = he(this._rfbCredentials.password);
+        return this._sock.sQpush32(t2.length), this._sock.sQpush32(e.length), this._sock.sQpushString(t2), this._sock.sQpushString(e), this._sock.flush(), this._rfbInitState = "SecurityResult", true;
+      }
+      _negotiateStdVNCAuth() {
+        if (this._sock.rQwait("auth challenge", 16)) return false;
+        if (this._rfbCredentials.password === void 0) return this.dispatchEvent(new CustomEvent("credentialsrequired", { detail: { types: ["password"] } })), false;
+        let t2 = Array.prototype.slice.call(this._sock.rQshiftBytes(16)), e = i.genDES(this._rfbCredentials.password, t2);
+        return this._sock.sQpushBytes(e), this._sock.flush(), this._rfbInitState = "SecurityResult", true;
+      }
+      _negotiateARDAuth() {
+        if (this._rfbCredentials.username === void 0 || this._rfbCredentials.password === void 0) return this.dispatchEvent(new CustomEvent("credentialsrequired", { detail: { types: ["username", "password"] } })), false;
+        if (this._rfbCredentials.ardPublicKey != null && this._rfbCredentials.ardCredentials != null) return this._sock.sQpushBytes(this._rfbCredentials.ardCredentials), this._sock.sQpushBytes(this._rfbCredentials.ardPublicKey), this._sock.flush(), this._rfbCredentials.ardCredentials = null, this._rfbCredentials.ardPublicKey = null, this._rfbInitState = "SecurityResult", true;
+        if (this._sock.rQwait("read ard", 4)) return false;
+        let t2 = this._sock.rQshiftBytes(2), e = this._sock.rQshift16();
+        if (this._sock.rQwait("read ard keylength", e * 2, 4)) return false;
+        let s = this._sock.rQshiftBytes(e), r = this._sock.rQshiftBytes(e), n = O.generateKey({ name: "DH", g: t2, p: s }, false, ["deriveBits"]);
+        return this._negotiateARDAuthAsync(e, r, n), false;
+      }
+      async _negotiateARDAuthAsync(t2, e, s) {
+        let r = O.exportKey("raw", s.publicKey), n = O.deriveBits({ name: "DH", public: e }, s.privateKey, t2 * 8), a = he(this._rfbCredentials.username).substring(0, 63), h55 = he(this._rfbCredentials.password).substring(0, 63), c = window.crypto.getRandomValues(new Uint8Array(128));
+        for (let u = 0; u < a.length; u++) c[u] = a.charCodeAt(u);
+        c[a.length] = 0;
+        for (let u = 0; u < h55.length; u++) c[64 + u] = h55.charCodeAt(u);
+        c[64 + h55.length] = 0;
+        let o = await O.digest("MD5", n), l = await O.importKey("raw", o, { name: "AES-ECB" }, false, ["encrypt"]), x = await O.encrypt({ name: "AES-ECB" }, l, c);
+        this._rfbCredentials.ardCredentials = x, this._rfbCredentials.ardPublicKey = r, this._resumeAuthentication();
+      }
+      _negotiateTightUnixAuth() {
+        return this._rfbCredentials.username === void 0 || this._rfbCredentials.password === void 0 ? (this.dispatchEvent(new CustomEvent("credentialsrequired", { detail: { types: ["username", "password"] } })), false) : (this._sock.sQpush32(this._rfbCredentials.username.length), this._sock.sQpush32(this._rfbCredentials.password.length), this._sock.sQpushString(this._rfbCredentials.username), this._sock.sQpushString(this._rfbCredentials.password), this._sock.flush(), this._rfbInitState = "SecurityResult", true);
+      }
+      _negotiateTightTunnels(t2) {
+        let e = { 0: { vendor: "TGHT", signature: "NOTUNNEL" } }, s = {};
+        for (let r = 0; r < t2; r++) {
+          let n = this._sock.rQshift32(), a = this._sock.rQshiftStr(4), h55 = this._sock.rQshiftStr(8);
+          s[n] = { vendor: a, signature: h55 };
+        }
+        return L("Server Tight tunnel types: " + s), s[1] && s[1].vendor === "SICR" && s[1].signature === "SCHANNEL" && (L("Detected Siemens server. Assuming NOTUNNEL support."), s[0] = { vendor: "TGHT", signature: "NOTUNNEL" }), s[0] ? s[0].vendor != e[0].vendor || s[0].signature != e[0].signature ? this._fail("Client's tunnel type had the incorrect vendor or signature") : (L("Selected tunnel type: " + e[0]), this._sock.sQpush32(0), this._sock.flush(), false) : this._fail("Server wanted tunnels, but doesn't support the notunnel type");
+      }
+      _negotiateTightAuth() {
+        if (!this._rfbTightVNC) {
+          if (this._sock.rQwait("num tunnels", 4)) return false;
+          let r = this._sock.rQshift32();
+          if (r > 0 && this._sock.rQwait("tunnel capabilities", 16 * r, 4)) return false;
+          if (this._rfbTightVNC = true, r > 0) return this._negotiateTightTunnels(r), false;
+        }
+        if (this._sock.rQwait("sub auth count", 4)) return false;
+        let t2 = this._sock.rQshift32();
+        if (t2 === 0) return this._rfbInitState = "SecurityResult", true;
+        if (this._sock.rQwait("sub auth capabilities", 16 * t2, 4)) return false;
+        let e = { STDVNOAUTH__: 1, STDVVNCAUTH_: 2, TGHTULGNAUTH: 129 }, s = [];
+        for (let r = 0; r < t2; r++) {
+          this._sock.rQshift32();
+          let n = this._sock.rQshiftStr(12);
+          s.push(n);
+        }
+        L("Server Tight authentication types: " + s);
+        for (let r in e) if (s.indexOf(r) != -1) switch (this._sock.sQpush32(e[r]), this._sock.flush(), L("Selected authentication type: " + r), r) {
+          case "STDVNOAUTH__":
+            return this._rfbInitState = "SecurityResult", true;
+          case "STDVVNCAUTH_":
+            return this._rfbAuthScheme = hi, true;
+          case "TGHTULGNAUTH":
+            return this._rfbAuthScheme = zr, true;
+          default:
+            return this._fail("Unsupported tiny auth scheme (scheme: " + r + ")");
+        }
+        return this._fail("No supported sub-auth types!");
+      }
+      _handleRSAAESCredentialsRequired(t2) {
+        this.dispatchEvent(t2);
+      }
+      _handleRSAAESServerVerification(t2) {
+        this.dispatchEvent(t2);
+      }
+      _negotiateRA2neAuth() {
+        return this._rfbRSAAESAuthenticationState === null && (this._rfbRSAAESAuthenticationState = new Xt(this._sock, () => this._rfbCredentials), this._rfbRSAAESAuthenticationState.addEventListener("serververification", this._eventHandlers.handleRSAAESServerVerification), this._rfbRSAAESAuthenticationState.addEventListener("credentialsrequired", this._eventHandlers.handleRSAAESCredentialsRequired)), this._rfbRSAAESAuthenticationState.checkInternalEvents(), this._rfbRSAAESAuthenticationState.hasStarted || this._rfbRSAAESAuthenticationState.negotiateRA2neAuthAsync().catch((t2) => {
+          t2.message !== "disconnect normally" && this._fail(t2.message);
+        }).then(() => (this._rfbInitState = "SecurityResult", true)).finally(() => {
+          this._rfbRSAAESAuthenticationState.removeEventListener("serververification", this._eventHandlers.handleRSAAESServerVerification), this._rfbRSAAESAuthenticationState.removeEventListener("credentialsrequired", this._eventHandlers.handleRSAAESCredentialsRequired), this._rfbRSAAESAuthenticationState = null;
+        }), false;
+      }
+      _negotiateMSLogonIIAuth() {
+        if (this._sock.rQwait("mslogonii dh param", 24)) return false;
+        if (this._rfbCredentials.username === void 0 || this._rfbCredentials.password === void 0) return this.dispatchEvent(new CustomEvent("credentialsrequired", { detail: { types: ["username", "password"] } })), false;
+        let t2 = this._sock.rQshiftBytes(8), e = this._sock.rQshiftBytes(8), s = this._sock.rQshiftBytes(8), r = O.generateKey({ name: "DH", g: t2, p: e }, true, ["deriveBits"]), n = O.exportKey("raw", r.publicKey), a = O.deriveBits({ name: "DH", public: s }, r.privateKey, 64), h55 = O.importKey("raw", a, { name: "DES-CBC" }, false, ["encrypt"]), c = he(this._rfbCredentials.username).substring(0, 255), o = he(this._rfbCredentials.password).substring(0, 63), l = new Uint8Array(256), x = new Uint8Array(64);
+        window.crypto.getRandomValues(l), window.crypto.getRandomValues(x);
+        for (let u = 0; u < c.length; u++) l[u] = c.charCodeAt(u);
+        l[c.length] = 0;
+        for (let u = 0; u < o.length; u++) x[u] = o.charCodeAt(u);
+        return x[o.length] = 0, l = O.encrypt({ name: "DES-CBC", iv: a }, h55, l), x = O.encrypt({ name: "DES-CBC", iv: a }, h55, x), this._sock.sQpushBytes(n), this._sock.sQpushBytes(l), this._sock.sQpushBytes(x), this._sock.flush(), this._rfbInitState = "SecurityResult", true;
+      }
+      _negotiateAuthentication() {
+        switch (this._rfbAuthScheme) {
+          case Ir:
+            return this._rfbVersion >= 3.8 ? this._rfbInitState = "SecurityResult" : this._rfbInitState = "ClientInitialisation", true;
+          case Ur:
+            return this._negotiateXvpAuth();
+          case Nr:
+            return this._negotiateARDAuth();
+          case hi:
+            return this._negotiateStdVNCAuth();
+          case Hr:
+            return this._negotiateTightAuth();
+          case Yi:
+            return this._negotiateVeNCryptAuth();
+          case Gr:
+            return this._negotiatePlainAuth();
+          case zr:
+            return this._negotiateTightUnixAuth();
+          case Pr:
+            return this._negotiateRA2neAuth();
+          case Or:
+            return this._negotiateMSLogonIIAuth();
+          default:
+            return this._fail("Unsupported auth scheme (scheme: " + this._rfbAuthScheme + ")");
+        }
+      }
+      _handleSecurityResult() {
+        if (this._sock.rQwait("VNC auth response ", 4)) return false;
+        let t2 = this._sock.rQshift32();
+        return t2 === 0 ? (this._rfbInitState = "ClientInitialisation", L("Authentication OK"), true) : this._rfbVersion >= 3.8 ? (this._rfbInitState = "SecurityReason", this._securityContext = "security result", this._securityStatus = t2, true) : (this.dispatchEvent(new CustomEvent("securityfailure", { detail: { status: t2 } })), this._fail("Security handshake failed"));
+      }
+      _negotiateServerInit() {
+        if (this._sock.rQwait("server initialization", 24)) return false;
+        let t2 = this._sock.rQshift16(), e = this._sock.rQshift16(), s = this._sock.rQshift8(), r = this._sock.rQshift8(), n = this._sock.rQshift8(), a = this._sock.rQshift8(), h55 = this._sock.rQshift16(), c = this._sock.rQshift16(), o = this._sock.rQshift16(), l = this._sock.rQshift8(), x = this._sock.rQshift8(), u = this._sock.rQshift8();
+        this._sock.rQskipBytes(3);
+        let d = this._sock.rQshift32();
+        if (this._sock.rQwait("server init name", d, 24)) return false;
+        let X = this._sock.rQshiftStr(d);
+        if (X = Bt(X, true), this._rfbTightVNC) {
+          if (this._sock.rQwait("TightVNC extended server init header", 8, 24 + d)) return false;
+          let F = this._sock.rQshift16(), A = this._sock.rQshift16(), k = this._sock.rQshift16();
+          this._sock.rQskipBytes(2);
+          let T = (F + A + k) * 16;
+          if (this._sock.rQwait("TightVNC extended server init header", T, 32 + d)) return false;
+          this._sock.rQskipBytes(16 * F), this._sock.rQskipBytes(16 * A), this._sock.rQskipBytes(16 * k);
+        }
+        return V("Screen: " + t2 + "x" + e + ", bpp: " + s + ", depth: " + r + ", bigEndian: " + n + ", trueColor: " + a + ", redMax: " + h55 + ", greenMax: " + c + ", blueMax: " + o + ", redShift: " + l + ", greenShift: " + x + ", blueShift: " + u), this._setDesktopName(X), this._resize(t2, e), this._viewOnly || this._keyboard.grab(), this._fbDepth = 24, this._fbName === "Intel(r) AMT KVM" && (Z("Intel AMT KVM only supports 8/16 bit depths. Using low color mode."), this._fbDepth = 8), i.messages.pixelFormat(this._sock, this._fbDepth, true), this._sendEncodings(), i.messages.fbUpdateRequest(this._sock, false, 0, 0, this._fbWidth, this._fbHeight), this._updateConnectionState("connected"), true;
+      }
+      _sendEncodings() {
+        let t2 = [];
+        t2.push(R.encodingCopyRect), this._fbDepth == 24 && (fi && t2.push(R.encodingH264), t2.push(R.encodingTight), t2.push(R.encodingTightPNG), t2.push(R.encodingZRLE), t2.push(R.encodingJPEG), t2.push(R.encodingHextile), t2.push(R.encodingRRE), t2.push(R.encodingZlib)), t2.push(R.encodingRaw), t2.push(R.pseudoEncodingQualityLevel0 + this._qualityLevel), t2.push(R.pseudoEncodingCompressLevel0 + this._compressionLevel), t2.push(R.pseudoEncodingDesktopSize), t2.push(R.pseudoEncodingLastRect), t2.push(R.pseudoEncodingQEMUExtendedKeyEvent), t2.push(R.pseudoEncodingQEMULedEvent), t2.push(R.pseudoEncodingExtendedDesktopSize), t2.push(R.pseudoEncodingXvp), t2.push(R.pseudoEncodingFence), t2.push(R.pseudoEncodingContinuousUpdates), t2.push(R.pseudoEncodingDesktopName), t2.push(R.pseudoEncodingExtendedClipboard), t2.push(R.pseudoEncodingExtendedMouseButtons), this._fbDepth == 24 && (t2.push(R.pseudoEncodingVMwareCursor), t2.push(R.pseudoEncodingCursor)), i.messages.clientEncodings(this._sock, t2);
+      }
+      _initMsg() {
+        switch (this._rfbInitState) {
+          case "ProtocolVersion":
+            return this._negotiateProtocolVersion();
+          case "Security":
+            return this._negotiateSecurity();
+          case "Authentication":
+            return this._negotiateAuthentication();
+          case "SecurityResult":
+            return this._handleSecurityResult();
+          case "SecurityReason":
+            return this._handleSecurityReason();
+          case "ClientInitialisation":
+            return this._sock.sQpush8(this._shared ? 1 : 0), this._sock.flush(), this._rfbInitState = "ServerInitialisation", true;
+          case "ServerInitialisation":
+            return this._negotiateServerInit();
+          default:
+            return this._fail("Unknown init state (state: " + this._rfbInitState + ")");
+        }
+      }
+      _resumeAuthentication() {
+        setTimeout(this._initMsg.bind(this), 0);
+      }
+      _handleSetColourMapMsg() {
+        return L("SetColorMapEntries"), this._fail("Unexpected SetColorMapEntries message");
+      }
+      _handleServerCutText() {
+        if (L("ServerCutText"), this._sock.rQwait("ServerCutText header", 7, 1)) return false;
+        this._sock.rQskipBytes(3);
+        let t2 = this._sock.rQshift32();
+        if (t2 = it(t2), this._sock.rQwait("ServerCutText content", Math.abs(t2), 8)) return false;
+        if (t2 >= 0) {
+          let e = this._sock.rQshiftStr(t2);
+          if (this._viewOnly) return true;
+          this.dispatchEvent(new CustomEvent("clipboard", { detail: { text: e } }));
+        } else {
+          t2 = Math.abs(t2);
+          let e = this._sock.rQshift32(), s = e & 65535, r = e & 4278190080;
+          if (!!(r & Vr)) {
+            this._clipboardServerCapabilitiesFormats = {}, this._clipboardServerCapabilitiesActions = {};
+            for (let h55 = 0; h55 <= 15; h55++) {
+              let c = 1 << h55;
+              s & c && (this._clipboardServerCapabilitiesFormats[c] = true, this._sock.rQshift32());
+            }
+            for (let h55 = 24; h55 <= 31; h55++) {
+              let c = 1 << h55;
+              this._clipboardServerCapabilitiesActions[c] = !!(r & c);
+            }
+            let a = [Vr, li, Wr, Rt, ci];
+            i.messages.extendedClipboardCaps(this._sock, a, { extendedClipboardFormatText: 0 });
+          } else if (r === li) {
+            if (this._viewOnly) return true;
+            this._clipboardText != null && this._clipboardServerCapabilitiesActions[ci] && s & de && i.messages.extendedClipboardProvide(this._sock, [de], [this._clipboardText]);
+          } else if (r === Wr) {
+            if (this._viewOnly) return true;
+            this._clipboardServerCapabilitiesActions[Rt] && (this._clipboardText != null ? i.messages.extendedClipboardNotify(this._sock, [de]) : i.messages.extendedClipboardNotify(this._sock, []));
+          } else if (r === Rt) {
+            if (this._viewOnly) return true;
+            this._clipboardServerCapabilitiesActions[li] && s & de && i.messages.extendedClipboardRequest(this._sock, [de]);
+          } else if (r === ci) {
+            if (this._viewOnly || !(s & de)) return true;
+            this._clipboardText = null;
+            let a = this._sock.rQshiftBytes(t2 - 4), h55 = new le(), c = null;
+            h55.setInput(a);
+            for (let o = 0; o <= 15; o++) {
+              let l = 1 << o;
+              if (s & l) {
+                let x = 0, u = h55.inflate(4);
+                x |= u[0] << 24, x |= u[1] << 16, x |= u[2] << 8, x |= u[3];
+                let d = h55.inflate(x);
+                l === de && (c = d);
+              }
+            }
+            if (h55.setInput(null), c !== null) {
+              let o = "";
+              for (let l = 0; l < c.length; l++) o += String.fromCharCode(c[l]);
+              c = o, c = Bt(c), c.length > 0 && c.charAt(c.length - 1) === "\0" && (c = c.slice(0, -1)), c = c.replaceAll(`\r
+`, `
+`), this.dispatchEvent(new CustomEvent("clipboard", { detail: { text: c } }));
+            }
+          } else return this._fail("Unexpected action in extended clipboard message: " + r);
+        }
+        return true;
+      }
+      _handleServerFenceMsg() {
+        if (this._sock.rQwait("ServerFence header", 8, 1)) return false;
+        this._sock.rQskipBytes(3);
+        let t2 = this._sock.rQshift32(), e = this._sock.rQshift8();
+        if (this._sock.rQwait("ServerFence payload", e, 9)) return false;
+        e > 64 && (Z("Bad payload length (" + e + ") in fence response"), e = 64);
+        let s = this._sock.rQshiftStr(e);
+        return this._supportsFence = true, t2 & 1 << 31 ? (t2 &= 3, i.messages.clientFence(this._sock, t2, s), true) : this._fail("Unexpected fence response");
+      }
+      _handleXvpMsg() {
+        if (this._sock.rQwait("XVP version and message", 3, 1)) return false;
+        this._sock.rQskipBytes(1);
+        let t2 = this._sock.rQshift8(), e = this._sock.rQshift8();
+        switch (e) {
+          case 0:
+            U("XVP operation failed");
+            break;
+          case 1:
+            this._rfbXvpVer = t2, V("XVP extensions enabled (version " + this._rfbXvpVer + ")"), this._setCapability("power", true);
+            break;
+          default:
+            this._fail("Illegal server XVP message (msg: " + e + ")");
+            break;
+        }
+        return true;
+      }
+      _normalMsg() {
+        let t2;
+        this._FBU.rects > 0 ? t2 = 0 : t2 = this._sock.rQshift8();
+        let e, s;
+        switch (t2) {
+          case 0:
+            return s = this._framebufferUpdate(), s && !this._enabledContinuousUpdates && i.messages.fbUpdateRequest(this._sock, true, 0, 0, this._fbWidth, this._fbHeight), s;
+          case 1:
+            return this._handleSetColourMapMsg();
+          case 2:
+            return L("Bell"), this.dispatchEvent(new CustomEvent("bell", { detail: {} })), true;
+          case 3:
+            return this._handleServerCutText();
+          case 150:
+            return e = !this._supportsContinuousUpdates, this._supportsContinuousUpdates = true, this._enabledContinuousUpdates = false, e && (this._enabledContinuousUpdates = true, this._updateContinuousUpdates(), V("Enabling continuous updates.")), true;
+          case 248:
+            return this._handleServerFenceMsg();
+          case 250:
+            return this._handleXvpMsg();
+          default:
+            return this._fail("Unexpected server message (type " + t2 + ")"), L("sock.rQpeekBytes(30): " + this._sock.rQpeekBytes(30)), true;
+        }
+      }
+      _framebufferUpdate() {
+        if (this._FBU.rects === 0) {
+          if (this._sock.rQwait("FBU header", 3, 1)) return false;
+          if (this._sock.rQskipBytes(1), this._FBU.rects = this._sock.rQshift16(), this._display.pending()) return this._flushing = true, this._display.flush().then(() => {
+            this._flushing = false, this._sock.rQwait("message", 1) || this._handleMessage();
+          }), false;
+        }
+        for (; this._FBU.rects > 0; ) {
+          if (this._FBU.encoding === null) {
+            if (this._sock.rQwait("rect header", 12)) return false;
+            this._FBU.x = this._sock.rQshift16(), this._FBU.y = this._sock.rQshift16(), this._FBU.width = this._sock.rQshift16(), this._FBU.height = this._sock.rQshift16(), this._FBU.encoding = this._sock.rQshift32(), this._FBU.encoding >>= 0;
+          }
+          if (!this._handleRect()) return false;
+          this._FBU.rects--, this._FBU.encoding = null;
+        }
+        return this._display.flip(), true;
+      }
+      _handleRect() {
+        switch (this._FBU.encoding) {
+          case R.pseudoEncodingLastRect:
+            return this._FBU.rects = 1, true;
+          case R.pseudoEncodingVMwareCursor:
+            return this._handleVMwareCursor();
+          case R.pseudoEncodingCursor:
+            return this._handleCursor();
+          case R.pseudoEncodingQEMUExtendedKeyEvent:
+            return this._qemuExtKeyEventSupported = true, true;
+          case R.pseudoEncodingDesktopName:
+            return this._handleDesktopName();
+          case R.pseudoEncodingDesktopSize:
+            return this._resize(this._FBU.width, this._FBU.height), true;
+          case R.pseudoEncodingExtendedDesktopSize:
+            return this._handleExtendedDesktopSize();
+          case R.pseudoEncodingExtendedMouseButtons:
+            return this._extendedPointerEventSupported = true, true;
+          case R.pseudoEncodingQEMULedEvent:
+            return this._handleLedEvent();
+          default:
+            return this._handleDataRect();
+        }
+      }
+      _handleVMwareCursor() {
+        let t2 = this._FBU.x, e = this._FBU.y, s = this._FBU.width, r = this._FBU.height;
+        if (this._sock.rQwait("VMware cursor encoding", 1)) return false;
+        let n = this._sock.rQshift8();
+        this._sock.rQshift8();
+        let a, h55 = 4;
+        if (n == 0) {
+          if (a = new Array(s * r * h55), this._sock.rQwait("VMware cursor classic encoding", s * r * h55 * 2, 2)) return false;
+          let o = new Array(s * r);
+          for (let x = 0; x < s * r; x++) o[x] = this._sock.rQshift32();
+          let l = new Array(s * r);
+          for (let x = 0; x < s * r; x++) l[x] = this._sock.rQshift32();
+          for (let x = 0; x < s * r; x++) if (o[x] == 0) {
+            let u = l[x], d = u >> 8 & 255, X = u >> 16 & 255, F = u >> 24 & 255;
+            a[x * h55] = d, a[x * h55 + 1] = X, a[x * h55 + 2] = F, a[x * h55 + 3] = 255;
+          } else (o[x] & -256) == -256 ? l[x] == 0 ? (a[x * h55] = 0, a[x * h55 + 1] = 0, a[x * h55 + 2] = 0, a[x * h55 + 3] = 0) : (l[x] & -256, a[x * h55] = 0, a[x * h55 + 1] = 0, a[x * h55 + 2] = 0, a[x * h55 + 3] = 255) : (a[x * h55] = 0, a[x * h55 + 1] = 0, a[x * h55 + 2] = 0, a[x * h55 + 3] = 255);
+        } else if (n == 1) {
+          if (this._sock.rQwait("VMware cursor alpha encoding", s * r * 4, 2)) return false;
+          a = new Array(s * r * h55);
+          for (let c = 0; c < s * r; c++) {
+            let o = this._sock.rQshift32();
+            a[c * 4] = o >> 24 & 255, a[c * 4 + 1] = o >> 16 & 255, a[c * 4 + 2] = o >> 8 & 255, a[c * 4 + 3] = o & 255;
+          }
+        } else return Z("The given cursor type is not supported: " + n + " given."), false;
+        return this._updateCursor(a, t2, e, s, r), true;
+      }
+      _handleCursor() {
+        let t2 = this._FBU.x, e = this._FBU.y, s = this._FBU.width, r = this._FBU.height, n = s * r * 4, a = Math.ceil(s / 8) * r, h55 = n + a;
+        if (this._sock.rQwait("cursor encoding", h55)) return false;
+        let c = this._sock.rQshiftBytes(n), o = this._sock.rQshiftBytes(a), l = new Uint8Array(s * r * 4), x = 0;
+        for (let u = 0; u < r; u++) for (let d = 0; d < s; d++) {
+          let X = u * Math.ceil(s / 8) + Math.floor(d / 8), F = o[X] << d % 8 & 128 ? 255 : 0;
+          l[x] = c[x + 2], l[x + 1] = c[x + 1], l[x + 2] = c[x], l[x + 3] = F, x += 4;
+        }
+        return this._updateCursor(l, t2, e, s, r), true;
+      }
+      _handleDesktopName() {
+        if (this._sock.rQwait("DesktopName", 4)) return false;
+        let t2 = this._sock.rQshift32();
+        if (this._sock.rQwait("DesktopName", t2, 4)) return false;
+        let e = this._sock.rQshiftStr(t2);
+        return e = Bt(e, true), this._setDesktopName(e), true;
+      }
+      _handleLedEvent() {
+        if (this._sock.rQwait("LED status", 1)) return false;
+        let t2 = this._sock.rQshift8(), e = !!(t2 & 2), s = !!(t2 & 4);
+        return this._remoteCapsLock = s, this._remoteNumLock = e, true;
+      }
+      _handleExtendedDesktopSize() {
+        if (this._sock.rQwait("ExtendedDesktopSize", 4)) return false;
+        let t2 = this._sock.rQpeek8(), e = 4 + t2 * 16;
+        if (this._sock.rQwait("ExtendedDesktopSize", e)) return false;
+        let s = !this._supportsSetDesktopSize;
+        this._supportsSetDesktopSize = true, this._sock.rQskipBytes(1), this._sock.rQskipBytes(3);
+        for (let r = 0; r < t2; r += 1) r === 0 ? (this._screenID = this._sock.rQshift32(), this._sock.rQskipBytes(2), this._sock.rQskipBytes(2), this._sock.rQskipBytes(2), this._sock.rQskipBytes(2), this._screenFlags = this._sock.rQshift32()) : this._sock.rQskipBytes(16);
+        if (this._FBU.x === 1 && (this._pendingRemoteResize = false), this._FBU.x === 1 && this._FBU.y !== 0) {
+          let r = "";
+          switch (this._FBU.y) {
+            case 1:
+              r = "Resize is administratively prohibited";
+              break;
+            case 2:
+              r = "Out of resources";
+              break;
+            case 3:
+              r = "Invalid screen layout";
+              break;
+            default:
+              r = "Unknown reason";
+              break;
+          }
+          Z("Server did not accept the resize request: " + r);
+        } else this._resize(this._FBU.width, this._FBU.height);
+        return s && this._requestRemoteResize(), this._FBU.x === 1 && this._FBU.y === 0 && this._requestRemoteResize(), true;
+      }
+      _handleDataRect() {
+        let t2 = this._decoders[this._FBU.encoding];
+        if (!t2) return this._fail("Unsupported encoding (encoding: " + this._FBU.encoding + ")"), false;
+        try {
+          return t2.decodeRect(this._FBU.x, this._FBU.y, this._FBU.width, this._FBU.height, this._sock, this._display, this._fbDepth);
+        } catch (e) {
+          return this._fail("Error decoding rect: " + e), false;
+        }
+      }
+      _updateContinuousUpdates() {
+        this._enabledContinuousUpdates && i.messages.enableContinuousUpdates(this._sock, true, 0, 0, this._fbWidth, this._fbHeight);
+      }
+      _resize(t2, e) {
+        this._fbWidth = t2, this._fbHeight = e, this._display.resize(this._fbWidth, this._fbHeight), this._updateClip(), this._updateScale(), this._updateContinuousUpdates(), this._saveExpectedClientSize();
+      }
+      _xvpOp(t2, e) {
+        this._rfbXvpVer < t2 || (V("Sending XVP operation " + e + " (version " + t2 + ")"), i.messages.xvpOp(this._sock, t2, e));
+      }
+      _updateCursor(t2, e, s, r, n) {
+        this._cursorImage = { rgbaPixels: t2, hotx: e, hoty: s, w: r, h: n }, this._refreshCursor();
+      }
+      _shouldShowDotCursor() {
+        if (!this._showDotCursor) return false;
+        for (let t2 = 3; t2 < this._cursorImage.rgbaPixels.length; t2 += 4) if (this._cursorImage.rgbaPixels[t2]) return false;
+        return true;
+      }
+      _refreshCursor() {
+        if (this._rfbConnectionState !== "connecting" && this._rfbConnectionState !== "connected") return;
+        let t2 = this._shouldShowDotCursor() ? i.cursors.dot : this._cursorImage;
+        this._cursor.change(t2.rgbaPixels, t2.hotx, t2.hoty, t2.w, t2.h);
+      }
+      static genDES(t2, e) {
+        let s = t2.split("").map((n) => n.charCodeAt(0)), r = O.importKey("raw", s, { name: "DES-ECB" }, false, ["encrypt"]);
+        return O.encrypt({ name: "DES-ECB" }, r, e);
+      }
+    };
+    re.messages = { keyEvent(i, t2, e) {
+      i.sQpush8(4), i.sQpush8(e), i.sQpush16(0), i.sQpush32(t2), i.flush();
+    }, QEMUExtendedKeyEvent(i, t2, e, s) {
+      function r(a) {
+        let h55 = s >> 8, c = s & 255;
+        return h55 === 224 && c < 127 ? c | 128 : a;
+      }
+      i.sQpush8(255), i.sQpush8(0), i.sQpush16(e), i.sQpush32(t2);
+      let n = r(s);
+      i.sQpush32(n), i.flush();
+    }, pointerEvent(i, t2, e, s) {
+      i.sQpush8(5), s = s & 127, i.sQpush8(s), i.sQpush16(t2), i.sQpush16(e), i.flush();
+    }, extendedPointerEvent(i, t2, e, s) {
+      i.sQpush8(5);
+      let r = s >> 7 & 255;
+      if (r & 252) throw new Error("Invalid mouse button mask: " + s);
+      let n = s & 127;
+      n |= 128, i.sQpush8(n), i.sQpush16(t2), i.sQpush16(e), i.sQpush8(r), i.flush();
+    }, _buildExtendedClipboardFlags(i, t2) {
+      let e = new Uint8Array(4), s = 0, r = 0;
+      for (let n = 0; n < i.length; n++) r |= i[n];
+      for (let n = 0; n < t2.length; n++) s |= t2[n];
+      return e[0] = r >> 24, e[1] = 0, e[2] = 0, e[3] = s, e;
+    }, extendedClipboardProvide(i, t2, e) {
+      let s = new gt(), r = [];
+      for (let h55 = 0; h55 < t2.length; h55++) {
+        if (t2[h55] != de) throw new Error("Unsupported extended clipboard format for Provide message.");
+        e[h55] = e[h55].replace(/\r\n|\r|\n/gm, `\r
+`);
+        let c = he(e[h55] + "\0");
+        r.push(c.length >> 24 & 255, c.length >> 16 & 255, c.length >> 8 & 255, c.length & 255);
+        for (let o = 0; o < c.length; o++) r.push(c.charCodeAt(o));
+      }
+      let n = s.deflate(new Uint8Array(r)), a = new Uint8Array(4 + n.length);
+      a.set(re.messages._buildExtendedClipboardFlags([ci], t2)), a.set(n, 4), re.messages.clientCutText(i, a, true);
+    }, extendedClipboardNotify(i, t2) {
+      let e = re.messages._buildExtendedClipboardFlags([Rt], t2);
+      re.messages.clientCutText(i, e, true);
+    }, extendedClipboardRequest(i, t2) {
+      let e = re.messages._buildExtendedClipboardFlags([li], t2);
+      re.messages.clientCutText(i, e, true);
+    }, extendedClipboardCaps(i, t2, e) {
+      let s = Object.keys(e), r = new Uint8Array(4 + 4 * s.length);
+      s.map((a) => parseInt(a)), s.sort((a, h55) => a - h55), r.set(re.messages._buildExtendedClipboardFlags(t2, []));
+      let n = 4;
+      for (let a = 0; a < s.length; a++) r[n] = e[s[a]] >> 24, r[n + 1] = e[s[a]] >> 16, r[n + 2] = e[s[a]] >> 8, r[n + 3] = e[s[a]] >> 0, n += 4, r[3] |= 1 << s[a];
+      re.messages.clientCutText(i, r, true);
+    }, clientCutText(i, t2, e = false) {
+      i.sQpush8(6), i.sQpush8(0), i.sQpush8(0), i.sQpush8(0);
+      let s;
+      e ? s = ji(-t2.length) : s = t2.length, i.sQpush32(s), i.sQpushBytes(t2), i.flush();
+    }, setDesktopSize(i, t2, e, s, r) {
+      i.sQpush8(251), i.sQpush8(0), i.sQpush16(t2), i.sQpush16(e), i.sQpush8(1), i.sQpush8(0), i.sQpush32(s), i.sQpush16(0), i.sQpush16(0), i.sQpush16(t2), i.sQpush16(e), i.sQpush32(r), i.flush();
+    }, clientFence(i, t2, e) {
+      i.sQpush8(248), i.sQpush8(0), i.sQpush8(0), i.sQpush8(0), i.sQpush32(t2), i.sQpush8(e.length), i.sQpushString(e), i.flush();
+    }, enableContinuousUpdates(i, t2, e, s, r, n) {
+      i.sQpush8(150), i.sQpush8(t2), i.sQpush16(e), i.sQpush16(s), i.sQpush16(r), i.sQpush16(n), i.flush();
+    }, pixelFormat(i, t2, e) {
+      let s;
+      t2 > 16 ? s = 32 : t2 > 8 ? s = 16 : s = 8;
+      let r = Math.floor(t2 / 3);
+      i.sQpush8(0), i.sQpush8(0), i.sQpush8(0), i.sQpush8(0), i.sQpush8(s), i.sQpush8(t2), i.sQpush8(0), i.sQpush8(e ? 1 : 0), i.sQpush16((1 << r) - 1), i.sQpush16((1 << r) - 1), i.sQpush16((1 << r) - 1), i.sQpush8(r * 0), i.sQpush8(r * 1), i.sQpush8(r * 2), i.sQpush8(0), i.sQpush8(0), i.sQpush8(0), i.flush();
+    }, clientEncodings(i, t2) {
+      i.sQpush8(2), i.sQpush8(0), i.sQpush16(t2.length);
+      for (let e = 0; e < t2.length; e++) i.sQpush32(t2[e]);
+      i.flush();
+    }, fbUpdateRequest(i, t2, e, s, r, n) {
+      typeof e > "u" && (e = 0), typeof s > "u" && (s = 0), i.sQpush8(3), i.sQpush8(t2 ? 1 : 0), i.sQpush16(e), i.sQpush16(s), i.sQpush16(r), i.sQpush16(n), i.flush();
+    }, xvpOp(i, t2, e) {
+      i.sQpush8(250), i.sQpush8(0), i.sQpush8(t2), i.sQpush8(e), i.flush();
+    } };
+    re.cursors = { none: { rgbaPixels: new Uint8Array(), w: 0, h: 0, hotx: 0, hoty: 0 }, dot: { rgbaPixels: new Uint8Array([255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255]), w: 3, h: 3, hotx: 1, hoty: 1 } };
+    return re;
+  })();
+}
+
+// src/client/computer-live.js
 var import_react41 = require("react");
+function desktopChannel(bridge, conversation, display) {
+  let transport;
+  const channel = {
+    readyState: "connecting",
+    protocol: "",
+    binaryType: "arraybuffer",
+    onopen: null,
+    onclose: null,
+    onerror: null,
+    onmessage: null,
+    send(data) {
+      if (channel.readyState !== "open") return;
+      for (let offset = 0; offset < data.length; offset += 64 * 1024) {
+        transport.send(data.slice(offset, offset + 64 * 1024));
+      }
+    },
+    close() {
+      if (channel.readyState === "closed") return;
+      channel.readyState = "closed";
+      transport?.close();
+      queueMicrotask(() => channel.onclose?.({ code: 1e3, reason: "" }));
+    }
+  };
+  transport = bridge.live(conversation, display, (bytes) => {
+    if (channel.readyState === "closed") return;
+    if (channel.readyState === "connecting") {
+      channel.readyState = "open";
+      channel.onopen?.();
+    }
+    channel.onmessage?.({ data: bytes });
+  }, () => channel.close());
+  return channel;
+}
+var controlKeys = { ControlLeft: 65507, ControlRight: 65508 };
+var commandKeys = { MetaLeft: 65513, MetaRight: 65515 };
+function forwardPaste(screen, client, signal) {
+  const mac = /Mac/u.test(navigator.platform);
+  const modifiers = mac ? commandKeys : controlKeys;
+  let held;
+  screen.addEventListener("keydown", (event) => {
+    if (Object.hasOwn(modifiers, event.code)) held = event.code;
+    const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+    const key = event.key.toLowerCase();
+    if (modifier && !event.altKey && !event.shiftKey && (key === "v" || event.code === "KeyV" && !/^[a-z]$/u.test(key))) event.stopPropagation();
+  }, { capture: true, signal });
+  screen.addEventListener("keyup", (event) => {
+    if (event.code === held) held = void 0;
+  }, { capture: true, signal });
+  screen.addEventListener("focusout", () => {
+    held = void 0;
+  }, { signal });
+  screen.addEventListener("paste", (event) => {
+    event.preventDefault();
+    const text = event.clipboardData?.getData("text/plain");
+    if (!text) return;
+    client.clipboardPasteFrom(text);
+    const ctrl = Object.hasOwn(controlKeys, held) ? held : "ControlLeft";
+    client.sendKey(controlKeys[ctrl], ctrl, true);
+    if (Object.hasOwn(commandKeys, held)) client.sendKey(commandKeys[held], held, false);
+    client.sendKey(118, "KeyV");
+    if (ctrl !== held) client.sendKey(controlKeys[ctrl], ctrl, false);
+  }, { signal });
+}
+function LiveDesktop({ bridge, conversation, display, onDisconnect }) {
+  const screen = (0, import_react41.useRef)(null);
+  const disconnected = (0, import_react41.useRef)(onDisconnect);
+  disconnected.current = onDisconnect;
+  const [connected, setConnected] = (0, import_react41.useState)(false);
+  (0, import_react41.useLayoutEffect)(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    const element = screen.current;
+    let channel;
+    let client;
+    const lost = (event) => {
+      if (signal.aborted) return;
+      controller.abort();
+      clearTimeout(deadline);
+      if (event?.type !== "disconnect") client?.disconnect();
+      channel?.close();
+      disconnected.current();
+    };
+    const deadline = setTimeout(lost, 3e4);
+    void loadRfb().then((RFB) => {
+      if (signal.aborted) return;
+      channel = desktopChannel(bridge, conversation, display);
+      client = new RFB(element, channel);
+      client.scaleViewport = true;
+      client.background = "var(--bt-main)";
+      client.addEventListener("connect", () => {
+        clearTimeout(deadline);
+        setConnected(true);
+        client.focus({ preventScroll: true });
+      }, { once: true });
+      client.addEventListener("disconnect", lost, { once: true });
+      forwardPaste(element, client, signal);
+    }).catch(() => lost());
+    return () => {
+      if (signal.aborted) return;
+      controller.abort();
+      clearTimeout(deadline);
+      client?.disconnect();
+      channel?.close();
+    };
+  }, [bridge, conversation, display]);
+  return (0, import_react41.createElement)(
+    "div",
+    { className: "bt-computer-live", "data-connected": connected || void 0 },
+    (0, import_react41.createElement)("div", { ref: screen, className: "bt-computer-live-screen", role: "application", "aria-label": t("Private desktop") }),
+    connected ? null : (0, import_react41.createElement)("div", { className: "bt-computer-live-connecting", role: "status" }, t("Connecting to desktop…"))
+  );
+}
+
+// src/client/computer-pane.js
+var import_react42 = require("react");
 var PLACES = [
   { id: "auto", label: "Automatic", Icon: AutoLocationIcon },
   { id: "private", label: "Private desktop", target: "private-desktop", Icon: PrivateDesktopIcon },
@@ -16470,48 +20907,29 @@ var STATE = {
   stopping: "Releasing control",
   unavailable: "Unavailable"
 };
-var KEYS = {
-  Enter: "return",
-  Tab: "tab",
-  Escape: "escape",
-  ArrowUp: "up",
-  ArrowDown: "down",
-  ArrowLeft: "left",
-  ArrowRight: "right",
-  " ": "space",
-  Backspace: "backspace",
-  Delete: "delete",
-  Home: "home",
-  End: "end",
-  PageUp: "pageup",
-  PageDown: "pagedown"
-};
 var OBSERVABLE = ["idle", "user"];
-var MAX_PENDING_INPUTS = 64;
 function computerError(failure) {
   return hostText(failure.message.replace(/^Error invoking remote method '[^']+': Error: /u, ""));
 }
 function ComputerPane({ subject, conversation, members, openSettings }) {
   const bridge = window.dsBotApp?.computer;
-  const [state, setState] = (0, import_react41.useState)({});
-  const [selectedBot, setSelectedBot] = (0, import_react41.useState)("");
-  const operator = members ? members.find((bot) => bot.id === (selectedBot || state.operator))?.id : subject;
-  const [pending, setPending] = (0, import_react41.useState)("");
-  const [error, setError] = (0, import_react41.useState)("");
-  const [place, setPlace] = (0, import_react41.useState)(null);
-  const display = (0, import_react41.useRef)();
-  const lifetime = (0, import_react41.useRef)();
-  const latestOperator = (0, import_react41.useRef)(operator);
-  const attemptedDisplay = (0, import_react41.useRef)();
-  const screen = (0, import_react41.useRef)(null);
-  const viewport = (0, import_react41.useRef)(null);
+  const [state, setState] = (0, import_react42.useState)({});
+  const group = Array.isArray(members);
+  const operator = group ? void 0 : subject;
+  const [pending2, setPending] = (0, import_react42.useState)("");
+  const [error, setError] = (0, import_react42.useState)("");
+  const [place, setPlace] = (0, import_react42.useState)(null);
+  const display = (0, import_react42.useRef)();
+  const lifetime = (0, import_react42.useRef)();
+  const attemptedDisplay = (0, import_react42.useRef)();
+  const viewport = (0, import_react42.useRef)(null);
   function show2(value) {
     display.current = value.display;
     setState((previous) => ({ ...value, lastFrame: value.preview ?? (previous.display === value.display && value.display ? previous.lastFrame : void 0) }));
   }
-  (0, import_react41.useLayoutEffect)(() => {
+  (0, import_react42.useLayoutEffect)(() => {
     if (!bridge) return void 0;
-    const scope = { active: true, work: null, next: null, inputs: [] };
+    const scope = { active: true, work: null, next: null };
     lifetime.current = scope;
     display.current = void 0;
     attemptedDisplay.current = void 0;
@@ -16522,8 +20940,8 @@ function ComputerPane({ subject, conversation, members, openSettings }) {
         if (!current()) return;
         show2(value);
         setError((previous) => previous === t("Restore the app window to use computer control.") ? "" : previous);
-        if (scope.inputs.length || !value.display || !OBSERVABLE.includes(value.status)) return;
-        if (value.status === "user" || !value.preview && attemptedDisplay.current !== value.display) {
+        if (!value.display || value.status === "user" || !OBSERVABLE.includes(value.status)) return;
+        if (!value.preview && attemptedDisplay.current !== value.display) {
           attemptedDisplay.current = value.display;
           try {
             const frame = await bridge.view(conversation, "observe", void 0, value.display);
@@ -16545,7 +20963,6 @@ function ComputerPane({ subject, conversation, members, openSettings }) {
       }
       scope.work = null;
       scope.next = null;
-      scope.inputs.length = 0;
       setPending("");
       setPlace(null);
       setError("");
@@ -16556,22 +20973,18 @@ function ComputerPane({ subject, conversation, members, openSettings }) {
     const timer = setInterval(refresh, 1500);
     return () => {
       scope.active = false;
-      scope.inputs.length = 0;
       clearInterval(timer);
       document.removeEventListener("visibilitychange", visibility);
       if (display.current) void bridge.view(conversation, "hand-back", void 0, display.current).catch(() => {
       });
     };
   }, [bridge, conversation]);
-  (0, import_react41.useLayoutEffect)(() => {
-    latestOperator.current = operator;
-  }, [operator]);
   async function run2(name, operation) {
     const scope = lifetime.current;
     if (!scope?.active) return;
     const releasing = name === "off" || name === "hand-back";
     if (scope.work && !releasing) {
-      if (name !== "poll" && name !== "input" && !scope.next && ["poll", "input"].includes(scope.work.name)) {
+      if (name !== "poll" && !scope.next && scope.work.name === "poll") {
         scope.next = { name, operation };
         setPending(name);
       }
@@ -16579,49 +20992,37 @@ function ComputerPane({ subject, conversation, members, openSettings }) {
     }
     if (releasing) {
       scope.next = null;
-      scope.inputs.length = 0;
     }
     const work = { name };
     scope.work = work;
     const current = () => scope.active && scope.work === work;
-    if (name !== "poll" && name !== "input") setPending(name);
+    if (name !== "poll") setPending(name);
     if (name !== "poll") setError("");
     try {
       await operation(current);
     } catch (failure) {
       if (current()) {
-        scope.inputs.length = 0;
         setError(computerError(failure));
       }
     } finally {
       if (current()) {
         scope.work = null;
-        if (name !== "poll" && name !== "input") setPending("");
+        if (name !== "poll") setPending("");
         if (scope.next) {
           const next = scope.next;
           scope.next = null;
           void run2(next.name, next.operation);
-        } else if (scope.inputs.length) drainInputs(scope);
+        }
       }
     }
-  }
-  function drainInputs(scope) {
-    void run2("input", async (current) => {
-      while (current() && scope.inputs.length) {
-        const { binding, input } = scope.inputs.shift();
-        if (binding !== display.current) continue;
-        const value = await bridge.view(conversation, "input", input, binding);
-        if (current() && display.current === binding) show2(value);
-      }
-    });
   }
   if (!bridge) return null;
   const desktopPlace = PLACES.find((item) => item.target && item.target === state.target);
   const activePlace = !desktopPlace ? "off" : place === "auto" && desktopPlace.id === "private" ? "auto" : desktopPlace.id;
-  const targetLabel = desktopPlace && t(desktopPlace.label);
-  const canInput = state.status === "user" && Boolean(state.preview);
-  const busy = Boolean(pending);
-  const status = pending === "start" && !state.lastFrame ? "Loading desktop…" : state.target ? STATE[state.status] ?? "Unavailable" : "Choose a work location to show its screen.";
+  const targetLabel = desktopPlace && t(group ? "Shared group desktop" : desktopPlace.label);
+  const live = state.target === "private-desktop" && state.status === "user" && typeof bridge.live === "function";
+  const busy = Boolean(pending2);
+  const status = pending2 === "start" && !state.lastFrame ? "Loading desktop…" : state.target ? STATE[state.status] ?? "Unavailable" : group ? "Shared desktop access is off." : "Choose a work location to show its screen.";
   async function choose(target, workPlace, current) {
     const token = await bridge.choose(conversation, target, operator);
     if (!token || !current()) return;
@@ -16647,11 +21048,11 @@ function ComputerPane({ subject, conversation, members, openSettings }) {
     const scope = lifetime.current;
     void run2("start", async (current) => {
       const readiness = await bridge.settings("readiness");
-      if (!current() || latestOperator.current !== operator) return;
+      if (!current()) return;
       if (readiness !== "prepared") {
         if (resume) throw new Error("Prepare the private desktop first.");
         openSettings(() => {
-          if (scope?.active && lifetime.current === scope && latestOperator.current === operator) selectPrivate(next, true);
+          if (scope?.active && lifetime.current === scope) selectPrivate(next, true);
         });
         return;
       }
@@ -16671,145 +21072,130 @@ function ComputerPane({ subject, conversation, members, openSettings }) {
       void run2("start", (current) => choose("local-desktop", "local", current));
     } else selectPrivate(next);
   }
-  function desktop(op, input) {
+  function desktop(op, after) {
     const binding = display.current;
     if (!binding) return;
-    if (op === "input") {
-      const scope = lifetime.current;
-      if (!scope?.active || scope.next || scope.work && !["poll", "input"].includes(scope.work.name)) return;
-      if (scope.inputs.length >= MAX_PENDING_INPUTS) {
-        setError(t("Wait for the desktop to finish processing input."));
-        return;
-      }
-      scope.inputs.push({ binding, input });
-      if (!scope.work) drainInputs(scope);
-      return;
-    }
     const expected2 = (current) => current() && display.current === binding;
     void run2(op, async (current) => {
-      const value = await bridge.view(conversation, op, input, binding);
+      const value = await bridge.view(conversation, op, void 0, binding);
       if (!expected2(current)) return;
       show2(value);
-      if (op === "take" || op === "hand-back" && !state.lastFrame) {
+      after?.();
+      if (op === "hand-back") {
         const frame = await bridge.view(conversation, "observe", void 0, binding);
         if (!frame || !expected2(current)) return;
         show2(frame);
-        if (op === "take") screen.current?.focus();
       }
     });
   }
-  function pointer(kind, event) {
-    const image = screen.current;
-    if (!canInput || busy || !image?.naturalWidth || !image.complete) return;
-    const bounds = image.getBoundingClientRect();
-    const x = Math.floor((event.clientX - bounds.left) * image.naturalWidth / bounds.width);
-    const y = Math.floor((event.clientY - bounds.top) * image.naturalHeight / bounds.height);
-    if (x < 0 || y < 0 || x >= image.naturalWidth || y >= image.naturalHeight) return;
-    if (kind === "scroll") {
-      if (!event.deltaY) return;
-      desktop("input", { kind, x, y, direction: event.deltaY > 0 ? "down" : "up", amount: 1 });
-    } else desktop("input", { kind, x, y });
-  }
-  function keydown(event) {
-    if (!canInput || busy || event.ctrlKey || event.altKey || event.metaKey || event.isComposing || event.key === "Tab" && event.shiftKey) return;
-    const key = Object.hasOwn(KEYS, event.key) ? KEYS[event.key] : void 0;
-    if (!key && [...event.key].length !== 1) return;
-    event.preventDefault();
-    desktop("input", key ? { kind: "key", key } : { kind: "type", text: event.key });
-  }
-  const button = (label, onClick, disabled = busy, className = "") => (0, import_react41.createElement)("button", {
+  const button = (label, onClick, disabled = busy, className = "") => (0, import_react42.createElement)("button", {
     className: `bt-browser-retry ${className}`.trim(),
     type: "button",
     disabled,
     onClick
   }, t(label));
-  const controlStatus = [t(status), state.lastFrame && !state.preview ? t("Last screenshot") : null].filter(Boolean).join(" · ");
+  const controlStatus = [t(status), state.waiting ? `${t("Bots waiting")}: ${state.waiting}` : null, state.lastFrame && !state.preview ? t("Last screenshot") : null].filter(Boolean).join(" · ");
   const toggleFullscreen = () => {
     const change = document.fullscreenElement === viewport.current ? document.exitFullscreen() : viewport.current?.requestFullscreen();
     void change?.catch((failure) => setError(computerError(failure)));
   };
-  return (0, import_react41.createElement)(
+  return (0, import_react42.createElement)(
     "section",
     { className: "bt-computer" },
-    (0, import_react41.createElement)(
+    (0, import_react42.createElement)(
       "div",
       { className: "bt-computer-monitor" },
-      (0, import_react41.createElement)(
+      (0, import_react42.createElement)(
         "div",
         { className: "bt-computer-toolbar" },
-        (0, import_react41.createElement)("span", { className: "bt-computer-target", title: targetLabel }, targetLabel || t("Screen")),
-        state.target ? (0, import_react41.createElement)("span", { className: "bt-computer-status", role: "status" }, controlStatus) : null
+        (0, import_react42.createElement)("span", { className: "bt-computer-target", title: targetLabel }, targetLabel || t("Screen")),
+        state.target ? (0, import_react42.createElement)("span", { className: "bt-computer-status", role: "status" }, controlStatus) : null
       ),
-      (0, import_react41.createElement)(
+      (0, import_react42.createElement)(
         "div",
         { ref: viewport, className: "bt-computer-viewport", "data-takeover": state.status === "user" || void 0 },
-        state.lastFrame ? (0, import_react41.createElement)("img", {
-          ref: screen,
-          className: "bt-computer-preview",
-          "data-active": canInput ? "" : void 0,
-          tabIndex: canInput ? 0 : -1,
-          draggable: false,
-          onClick: (event) => pointer("click", event),
-          onWheel: (event) => pointer("scroll", event),
-          onKeyDown: keydown,
-          alt: t("Desktop screenshot"),
-          src: `data:${state.lastFrame.mediaType};base64,${state.lastFrame.data}`
-        }) : (0, import_react41.createElement)("div", { className: "bt-computer-empty", role: state.target ? void 0 : "status" }, t(status))
+        live ? (0, import_react42.createElement)(LiveDesktop, {
+          key: state.display,
+          bridge,
+          conversation,
+          display: state.display,
+          onDisconnect: () => desktop("hand-back", () => setError(t("Desktop disconnected. Take control to reconnect.")))
+        }) : state.lastFrame ? (() => {
+          const preview = (0, import_react42.createElement)("img", {
+            className: "bt-computer-preview",
+            draggable: false,
+            alt: t("Desktop screenshot"),
+            src: `data:${state.lastFrame.mediaType};base64,${state.lastFrame.data}`
+          });
+          return state.target === "private-desktop" && ["idle", "bot"].includes(state.status) ? (0, import_react42.createElement)("button", {
+            type: "button",
+            className: "bt-computer-preview-button",
+            disabled: busy,
+            "aria-label": t("Take control"),
+            onClick: () => desktop("take")
+          }, preview) : preview;
+        })() : (0, import_react42.createElement)("div", { className: "bt-computer-empty", role: state.target ? void 0 : "status" }, t(status))
       ),
-      state.target ? (0, import_react41.createElement)(
+      state.target ? (0, import_react42.createElement)(
         "div",
         { className: "bt-computer-actions bt-computer-screen-actions" },
-        state.target === "private-desktop" && state.status === "user" ? button("Hand back", () => desktop("hand-back"), pending === "hand-back" || pending === "off", "bt-computer-primary") : null,
+        state.target === "private-desktop" && state.status === "user" ? button("Hand back", () => desktop("hand-back"), pending2 === "hand-back" || pending2 === "off", "bt-computer-primary") : null,
         state.target === "private-desktop" && state.status !== "user" ? button("Take control", () => desktop("take"), busy || !["idle", "bot"].includes(state.status), "bt-computer-primary") : null,
-        button("Full screen", toggleFullscreen, !state.lastFrame),
-        button("Refresh preview", () => desktop("observe"), busy || !OBSERVABLE.includes(state.status))
+        button("Full screen", toggleFullscreen, !state.lastFrame && !live),
+        live ? null : button("Refresh preview", () => desktop("observe"), busy || !OBSERVABLE.includes(state.status))
       ) : null
     ),
-    (0, import_react41.createElement)(
+    (0, import_react42.createElement)(
       "section",
-      { className: "bt-computer-location", "aria-label": t("Work location") },
-      (0, import_react41.createElement)(
+      { className: "bt-computer-location", "aria-label": t(group ? "Shared group desktop" : "Work location") },
+      (0, import_react42.createElement)(
         "div",
         { className: "bt-computer-location-heading" },
-        (0, import_react41.createElement)("h3", null, t("Work location")),
-        (0, import_react41.createElement)("button", { type: "button", className: "bt-more", onClick: () => openSettings() }, t("Computer and browser settings"))
+        (0, import_react42.createElement)("h3", null, t(group ? "Shared group desktop" : "Work location")),
+        (0, import_react42.createElement)("button", { type: "button", className: "bt-more", onClick: () => openSettings() }, t("Computer and browser settings"))
       ),
-      members ? (0, import_react41.createElement)(
-        "label",
-        { className: "bt-computer-actions" },
-        t("Bot to authorize"),
-        (0, import_react41.createElement)(
-          "select",
-          { value: operator ?? "", disabled: busy, onChange: (event) => setSelectedBot(event.target.value) },
-          (0, import_react41.createElement)("option", { value: "", disabled: true }, t("Select a Bot")),
-          ...members.map((bot) => (0, import_react41.createElement)("option", { key: bot.id, value: bot.id }, bot.name))
-        )
-      ) : null,
-      (0, import_react41.createElement)(
+      group ? (0, import_react42.createElement)(
+        "div",
+        { className: "bt-computer-actions bt-computer-group-access" },
+        (0, import_react42.createElement)("span", { className: "bt-set-hint" }, t(state.privateMode === "shared" ? "Shared mode is enabled in Settings." : state.privateMode === "per-bot" ? "Enable shared mode in Settings to use a desktop in this group." : "Checking desktop settings…")),
+        state.target ? button("Revoke access", () => selectPlace("off"), pending2 === "off") : button("Allow desktop access", () => selectPlace("private"), busy || state.privateMode !== "shared" || !members.length, "bt-computer-primary")
+      ) : (0, import_react42.createElement)(
         "div",
         { className: "bt-computer-places", role: "group", "aria-label": t("Work location") },
-        ...PLACES.map(({ id, label, Icon }) => (0, import_react41.createElement)("button", {
+        ...PLACES.map(({ id, label, Icon }) => (0, import_react42.createElement)("button", {
           key: id,
           type: "button",
           "aria-pressed": activePlace === id,
-          disabled: id === "off" ? pending === "off" || !state.target && !pending : busy || !operator,
+          disabled: id === "off" ? pending2 === "off" || !state.target && !pending2 : busy,
           onClick: () => selectPlace(id)
-        }, (0, import_react41.createElement)(Icon), t(label)))
+        }, (0, import_react42.createElement)(Icon), t(label)))
       ),
-      error ? (0, import_react41.createElement)("p", { className: "bt-error", role: "alert" }, error) : null
+      error ? (0, import_react42.createElement)("p", { className: "bt-error", role: "alert" }, error) : null
     )
   );
 }
 
 // src/client/computer-settings.js
-var import_react42 = require("react");
+var import_react43 = require("react");
 var installCommands = {
   docker: "winget install --exact --id Docker.DockerDesktop",
   podman: "winget install --exact --id RedHat.Podman-Desktop"
 };
+var PHASES = {
+  "checking-runtime": "Checking desktop runtime…",
+  "building-image": "Building desktop image…",
+  "downloading-image": "Downloading desktop image…",
+  "checking-image": "Verifying desktop image…",
+  "checking-container": "Checking desktop instance…",
+  "creating-container": "Creating desktop instance…",
+  "starting-container": "Starting desktop instance…",
+  "waiting-desktop": "Waiting for the desktop to load…",
+  "connecting-driver": "Connecting to the desktop…",
+  "capturing-frame": "Getting the first frame…"
+};
 function SetupDialog({ close, leaving, returnFocus, steps, managing, details, toggleDetails, check, busy, feedback, continueSetup, children }) {
-  const dialog = (0, import_react42.useRef)(null);
-  (0, import_react42.useEffect)(() => {
+  const dialog = (0, import_react43.useRef)(null);
+  (0, import_react43.useEffect)(() => {
     const node = dialog.current;
     node.showModal();
     return () => {
@@ -16817,7 +21203,7 @@ function SetupDialog({ close, leaving, returnFocus, steps, managing, details, to
       returnFocus.current?.focus();
     };
   }, [returnFocus]);
-  return (0, import_react42.createElement)("dialog", {
+  return (0, import_react43.createElement)("dialog", {
     className: "bt-computer-setup",
     ref: dialog,
     "data-leaving": leaving || void 0,
@@ -16830,41 +21216,41 @@ function SetupDialog({ close, leaving, returnFocus, steps, managing, details, to
       event.preventDefault();
       close();
     }
-  }, (0, import_react42.createElement)(
+  }, (0, import_react43.createElement)(
     "div",
     { className: "bt-computer-setup-layout", inert: leaving || void 0 },
-    (0, import_react42.createElement)(
+    (0, import_react43.createElement)(
       "header",
       null,
-      (0, import_react42.createElement)("h3", { id: "bt-computer-setup-title" }, t(managing ? "Manage private desktop" : "Set up a private desktop")),
-      (0, import_react42.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Close"), onClick: close }, (0, import_react42.createElement)(CloseIcon))
+      (0, import_react43.createElement)("h3", { id: "bt-computer-setup-title" }, t(managing ? "Manage private desktop" : "Set up a private desktop")),
+      (0, import_react43.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Close"), onClick: close }, (0, import_react43.createElement)(CloseIcon))
     ),
-    (0, import_react42.createElement)(
+    (0, import_react43.createElement)(
       "div",
       { className: "bt-computer-setup-body" },
-      managing ? null : (0, import_react42.createElement)("ol", { className: "bt-computer-steps" }, steps.map(({ label, done, action, hint, extra }, index) => (0, import_react42.createElement)(
+      managing ? null : (0, import_react43.createElement)("ol", { className: "bt-computer-steps" }, steps.map(({ label, done, action, hint, extra }, index) => (0, import_react43.createElement)(
         "li",
         { key: label, "data-done": done || void 0, "data-current": !done && steps.findIndex((step) => !step.done) === index || void 0 },
-        (0, import_react42.createElement)("span", { className: "bt-computer-step-mark", role: "img", "aria-label": done ? t("Done") : `${index + 1}` }, done ? (0, import_react42.createElement)(CheckIcon) : index + 1),
-        (0, import_react42.createElement)(
+        (0, import_react43.createElement)("span", { className: "bt-computer-step-mark", role: "img", "aria-label": done ? t("Done") : `${index + 1}` }, done ? (0, import_react43.createElement)(CheckIcon) : index + 1),
+        (0, import_react43.createElement)(
           "div",
           { className: "bt-computer-step-copy" },
-          (0, import_react42.createElement)("span", null, t(label)),
-          hint ? (0, import_react42.createElement)("span", { className: "bt-set-hint" }, t(hint)) : null,
-          action ? (0, import_react42.createElement)("div", { className: "bt-computer-step-actions" }, action) : null,
+          (0, import_react43.createElement)("span", null, t(label)),
+          hint ? (0, import_react43.createElement)("span", { className: "bt-set-hint" }, t(hint)) : null,
+          action ? (0, import_react43.createElement)("div", { className: "bt-computer-step-actions" }, action) : null,
           extra
         )
       ))),
       managing || details ? children : null
     ),
     feedback,
-    (0, import_react42.createElement)(
+    (0, import_react43.createElement)(
       "footer",
       null,
-      managing ? null : (0, import_react42.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", "aria-expanded": details, onClick: toggleDetails }, t(details ? "Hide details" : "Show details")),
-      (0, import_react42.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: close }, t("Close")),
-      (0, import_react42.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm" + (continueSetup ? "" : " bt-computer-check"), onClick: check, disabled: busy }, t("Refresh status")),
-      continueSetup ? (0, import_react42.createElement)("button", {
+      managing ? null : (0, import_react43.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", "aria-expanded": details, onClick: toggleDetails }, t(details ? "Hide details" : "Show details")),
+      (0, import_react43.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: close }, t("Close")),
+      (0, import_react43.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm" + (continueSetup ? "" : " bt-computer-check"), onClick: check, disabled: busy }, t("Refresh status")),
+      continueSetup ? (0, import_react43.createElement)("button", {
         type: "button",
         className: "bt-soft bt-soft-sm bt-computer-check",
         onClick: continueSetup,
@@ -16875,22 +21261,25 @@ function SetupDialog({ close, leaving, returnFocus, steps, managing, details, to
 }
 function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onContinue }) {
   const bridge = globalThis.window?.dsBotApp?.computer;
-  const [stage, setStage] = (0, import_react42.useState)(null);
-  const [idle, setIdle] = (0, import_react42.useState)("");
-  const [settings, setSettings] = (0, import_react42.useState)(null);
-  const [instances, setInstances] = (0, import_react42.useState)(null);
+  const [stage, setStage] = (0, import_react43.useState)(null);
+  const [idle, setIdle] = (0, import_react43.useState)("");
+  const [settings, setSettings] = (0, import_react43.useState)(null);
+  const [instances, setInstances] = (0, import_react43.useState)(null);
   const botIds = JSON.stringify(bots.map((bot) => bot.id).sort());
-  const [busy, setBusy] = (0, import_react42.useState)("");
-  const [notice, setNotice] = (0, import_react42.useState)("");
-  const [error, setError] = (0, import_react42.useState)("");
-  const [preview, setPreview] = (0, import_react42.useState)(null);
-  const [setupFrame, setSetupFrame] = (0, import_react42.useState)(null);
-  const [checkBot, setCheckBot] = (0, import_react42.useState)("");
-  const [open, setOpen] = (0, import_react42.useState)(privateSetup ? "setup" : null);
-  const [details, setDetails] = (0, import_react42.useState)(false);
-  const setupButton = (0, import_react42.useRef)(null);
+  const [busy, setBusy] = (0, import_react43.useState)("");
+  const [progress, setProgress] = (0, import_react43.useState)(null);
+  const [elapsed, setElapsed] = (0, import_react43.useState)(0);
+  const operation = (0, import_react43.useRef)(null);
+  const [notice, setNotice] = (0, import_react43.useState)("");
+  const [error, setError] = (0, import_react43.useState)("");
+  const [preview, setPreview] = (0, import_react43.useState)(null);
+  const [setupFrame, setSetupFrame] = (0, import_react43.useState)(null);
+  const [checkBot, setCheckBot] = (0, import_react43.useState)("");
+  const [open, setOpen] = (0, import_react43.useState)(privateSetup ? "setup" : null);
+  const [details, setDetails] = (0, import_react43.useState)(false);
+  const setupButton = (0, import_react43.useRef)(null);
   const [shown, leaving] = useLinger(open, 160);
-  (0, import_react42.useEffect)(() => {
+  (0, import_react43.useEffect)(() => {
     if (!bridge?.settings) return void 0;
     let active = true;
     const report = (failure) => {
@@ -16909,7 +21298,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       active = false;
     };
   }, [bridge, botIds]);
-  (0, import_react42.useEffect)(() => {
+  (0, import_react43.useEffect)(() => {
     if (!bridge?.settings || busy || stage !== "install" && stage !== "start") return void 0;
     let active = true;
     let timer;
@@ -16933,14 +21322,28 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       clearTimeout(timer);
     };
   }, [bridge, botIds, busy, stage]);
+  (0, import_react43.useEffect)(() => bridge?.onProgress?.((value) => {
+    if (value.id === operation.current && Object.hasOwn(PHASES, value.phase)) setProgress(value);
+  }), [bridge]);
+  (0, import_react43.useEffect)(() => {
+    if (!busy) return void 0;
+    const started = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1e3)), 1e3);
+    return () => clearInterval(timer);
+  }, [busy]);
   if (!bridge?.settings) return null;
   async function run2(op, action, success) {
+    if (operation.current) return;
+    const id = globalThis.crypto.randomUUID();
+    operation.current = id;
     setBusy(op);
+    setProgress(null);
+    setElapsed(0);
     setError("");
     setNotice("");
     setPreview(null);
     try {
-      if (await action() && success) setNotice(success);
+      if (await action(id) && success) setNotice(success);
     } catch (failure) {
       if (op !== "check") {
         try {
@@ -16950,10 +21353,11 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       }
       setError(computerError(failure));
     } finally {
+      operation.current = null;
       setBusy("");
     }
   }
-  const button = (label, action, disabled = !!busy) => (0, import_react42.createElement)("button", { className: "bt-soft bt-soft-sm", type: "button", disabled, onClick: action }, t(label));
+  const button = (label, action, disabled = !!busy) => (0, import_react43.createElement)("button", { className: "bt-soft bt-soft-sm", type: "button", disabled, onClick: action }, t(label));
   function applyStatus(result) {
     setStage(result.stage);
     setInstances(result.instances);
@@ -16991,8 +21395,8 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
   }
   function prepare(rebuild) {
     setSetupFrame(null);
-    void run2("prepare", async () => {
-      if (!await bridge.setup(rebuild)) return false;
+    void run2("prepare", async (id) => {
+      if (!await bridge.setup(rebuild, id)) return false;
       await recheck();
       return true;
     });
@@ -17015,15 +21419,15 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
     }, "The private desktop was deleted.");
   }
   function start(instance, restart) {
-    void run2("desktop", async () => {
-      if (!await bridge.settings(restart ? "restart-instance" : "start-instance", instance.scope === null ? null : instance.botId)) return false;
+    void run2("desktop", async (id) => {
+      if (!await bridge.settings(restart ? "restart-instance" : "start-instance", instance.scope === null ? null : instance.botId, id)) return false;
       await recheck();
       return true;
     }, "The private desktop is running.");
   }
   function createDesktop() {
-    void run2("create", async () => {
-      const image = await bridge.settings("start-instance", startupBot?.id ?? null);
+    void run2("create", async (id) => {
+      const image = await bridge.settings("start-instance", startupBot?.id ?? null, id);
       const result = await readStatus(bridge, botIds);
       applyStatus(result);
       const instance = result.instances?.find((instance2) => (instance2.botId ?? instance2.scope) === setupScope && instance2.running);
@@ -17032,7 +21436,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       return true;
     });
   }
-  const selectStartupBot = () => perBot && startupBot ? (0, import_react42.createElement)("select", {
+  const selectStartupBot = () => perBot && startupBot ? (0, import_react43.createElement)("select", {
     className: "bt-select",
     "aria-label": t("Bot for startup check"),
     value: startupBot.id,
@@ -17042,7 +21446,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       setPreview(null);
       setSetupFrame(null);
     }
-  }, bots.map((bot) => (0, import_react42.createElement)("option", { key: bot.id, value: bot.id }, bot.name))) : null;
+  }, bots.map((bot) => (0, import_react43.createElement)("option", { key: bot.id, value: bot.id }, bot.name))) : null;
   function viewScreen(scope, operator, label) {
     if (preview?.scope === scope) {
       setPreview(null);
@@ -17054,7 +21458,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       return true;
     }, scope === "startup" ? "The private desktop started and returned a screenshot." : void 0);
   }
-  const previewImage = (frame) => (0, import_react42.createElement)("img", {
+  const previewImage = (frame) => (0, import_react43.createElement)("img", {
     className: "bt-computer-settings-preview",
     alt: frame.label,
     src: `data:${frame.image.mediaType};base64,${frame.image.data}`
@@ -17065,7 +21469,18 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
   const invalid = idle === "" || !Number.isSafeInteger(minutes) || minutes < 0 || minutes > 1440;
   const setupScope = startupBot?.id ?? null;
   const setupInstance = instances?.find((instance) => (instance.botId ?? instance.scope) === setupScope);
-  const setupReady = prepared && Boolean(setupInstance?.running);
+  const setupReady = prepared && Boolean(setupInstance?.running && setupFrame?.id === setupInstance.id);
+  const progressView = (fallback) => {
+    const label = t(PHASES[progress?.phase] ?? fallback);
+    const { step, total } = progress?.detail ?? {};
+    return (0, import_react43.createElement)(
+      "div",
+      { className: "bt-computer-progress" },
+      (0, import_react43.createElement)("div", { role: "status" }, label, step && total ? ` ${step}/${total}` : ""),
+      (0, import_react43.createElement)("time", null, `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`),
+      (0, import_react43.createElement)("progress", { "aria-label": label, ...step && total ? { value: step, max: total } : {} })
+    );
+  };
   const canManage = prepared && Boolean(instances?.length);
   const steps = [
     {
@@ -17087,37 +21502,38 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       label: "Desktop preparation",
       done: prepared,
       action: runtimeRunning && !prepared ? button(stage === "rebuild" ? "Rebuild desktop" : "Prepare desktop", () => prepare(stage === "rebuild")) : null,
-      hint: stage === "prepare" ? "The first setup may take several minutes." : void 0
+      hint: stage === "prepare" && busy !== "prepare" ? "The first setup may take several minutes." : void 0,
+      extra: busy === "prepare" ? progressView("Preparing the private desktop…") : null
     },
     {
       label: "Start the private desktop",
       done: setupReady,
       hint: prepared && perBot && !startupBot ? "Add a Bot to check its private desktop." : void 0,
-      action: prepared && !setupReady ? (0, import_react42.createElement)(
-        import_react42.Fragment,
+      action: prepared && !setupReady ? (0, import_react43.createElement)(
+        import_react43.Fragment,
         null,
         selectStartupBot(),
         button(setupInstance?.id ? "Start desktop" : "Create desktop", createDesktop, !!busy || perBot && !startupBot)
       ) : null,
-      extra: setupReady && setupFrame?.id === setupInstance.id ? previewImage(setupFrame) : null
+      extra: busy === "create" ? progressView("Loading desktop…") : setupReady ? previewImage(setupFrame) : null
     }
   ];
-  const feedback = busy || notice || error ? (0, import_react42.createElement)(
+  const feedback = busy || notice || error ? (0, import_react43.createElement)(
     "div",
     { className: "bt-computer-feedback" },
-    busy || notice ? (0, import_react42.createElement)("span", { className: "bt-muted", role: "status" }, t(busy === "prepare" ? "Preparing the private desktop…" : busy === "start" && podman ? "Starting the Podman machine…" : busy === "create" ? "Loading desktop…" : busy ? "Working…" : notice)) : null,
-    error ? (0, import_react42.createElement)("p", { className: "bt-error", role: "alert" }, error) : null
+    busy === "desktop" || (busy === "prepare" || busy === "create") && shown === "manage" ? progressView("Loading desktop…") : busy === "prepare" || busy === "create" ? null : busy || notice ? (0, import_react43.createElement)("span", { className: "bt-muted", role: "status" }, t(busy === "start" && podman ? "Starting the Podman machine…" : busy ? "Working…" : notice)) : null,
+    error ? (0, import_react43.createElement)("p", { className: "bt-error", role: "alert" }, error) : null
   ) : null;
-  const management = (0, import_react42.createElement)(
+  const management = (0, import_react43.createElement)(
     Section,
     { title: t("Private desktop"), className: "bt-computer-setup-details" },
-    stage === "install" ? (0, import_react42.createElement)(
+    stage === "install" ? (0, import_react43.createElement)(
       Row3,
       { label: t("Install from PowerShell"), hint: t("If WinGet is unavailable, use the installation guide.") },
-      (0, import_react42.createElement)("code", { className: "bt-computer-install-command" }, installCommand),
+      (0, import_react43.createElement)("code", { className: "bt-computer-install-command" }, installCommand),
       button("Copy", copyInstallCommand)
     ) : null,
-    (0, import_react42.createElement)(
+    (0, import_react43.createElement)(
       Row3,
       { label: t("Startup check"), hint: prepared && perBot && !startupBot ? t("Add a Bot to check its private desktop.") : void 0 },
       prepared ? selectStartupBot() : null,
@@ -17128,29 +21544,29 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
       )
     ),
     previewFor("startup"),
-    (0, import_react42.createElement)(
+    (0, import_react43.createElement)(
       Row3,
       { label: t("Running desktops") },
-      (0, import_react42.createElement)("span", { className: "bt-muted" }, running ?? "—"),
+      (0, import_react43.createElement)("span", { className: "bt-muted" }, running ?? "—"),
       button("Stop desktops", () => stop(), !!busy || !running)
     ),
     visibleInstances?.map((instance) => {
       const canStart = prepared && (instance.scope === null ? settings?.privateMode === "shared" : settings?.privateMode === "per-bot" && instance.botId);
       const name = instance.scope === null ? t("Shared private desktop") : bots.find((bot) => bot.id === instance.botId)?.name ?? t("Former Bot");
-      return (0, import_react42.createElement)(
-        import_react42.Fragment,
+      return (0, import_react43.createElement)(
+        import_react43.Fragment,
         { key: instance.scope ?? "shared" },
-        (0, import_react42.createElement)(
+        (0, import_react43.createElement)(
           Row3,
           { className: "bt-computer-instance", label: name },
-          (0, import_react42.createElement)("span", { className: "bt-muted" }, t(instance.running ? "Desktop running" : "Desktop stopped")),
+          (0, import_react43.createElement)("span", { className: "bt-muted" }, t(instance.running ? "Desktop running" : "Desktop stopped")),
           instance.running ? button("Stop this desktop", () => stop(instance)) : null,
           canStart ? button(instance.running ? "Restart desktop" : "Start desktop", () => start(instance, instance.running)) : null,
           instance.running && prepared && (instance.scope === null || instance.botId) ? button(
             preview?.scope === instance.scope ? "Hide screenshot" : "View screen",
             () => viewScreen(instance.scope, instance.botId ?? null, name)
           ) : null,
-          instance.id ? (0, import_react42.createElement)("button", {
+          instance.id ? (0, import_react43.createElement)("button", {
             type: "button",
             className: "bt-soft bt-soft-sm bt-danger",
             disabled: !!busy,
@@ -17161,13 +21577,13 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
         previewFor(instance.scope)
       );
     }),
-    (0, import_react42.createElement)(
+    (0, import_react43.createElement)(
       Row3,
       { label: t("Desktop isolation"), hint: t("Each Bot can have its own desktop, workspace, and browser profile.") },
-      (0, import_react42.createElement)(
+      (0, import_react43.createElement)(
         Segmented,
         { className: "bt-computer-isolation", label: t("Desktop isolation"), value: settings?.privateMode ?? "shared" },
-        [["shared", "Shared desktop"], ["per-bot", "Desktop per Bot"]].map(([mode, label]) => (0, import_react42.createElement)("button", {
+        [["shared", "Shared desktop"], ["per-bot", "Desktop per Bot"]].map(([mode, label]) => (0, import_react43.createElement)("button", {
           key: mode,
           type: "button",
           "aria-pressed": (settings?.privateMode ?? "shared") === mode,
@@ -17178,10 +21594,10 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
         }, t(label)))
       )
     ),
-    settings?.privateMode === "per-bot" ? (0, import_react42.createElement)(Row3, {
+    settings?.privateMode === "per-bot" ? (0, import_react43.createElement)(Row3, {
       label: t("Maximum running desktops"),
       hint: t("Stopped desktops keep their workspace and browser profile.")
-    }, (0, import_react42.createElement)(
+    }, (0, import_react43.createElement)(
       "select",
       {
         className: "bt-select",
@@ -17191,12 +21607,12 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
         disabled: !!busy,
         onChange: (event) => savePolicy(settings.privateMode, Number(event.target.value))
       },
-      Array.from({ length: 8 }, (_, index) => (0, import_react42.createElement)("option", { key: index + 1, value: index + 1 }, index + 1))
+      Array.from({ length: 8 }, (_, index) => (0, import_react43.createElement)("option", { key: index + 1, value: index + 1 }, index + 1))
     )) : null,
-    (0, import_react42.createElement)(
+    (0, import_react43.createElement)(
       Row3,
       { label: t("Stop when idle"), hint: t("Minutes. Set to 0 to keep the desktop running.") },
-      (0, import_react42.createElement)("input", {
+      (0, import_react43.createElement)("input", {
         type: "number",
         className: "bt-select",
         min: 0,
@@ -17214,20 +21630,20 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
         return true;
       }, "Saved"), !!busy || !settings || invalid || minutes === settings.idleMinutes)
     ),
-    prepared ? (0, import_react42.createElement)(Row3, { label: t("Desktop preparation") }, button("Rebuild desktop", () => prepare(true))) : null,
-    (0, import_react42.createElement)(
+    prepared ? (0, import_react43.createElement)(Row3, { label: t("Desktop preparation") }, button("Rebuild desktop", () => prepare(true))) : null,
+    (0, import_react43.createElement)(
       Row3,
       { label: t("Desktop isolation details"), hint: t("No host folders or ports are shared. The desktop can only access its own network loopback.") },
-      (0, import_react42.createElement)("code", { className: "bt-computer-install-command", title: t("Persistent workspace inside the desktop") }, "/home/cua/workspace")
+      (0, import_react43.createElement)("code", { className: "bt-computer-install-command", title: t("Persistent workspace inside the desktop") }, "/home/cua/workspace")
     )
   );
-  return (0, import_react42.createElement)(
+  return (0, import_react43.createElement)(
     Section,
     { title: t("Private desktop"), className: "bt-computer-settings" },
-    (0, import_react42.createElement)(
+    (0, import_react43.createElement)(
       Row3,
       { label: stage === null ? "—" : t(canManage ? "Ready" : "Not set up") },
-      (0, import_react42.createElement)("button", {
+      (0, import_react43.createElement)("button", {
         ref: setupButton,
         type: "button",
         className: "bt-soft bt-soft-sm",
@@ -17239,7 +21655,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
         }
       }, t(canManage ? "Manage" : "Set up"))
     ),
-    shown ? (0, import_react42.createElement)(SetupDialog, {
+    shown ? (0, import_react43.createElement)(SetupDialog, {
       close: () => setOpen(null),
       leaving,
       returnFocus: setupButton,
@@ -17261,7 +21677,7 @@ async function readStatus(bridge, botIds) {
 }
 
 // src/client/browser-settings.js
-var import_react43 = require("react");
+var import_react44 = require("react");
 var ACTIONS = [["post", "Post"], ["upload", "Upload"], ["download", "Download"], ["delete", "Delete"]];
 var DURATIONS = [["hour", "1 hour"], ["today", "Today"], ["week", "7 days"], ["permanent", "Permanent"]];
 var expired = (grant) => Number.isFinite(grant.until) && grant.until <= Date.now();
@@ -17280,13 +21696,13 @@ function grantKinds(grant) {
 }
 function BrowserPage({ roster, actions, run: run2, Section, Row: Row3, privateSetup = false, onPrivateContinue }) {
   const bots = roster.bots ?? [];
-  const [botId, setBotId] = (0, import_react43.useState)(bots[0]?.id ?? "");
-  const [site, setSite] = (0, import_react43.useState)("");
-  const [kinds, setKinds] = (0, import_react43.useState)(["post"]);
-  const [duration, setDuration] = (0, import_react43.useState)("hour");
-  const [busy, setBusy] = (0, import_react43.useState)(false);
+  const [botId, setBotId] = (0, import_react44.useState)(bots[0]?.id ?? "");
+  const [site, setSite] = (0, import_react44.useState)("");
+  const [kinds, setKinds] = (0, import_react44.useState)(["post"]);
+  const [duration, setDuration] = (0, import_react44.useState)("hour");
+  const [busy, setBusy] = (0, import_react44.useState)(false);
   const selectedBot = bots.find((bot) => bot.id === botId);
-  (0, import_react43.useEffect)(() => {
+  (0, import_react44.useEffect)(() => {
     if (!bots.some((bot) => bot.id === botId)) setBotId(bots[0]?.id ?? "");
   }, [bots, botId]);
   const grants = bots.flatMap((bot) => (bot.browserGrants ?? []).map((grant, index) => ({
@@ -17319,38 +21735,38 @@ function BrowserPage({ roster, actions, run: run2, Section, Row: Row3, privateSe
   const toggleKind = (kind, checked) => {
     setKinds((current) => checked ? current.includes(kind) ? current : [...current, kind] : current.filter((value) => value !== kind));
   };
-  return (0, import_react43.createElement)(
+  return (0, import_react44.createElement)(
     "div",
     { className: "bt-browser-settings" },
-    (0, import_react43.createElement)(ComputerSettings, { key: Number(privateSetup), Section, Row: Row3, bots, privateSetup, onContinue: onPrivateContinue }),
-    (0, import_react43.createElement)(
+    (0, import_react44.createElement)(ComputerSettings, { key: Number(privateSetup), Section, Row: Row3, bots, privateSetup, onContinue: onPrivateContinue }),
+    (0, import_react44.createElement)(
       Section,
       { title: t("Browser access") },
-      (0, import_react43.createElement)("p", { className: "bt-browser-note" }, t("Bots browse, click and fill in forms freely. Posting, uploading, downloading and deleting ask you first unless you allow them here. Payments are always yours: the Bot hands the page to you."))
+      (0, import_react44.createElement)("p", { className: "bt-browser-note" }, t("Bots browse, click and fill in forms freely. Posting, uploading, downloading and deleting ask you first unless you allow them here. Payments are always yours: the Bot hands the page to you."))
     ),
-    (0, import_react43.createElement)(
+    (0, import_react44.createElement)(
       Section,
       { title: t("Allowed actions") },
-      grants.length === 0 ? (0, import_react43.createElement)(Row3, { label: t("Nothing allowed yet.") }) : grants.map(({ bot, grant, index, expired: expired2 }) => (0, import_react43.createElement)(
+      grants.length === 0 ? (0, import_react44.createElement)(Row3, { label: t("Nothing allowed yet.") }) : grants.map(({ bot, grant, index, expired: expired2 }) => (0, import_react44.createElement)(
         "div",
         {
           key: `${bot.id}:${index}`,
           className: `bt-browser-grant${expired2 ? " bt-browser-grant-expired" : ""}`
         },
-        (0, import_react43.createElement)(
+        (0, import_react44.createElement)(
           "div",
           { className: "bt-browser-grant-who" },
-          (0, import_react43.createElement)(BotAvatar, { bot, size: 28 }),
-          (0, import_react43.createElement)("span", null, bot.name)
+          (0, import_react44.createElement)(BotAvatar, { bot, size: 28 }),
+          (0, import_react44.createElement)("span", null, bot.name)
         ),
-        (0, import_react43.createElement)(
+        (0, import_react44.createElement)(
           "div",
           { className: "bt-browser-grant-meta" },
-          (0, import_react43.createElement)("span", { className: "bt-browser-grant-site" }, grant.site === "*" ? t("All sites") : grant.site),
-          (0, import_react43.createElement)("div", { className: "bt-browser-grant-kinds" }, grantKinds(grant).map((label) => (0, import_react43.createElement)("span", { key: label, className: "bt-chip" }, label))),
-          (0, import_react43.createElement)("span", { className: "bt-set-hint" }, grantTime(grant))
+          (0, import_react44.createElement)("span", { className: "bt-browser-grant-site" }, grant.site === "*" ? t("All sites") : grant.site),
+          (0, import_react44.createElement)("div", { className: "bt-browser-grant-kinds" }, grantKinds(grant).map((label) => (0, import_react44.createElement)("span", { key: label, className: "bt-chip" }, label))),
+          (0, import_react44.createElement)("span", { className: "bt-set-hint" }, grantTime(grant))
         ),
-        (0, import_react43.createElement)("button", {
+        (0, import_react44.createElement)("button", {
           type: "button",
           className: "bt-soft bt-soft-sm",
           onClick: () => remove(bot, index),
@@ -17358,25 +21774,25 @@ function BrowserPage({ roster, actions, run: run2, Section, Row: Row3, privateSe
         }, t("Remove grant"))
       ))
     ),
-    (0, import_react43.createElement)(
+    (0, import_react44.createElement)(
       Section,
       { title: t("Allow an action") },
-      (0, import_react43.createElement)(
+      (0, import_react44.createElement)(
         "form",
         { className: "bt-browser-form", onSubmit: add },
-        (0, import_react43.createElement)(
+        (0, import_react44.createElement)(
           Row3,
           { label: t("Bot") },
-          (0, import_react43.createElement)(
+          (0, import_react44.createElement)(
             "select",
             { className: "bt-select", value: botId, onChange: (event) => setBotId(event.target.value), disabled: bots.length === 0 },
-            bots.map((bot) => (0, import_react43.createElement)("option", { key: bot.id, value: bot.id }, bot.name))
+            bots.map((bot) => (0, import_react44.createElement)("option", { key: bot.id, value: bot.id }, bot.name))
           )
         ),
-        (0, import_react43.createElement)(
+        (0, import_react44.createElement)(
           Row3,
           { label: t("Site") },
-          (0, import_react43.createElement)("input", {
+          (0, import_react44.createElement)("input", {
             className: "bt-select bt-browser-site",
             type: "text",
             value: site,
@@ -17384,16 +21800,16 @@ function BrowserPage({ roster, actions, run: run2, Section, Row: Row3, privateSe
             onChange: (event) => setSite(event.target.value)
           })
         ),
-        (0, import_react43.createElement)(
+        (0, import_react44.createElement)(
           Row3,
           { label: t("Actions") },
-          (0, import_react43.createElement)(
+          (0, import_react44.createElement)(
             "div",
             { className: "bt-browser-action-list" },
-            ACTIONS.map(([kind, label]) => (0, import_react43.createElement)(
+            ACTIONS.map(([kind, label]) => (0, import_react44.createElement)(
               "label",
               { key: kind, className: "bt-browser-action-choice" },
-              (0, import_react43.createElement)("input", {
+              (0, import_react44.createElement)("input", {
                 type: "checkbox",
                 checked: kinds.includes(kind),
                 onChange: (event) => toggleKind(kind, event.target.checked)
@@ -17402,13 +21818,13 @@ function BrowserPage({ roster, actions, run: run2, Section, Row: Row3, privateSe
             ))
           )
         ),
-        (0, import_react43.createElement)(
+        (0, import_react44.createElement)(
           Row3,
           { label: t("Duration") },
-          (0, import_react43.createElement)(
+          (0, import_react44.createElement)(
             "div",
             { className: "bt-browser-duration", role: "group", "aria-label": t("Duration") },
-            DURATIONS.map(([key, label]) => (0, import_react43.createElement)("button", {
+            DURATIONS.map(([key, label]) => (0, import_react44.createElement)("button", {
               key,
               type: "button",
               className: "bt-browser-duration-choice",
@@ -17417,10 +21833,10 @@ function BrowserPage({ roster, actions, run: run2, Section, Row: Row3, privateSe
             }, t(label)))
           )
         ),
-        (0, import_react43.createElement)(
+        (0, import_react44.createElement)(
           "div",
           { className: "bt-browser-form-foot" },
-          (0, import_react43.createElement)("button", {
+          (0, import_react44.createElement)("button", {
             type: "submit",
             className: "bt-soft",
             disabled: busy || !selectedBot || kinds.length === 0
@@ -17432,12 +21848,12 @@ function BrowserPage({ roster, actions, run: run2, Section, Row: Row3, privateSe
 }
 
 // src/client/feedback.js
-var import_react44 = require("react");
-var FeedbackIcon = () => (0, import_react44.createElement)(
+var import_react45 = require("react");
+var FeedbackIcon = () => (0, import_react45.createElement)(
   "svg",
   { width: 15, height: 15, viewBox: "0 0 20 20", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true },
-  (0, import_react44.createElement)("path", { d: "M4 4.5h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H9l-3.5 3v-3H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z" }),
-  (0, import_react44.createElement)("path", { d: "M10 7v2.6M10 11.4h.01" })
+  (0, import_react45.createElement)("path", { d: "M4 4.5h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H9l-3.5 3v-3H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z" }),
+  (0, import_react45.createElement)("path", { d: "M10 7v2.6M10 11.4h.01" })
 );
 function download(name, text) {
   const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
@@ -17475,16 +21891,16 @@ function issueWindow() {
   };
 }
 function FeedbackPage({ actions, run: run2, Section, Row: Row3 }) {
-  const [what, setWhat] = (0, import_react44.useState)("");
-  const [report, setReport] = (0, import_react44.useState)(null);
-  const [preview, setPreview] = (0, import_react44.useState)(false);
-  const [note, setNote] = (0, import_react44.useState)("");
+  const [what, setWhat] = (0, import_react45.useState)("");
+  const [report, setReport] = (0, import_react45.useState)(null);
+  const [preview, setPreview] = (0, import_react45.useState)(false);
+  const [note, setNote] = (0, import_react45.useState)("");
   const fetchReport = () => actions.diagnostics({ client: clientFacts(), clientErrors: clientErrors() }).then((next) => {
     setReport(next);
     return next;
   });
   const load = () => fetchReport().then(() => void 0);
-  (0, import_react44.useEffect)(() => {
+  (0, import_react45.useEffect)(() => {
     void run2(load());
   }, []);
   const copyReport = () => run2(fetchReport().then(async (next) => {
@@ -17492,7 +21908,7 @@ function FeedbackPage({ actions, run: run2, Section, Row: Row3 }) {
     setNote(copied ? t("Copied the diagnostics.") : t("Could not copy. Select the text below and copy it."));
     if (!copied) setPreview(true);
   }));
-  const [issueLink, setIssueLink] = (0, import_react44.useState)(null);
+  const [issueLink, setIssueLink] = (0, import_react45.useState)(null);
   const openIssue = () => {
     const target = issueWindow();
     run2(fetchReport().then(async (next) => {
@@ -17518,59 +21934,59 @@ function FeedbackPage({ actions, run: run2, Section, Row: Row3 }) {
   const total = (report?.total ?? 0) + browserErrors.length;
   const shown = entries2.slice(0, 8);
   return [
-    (0, import_react44.createElement)(
+    (0, import_react45.createElement)(
       Section,
       { key: "report", title: t("Report a problem") },
-      (0, import_react44.createElement)(
+      (0, import_react45.createElement)(
         "div",
         { className: "bt-set-row bt-set-paste bt-fb-what" },
-        (0, import_react44.createElement)(
+        (0, import_react45.createElement)(
           "label",
           { className: "bt-set-copy", htmlFor: "bt-fb-what" },
-          (0, import_react44.createElement)("span", null, t("What happened?")),
-          (0, import_react44.createElement)("span", { className: "bt-set-hint" }, t("What you did, what you expected, and what happened instead. It goes into the issue."))
+          (0, import_react45.createElement)("span", null, t("What happened?")),
+          (0, import_react45.createElement)("span", { className: "bt-set-hint" }, t("What you did, what you expected, and what happened instead. It goes into the issue."))
         ),
-        (0, import_react44.createElement)("textarea", { id: "bt-fb-what", className: "bt-input bt-input-area", value: what, maxLength: WHAT_MAX, placeholder: t("For example: I asked Writer in the group chat and it showed an error."), onChange: (event) => setWhat(event.target.value) })
+        (0, import_react45.createElement)("textarea", { id: "bt-fb-what", className: "bt-input bt-input-area", value: what, maxLength: WHAT_MAX, placeholder: t("For example: I asked Writer in the group chat and it showed an error."), onChange: (event) => setWhat(event.target.value) })
       ),
-      (0, import_react44.createElement)(
+      (0, import_react45.createElement)(
         Row3,
         { label: t("Diagnostics"), hint: t("Versions, system, models, and the latest errors. Saved keys, tokens, and your home folder are hidden.") },
-        (0, import_react44.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => setPreview(!preview), "aria-expanded": preview }, preview ? t("Hide") : t("Show")),
-        (0, import_react44.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: copyReport }, t("Copy"))
+        (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => setPreview(!preview), "aria-expanded": preview }, preview ? t("Hide") : t("Show")),
+        (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: copyReport }, t("Copy"))
       ),
-      preview ? (0, import_react44.createElement)("div", { className: "bt-set-row bt-fb-preview" }, (0, import_react44.createElement)("pre", { tabIndex: 0, "aria-label": t("Diagnostics") }, report?.markdown || t("Loading…"))) : null,
-      (0, import_react44.createElement)(
+      preview ? (0, import_react45.createElement)("div", { className: "bt-set-row bt-fb-preview" }, (0, import_react45.createElement)("pre", { tabIndex: 0, "aria-label": t("Diagnostics") }, report?.markdown || t("Loading…"))) : null,
+      (0, import_react45.createElement)(
         Row3,
         { label: t("GitHub issue"), hint: t("Opens a new issue in the DS Bot repository with all of this filled in. Nothing is sent until you submit it there.") },
-        (0, import_react44.createElement)("button", { type: "button", className: "bt-fb-primary", onClick: openIssue }, t("Report on GitHub"))
+        (0, import_react45.createElement)("button", { type: "button", className: "bt-fb-primary", onClick: openIssue }, t("Report on GitHub"))
       )
     ),
-    note ? (0, import_react44.createElement)(
+    note ? (0, import_react45.createElement)(
       "div",
       { key: "note", className: "bt-note bt-fb-note", role: "status" },
       note,
-      issueLink ? [" ", (0, import_react44.createElement)("a", { key: "link", href: issueLink, target: "_blank", rel: "noopener noreferrer" }, t("Open the issue"))] : null
+      issueLink ? [" ", (0, import_react45.createElement)("a", { key: "link", href: issueLink, target: "_blank", rel: "noopener noreferrer" }, t("Open the issue"))] : null
     ) : null,
-    (0, import_react44.createElement)(
+    (0, import_react45.createElement)(
       Section,
       { key: "errors", title: report ? t("Recent errors · {count}", { count: total }) : t("Recent errors") },
-      shown.length === 0 ? (0, import_react44.createElement)(Row3, { label: t("No errors recorded."), hint: t("Failed model calls and DS Bot problems show here, newest first.") }) : shown.map((entry, index) => (0, import_react44.createElement)(
+      shown.length === 0 ? (0, import_react45.createElement)(Row3, { label: t("No errors recorded."), hint: t("Failed model calls and DS Bot problems show here, newest first.") }) : shown.map((entry, index) => (0, import_react45.createElement)(
         "div",
         { key: `${entry.time}-${index}`, className: "bt-set-row bt-fb-entry", title: entry.text },
-        (0, import_react44.createElement)("span", { className: "bt-fb-dot", "data-level": entry.level, "aria-hidden": true }),
-        (0, import_react44.createElement)(
+        (0, import_react45.createElement)("span", { className: "bt-fb-dot", "data-level": entry.level, "aria-hidden": true }),
+        (0, import_react45.createElement)(
           "div",
           { className: "bt-set-copy" },
-          (0, import_react44.createElement)("span", { className: "bt-fb-text" }, entrySummary(entry)),
-          (0, import_react44.createElement)("span", { className: "bt-set-hint" }, [whenText(entry.time), entry.bot, entry.where, t(SOURCES[entry.source] ?? "DS Bot")].filter(Boolean).join(" · "))
+          (0, import_react45.createElement)("span", { className: "bt-fb-text" }, entrySummary(entry)),
+          (0, import_react45.createElement)("span", { className: "bt-set-hint" }, [whenText(entry.time), entry.bot, entry.where, t(SOURCES[entry.source] ?? "DS Bot")].filter(Boolean).join(" · "))
         ),
-        entry.code ? (0, import_react44.createElement)("span", { className: "bt-tag bt-fb-code" }, entry.status ? `${entry.code} ${entry.status}` : entry.code) : null
+        entry.code ? (0, import_react45.createElement)("span", { className: "bt-tag bt-fb-code" }, entry.status ? `${entry.code} ${entry.status}` : entry.code) : null
       )),
-      (0, import_react44.createElement)(
+      (0, import_react45.createElement)(
         Row3,
         { label: t("Error log"), hint: t("Kept on this computer across restarts, up to about 1 MB.") },
-        (0, import_react44.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: downloadLog }, t("Download")),
-        (0, import_react44.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: clearLog, disabled: !report || total === 0 }, t("Clear"))
+        (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: downloadLog }, t("Download")),
+        (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: clearLog, disabled: !report || total === 0 }, t("Clear"))
       )
     )
   ];
@@ -17578,8 +21994,8 @@ function FeedbackPage({ actions, run: run2, Section, Row: Row3 }) {
 var TOAST_MS = 6e3;
 function ErrorToast({ useUi, actions }) {
   const toast = useUi((state) => state.toast);
-  const [leaving, setLeaving] = (0, import_react44.useState)(false);
-  (0, import_react44.useEffect)(() => {
+  const [leaving, setLeaving] = (0, import_react45.useState)(false);
+  (0, import_react45.useEffect)(() => {
     if (!toast) return void 0;
     setLeaving(false);
     const fade = setTimeout(() => setLeaving(true), TOAST_MS);
@@ -17590,15 +22006,15 @@ function ErrorToast({ useUi, actions }) {
     };
   }, [toast?.token]);
   if (!toast) return null;
-  return (0, import_react44.createElement)(
+  return (0, import_react45.createElement)(
     "div",
     { className: "bt-toast", role: "alert", "data-leaving": leaving || void 0 },
-    (0, import_react44.createElement)("span", { className: "bt-toast-text" }, toast.text),
-    (0, import_react44.createElement)("button", { type: "button", className: "bt-toast-link", onClick: () => {
+    (0, import_react45.createElement)("span", { className: "bt-toast-text" }, toast.text),
+    (0, import_react45.createElement)("button", { type: "button", className: "bt-toast-link", onClick: () => {
       actions.dismissToast(toast.token);
       actions.openSettings("feedback");
     } }, t("Details")),
-    (0, import_react44.createElement)("button", { type: "button", className: "bt-icon-btn bt-toast-close", "aria-label": t("Dismiss"), onClick: () => actions.dismissToast(toast.token) }, (0, import_react44.createElement)(CloseIcon))
+    (0, import_react45.createElement)("button", { type: "button", className: "bt-icon-btn bt-toast-close", "aria-label": t("Dismiss"), onClick: () => actions.dismissToast(toast.token) }, (0, import_react45.createElement)(CloseIcon))
   );
 }
 var FEEDBACK_CSS = `
@@ -17630,7 +22046,7 @@ var FEEDBACK_CSS = `
 `;
 
 // src/client/about.js
-var import_react45 = require("react");
+var import_react46 = require("react");
 var CHEER_MS = 1800;
 var starCount = (count) => new Intl.NumberFormat(dateLocale(), { notation: "compact", maximumFractionDigits: 1 }).format(count);
 function botHint(update) {
@@ -17680,10 +22096,10 @@ function dshHint(dsh, shown) {
 var linkProps = (href) => ({ className: "bt-soft bt-soft-sm bt-about-link", href, target: "_blank", rel: "noopener noreferrer" });
 function AboutPage({ useUpdate, actions, run: run2, Section, Row: Row3, updatesOnly = false }) {
   const update = useUpdate((value) => value) ?? {};
-  const [checking, setChecking] = (0, import_react45.useState)(false);
-  const [stars, setStars] = (0, import_react45.useState)(null);
-  const [repair, setRepair] = (0, import_react45.useState)(null);
-  (0, import_react45.useEffect)(() => {
+  const [checking, setChecking] = (0, import_react46.useState)(false);
+  const [stars, setStars] = (0, import_react46.useState)(null);
+  const [repair, setRepair] = (0, import_react46.useState)(null);
+  (0, import_react46.useEffect)(() => {
     let live = true;
     if (!updatesOnly) actions.repoStars().then((count) => {
       if (live && Number.isInteger(count)) setStars(count);
@@ -17693,8 +22109,8 @@ function AboutPage({ useUpdate, actions, run: run2, Section, Row: Row3, updatesO
       live = false;
     };
   }, []);
-  const [cheer, setCheer] = (0, import_react45.useState)(true);
-  (0, import_react45.useEffect)(() => {
+  const [cheer, setCheer] = (0, import_react46.useState)(true);
+  (0, import_react46.useEffect)(() => {
     if (!cheer) return void 0;
     const timer = setTimeout(() => setCheer(false), CHEER_MS);
     return () => clearTimeout(timer);
@@ -17709,37 +22125,37 @@ function AboutPage({ useUpdate, actions, run: run2, Section, Row: Row3, updatesO
   const phase = update.phase ?? "idle";
   const dsh = update.dsh;
   const dshPhase = dsh?.phase ?? "idle";
-  (0, import_react45.useEffect)(() => {
+  (0, import_react46.useEffect)(() => {
     if (phase === "installed" || phase === "updated" || dshPhase === "installed") setCheer(true);
   }, [phase, dshPhase]);
   const markState = checking ? "searching" : phase === "installing" || dshPhase === "installing" ? "working" : cheer ? "done" : "idle";
   const dshNew = showsDshRow(dsh, update.app);
   const dshShown = dshNew && dsh.available;
   const ownRow = update.source === "app" ? ownAppRow(update.ownApp) : null;
-  const ownControl = ownRow?.button === "restart" ? (0, import_react45.createElement)("button", { type: "button", className: "bt-fb-primary", onClick: () => run2(actions.installOwnApp()) }, t("Restart to update")) : ownRow?.button === "check" ? (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.checkOwnApp()) }, t("Check for updates")) : ownRow?.button === "open" ? (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.openOwnApp()) }, t("Download")) : null;
-  const botControl = ownRow !== null ? ownControl : phase === "installed" || phase === "updated" || update.source === "app" ? null : update.available || phase === "installing" ? (0, import_react45.createElement)(
+  const ownControl = ownRow?.button === "restart" ? (0, import_react46.createElement)("button", { type: "button", className: "bt-fb-primary", onClick: () => run2(actions.installOwnApp()) }, t("Restart to update")) : ownRow?.button === "check" ? (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.checkOwnApp()) }, t("Check for updates")) : ownRow?.button === "open" ? (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.openOwnApp()) }, t("Download")) : null;
+  const botControl = ownRow !== null ? ownControl : phase === "installed" || phase === "updated" || update.source === "app" ? null : update.available || phase === "installing" ? (0, import_react46.createElement)(
     "button",
     { type: "button", className: "bt-fb-primary", disabled: phase === "installing", onClick: () => run2(actions.installUpdate({ targetId: update.targetId })) },
     phase === "installing" ? t("Updating…") : phase === "failed" ? t("Try again") : t("Update")
-  ) : (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: checking || update.enabled === false, onClick: check }, checking ? t("Checking…") : t("Check for updates"));
-  const dshControl = !dshNew || dshPhase === "installed" ? null : dsh.kind === "app" ? dsh.available ? (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.openAppUpdates(dsh.verified)) }, t("Open updates")) : null : dsh.available || dshPhase !== "idle" ? (0, import_react45.createElement)(
+  ) : (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: checking || update.enabled === false, onClick: check }, checking ? t("Checking…") : t("Check for updates"));
+  const dshControl = !dshNew || dshPhase === "installed" ? null : dsh.kind === "app" ? dsh.available ? (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.openAppUpdates(dsh.verified)) }, t("Open updates")) : null : dsh.available || dshPhase !== "idle" ? (0, import_react46.createElement)(
     "button",
     { type: "button", className: "bt-fb-primary", disabled: dshPhase === "installing", onClick: () => run2(actions.installDshUpdate()) },
     dshPhase === "installing" ? t("Updating…") : dshPhase === "failed" ? t("Try again") : t("Update")
   ) : null;
   const repo = update.repoUrl;
   return [
-    updatesOnly ? null : (0, import_react45.createElement)(
+    updatesOnly ? null : (0, import_react46.createElement)(
       "div",
       { key: "hero", className: "bt-about-hero" },
-      (0, import_react45.createElement)("span", { className: "bt-about-mark" }, (0, import_react45.createElement)(BotMark, { look: MAIN_LOOK, bot: { id: "about" }, size: 52, state: markState, live: true, gaze: true, pokeable: true })),
-      (0, import_react45.createElement)(
+      (0, import_react46.createElement)("span", { className: "bt-about-mark" }, (0, import_react46.createElement)(BotMark, { look: MAIN_LOOK, bot: { id: "about" }, size: 52, state: markState, live: true, gaze: true, pokeable: true })),
+      (0, import_react46.createElement)(
         "div",
         { className: "bt-about-copy" },
-        (0, import_react45.createElement)("span", { className: "bt-about-name" }, "DS Bot"),
-        update.current ? (0, import_react45.createElement)("span", { className: "bt-about-version" }, t("Version {version}", { version: update.current })) : null
+        (0, import_react46.createElement)("span", { className: "bt-about-name" }, "DS Bot"),
+        update.current ? (0, import_react46.createElement)("span", { className: "bt-about-version" }, t("Version {version}", { version: update.current })) : null
       ),
-      repo ? (0, import_react45.createElement)(
+      repo ? (0, import_react46.createElement)(
         "a",
         {
           className: "bt-star",
@@ -17749,46 +22165,46 @@ function AboutPage({ useUpdate, actions, run: run2, Section, Row: Row3, updatesO
           title: t("Star DS Bot on GitHub"),
           "aria-label": stars === null ? t("Star DS Bot on GitHub") : `${t("Star DS Bot on GitHub")} · ${t("{count} stars", { count: stars })}`
         },
-        (0, import_react45.createElement)("span", { className: "bt-star-main" }, (0, import_react45.createElement)("span", { className: "bt-star-icon" }, (0, import_react45.createElement)(StarLineIcon)), "Star"),
-        stars === null ? null : (0, import_react45.createElement)("span", { className: "bt-star-count" }, starCount(stars))
+        (0, import_react46.createElement)("span", { className: "bt-star-main" }, (0, import_react46.createElement)("span", { className: "bt-star-icon" }, (0, import_react46.createElement)(StarLineIcon)), "Star"),
+        stars === null ? null : (0, import_react46.createElement)("span", { className: "bt-star-count" }, starCount(stars))
       ) : null
     ),
-    repo && !updatesOnly ? (0, import_react45.createElement)("p", { key: "ask", className: "bt-about-ask" }, t("If DS Bot helps you, a star on GitHub helps more people find it.")) : null,
-    (0, import_react45.createElement)(
+    repo && !updatesOnly ? (0, import_react46.createElement)("p", { key: "ask", className: "bt-about-ask" }, t("If DS Bot helps you, a star on GitHub helps more people find it.")) : null,
+    (0, import_react46.createElement)(
       Section,
       { key: "updates", title: t("Updates") },
-      (0, import_react45.createElement)("p", { className: "bt-note" }, t("Updates come from this project’s releases. Your team and conversations are kept.")),
-      (0, import_react45.createElement)(
+      (0, import_react46.createElement)("p", { className: "bt-note" }, t("Updates come from this project’s releases. Your team and conversations are kept.")),
+      (0, import_react46.createElement)(
         Row3,
         { label: t("Installed version"), hint: `${update.current ?? ""}${update.currentRevision ? ` · r${update.currentRevision}` : ""}` },
-        update.phase !== "installing" && update.phase !== "installed" ? (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: checking || update.enabled === false, onClick: check }, checking ? t("Checking…") : t("Check for updates")) : null
+        update.phase !== "installing" && update.phase !== "installed" ? (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: checking || update.enabled === false, onClick: check }, checking ? t("Checking…") : t("Check for updates")) : null
       ),
-      (0, import_react45.createElement)(Row3, { label: "DS Bot", hint: ownRow?.hint ?? botHint(update) }, botControl, update.available && update.notesUrl ? (0, import_react45.createElement)("a", linkProps(update.notesUrl), t("What's new")) : null),
-      update.canRepair && !update.available && phase !== "installed" && phase !== "installing" ? (0, import_react45.createElement)(
+      (0, import_react46.createElement)(Row3, { label: "DS Bot", hint: ownRow?.hint ?? botHint(update) }, botControl, update.available && update.notesUrl ? (0, import_react46.createElement)("a", linkProps(update.notesUrl), t("What's new")) : null),
+      update.canRepair && !update.available && phase !== "installed" && phase !== "installing" ? (0, import_react46.createElement)(
         Row3,
         { label: t("Repair installation"), hint: t("Reinstall the latest release without removing your team or conversations.") },
-        (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => setRepair({ id: update.targetId, label: update.latestRef ?? update.latest }) }, t("Repair installation"))
+        (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => setRepair({ id: update.targetId, label: update.latestRef ?? update.latest }) }, t("Repair installation"))
       ) : null,
-      repair ? (0, import_react45.createElement)(
+      repair ? (0, import_react46.createElement)(
         "div",
         { role: "group", "aria-label": t("Repair installation") },
-        (0, import_react45.createElement)("p", { className: "bt-note" }, t("Reinstall DS Bot {version} from the latest release?", { version: repair.label })),
-        (0, import_react45.createElement)("button", { type: "button", className: "bt-fb-primary", disabled: phase === "installing", onClick: () => {
+        (0, import_react46.createElement)("p", { className: "bt-note" }, t("Reinstall DS Bot {version} from the latest release?", { version: repair.label })),
+        (0, import_react46.createElement)("button", { type: "button", className: "bt-fb-primary", disabled: phase === "installing", onClick: () => {
           const chosen = repair;
           setRepair(null);
           void run2(actions.installUpdate({ repair: true, targetId: chosen.id }));
         } }, t("Reinstall release")),
-        (0, import_react45.createElement)("button", { type: "button", className: "bt-soft", onClick: () => setRepair(null) }, t("Cancel"))
+        (0, import_react46.createElement)("button", { type: "button", className: "bt-soft", onClick: () => setRepair(null) }, t("Cancel"))
       ) : null,
-      phase === "installed" && !update.restartRequired ? (0, import_react45.createElement)("button", { type: "button", className: "bt-soft", onClick: () => window.location.reload() }, t("Reload window")) : null,
-      dsh?.current ? (0, import_react45.createElement)(Row3, { label: "DeepSeek Harness", hint: dshHint(dsh, dshShown) }, dshControl) : null
+      phase === "installed" && !update.restartRequired ? (0, import_react46.createElement)("button", { type: "button", className: "bt-soft", onClick: () => window.location.reload() }, t("Reload window")) : null,
+      dsh?.current ? (0, import_react46.createElement)(Row3, { label: "DeepSeek Harness", hint: dshHint(dsh, dshShown) }, dshControl) : null
     ),
-    updatesOnly ? null : (0, import_react45.createElement)(
+    updatesOnly ? null : (0, import_react46.createElement)(
       Section,
       { key: "links", title: t("Links") },
-      repo ? (0, import_react45.createElement)(Row3, { label: t("Source code"), hint: repo.replace(/^https:\/\//, "") }, (0, import_react45.createElement)("a", linkProps(repo), (0, import_react45.createElement)(GitHubMark), t("Open"))) : null,
-      update.notesUrl ? (0, import_react45.createElement)(Row3, { label: t("Release notes") }, (0, import_react45.createElement)("a", linkProps(update.notesUrl), t("Open"))) : null,
-      (0, import_react45.createElement)(Row3, { label: t("Report a problem") }, (0, import_react45.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => actions.openSettings("feedback") }, t("Open")))
+      repo ? (0, import_react46.createElement)(Row3, { label: t("Source code"), hint: repo.replace(/^https:\/\//, "") }, (0, import_react46.createElement)("a", linkProps(repo), (0, import_react46.createElement)(GitHubMark), t("Open"))) : null,
+      update.notesUrl ? (0, import_react46.createElement)(Row3, { label: t("Release notes") }, (0, import_react46.createElement)("a", linkProps(update.notesUrl), t("Open"))) : null,
+      (0, import_react46.createElement)(Row3, { label: t("Report a problem") }, (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => actions.openSettings("feedback") }, t("Open")))
     )
   ];
 }
@@ -17821,7 +22237,7 @@ body:not([data-bt-motion=quiet]) .bt-about-mark:hover .bt-mark[data-live][data-s
 `;
 
 // src/client/providers-page.js
-var import_react46 = require("react");
+var import_react47 = require("react");
 var PROTOCOL_NAMES = { "openai-completions": "OpenAI Chat Completions", "openai-responses": "OpenAI Responses", "anthropic-messages": "Anthropic Messages" };
 var ENDPOINT_HINTS = { "anthropic-messages": "https://gateway.example" };
 var SHOWN_MODELS = 8;
@@ -17829,22 +22245,22 @@ var translated = (promise) => Promise.resolve(promise).catch((failure) => {
   throw new Error(hostText(failure?.message ?? String(failure)));
 });
 function ProvidersPage({ actions, run: run2, Section }) {
-  const [view, setView] = (0, import_react46.useState)(null);
-  const [open, setOpen] = (0, import_react46.useState)(null);
-  const [adding, setAdding] = (0, import_react46.useState)(false);
+  const [view, setView] = (0, import_react47.useState)(null);
+  const [open, setOpen] = (0, import_react47.useState)(null);
+  const [adding, setAdding] = (0, import_react47.useState)(false);
   const apply2 = (promise) => run2(translated(promise).then((next) => {
     if (next?.providers) setView(next);
   }));
-  (0, import_react46.useEffect)(() => {
+  (0, import_react47.useEffect)(() => {
     void apply2(actions.providers());
   }, []);
   if (view === null) return null;
-  if (!view.available) return (0, import_react46.createElement)("p", { className: "bt-set-hint" }, t("This DSH cannot set up model providers."));
+  if (!view.available) return (0, import_react47.createElement)("p", { className: "bt-set-hint" }, t("This DSH cannot set up model providers."));
   return [
-    (0, import_react46.createElement)(
+    (0, import_react47.createElement)(
       Section,
       { key: "list", title: t("Model providers · {count}", { count: view.providers.length }) },
-      view.providers.map((provider) => (0, import_react46.createElement)(ProviderRow, {
+      view.providers.map((provider) => (0, import_react47.createElement)(ProviderRow, {
         key: provider.id,
         provider,
         apply: apply2,
@@ -17852,9 +22268,9 @@ function ProvidersPage({ actions, run: run2, Section }) {
         open: open === provider.id,
         onToggle: () => setOpen(open === provider.id ? null : provider.id)
       })),
-      adding ? (0, import_react46.createElement)(AddProvider, { key: "add", view, apply: apply2, actions, onDone: () => setAdding(false) }) : null
+      adding ? (0, import_react47.createElement)(AddProvider, { key: "add", view, apply: apply2, actions, onDone: () => setAdding(false) }) : null
     ),
-    adding ? null : (0, import_react46.createElement)("div", { key: "add", className: "bt-actions" }, (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => setAdding(true) }, t("Add a provider")))
+    adding ? null : (0, import_react47.createElement)("div", { key: "add", className: "bt-actions" }, (0, import_react47.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => setAdding(true) }, t("Add a provider")))
   ];
 }
 function keyState(key) {
@@ -17863,58 +22279,58 @@ function keyState(key) {
   return key.writable ? ["set", t("Key set")] : ["outside", t("Key set outside DS Bot")];
 }
 function ProviderRow({ provider, apply: apply2, actions, open, onToggle }) {
-  const [confirm, setConfirm] = (0, import_react46.useState)(false);
-  (0, import_react46.useEffect)(() => {
+  const [confirm, setConfirm] = (0, import_react47.useState)(false);
+  (0, import_react47.useEffect)(() => {
     if (!open) setConfirm(false);
   }, [open]);
   const state = keyState(provider.key);
   const shown = provider.models.slice(0, SHOWN_MODELS);
   const hint = provider.error ?? (provider.models.length === 0 ? t("No models") : t("{count} models", { count: provider.models.length }));
-  return (0, import_react46.createElement)(
+  return (0, import_react47.createElement)(
     "div",
     { className: "bt-secret-item bt-provider", "data-open": open ? "" : void 0 },
-    (0, import_react46.createElement)(
+    (0, import_react47.createElement)(
       "button",
       { type: "button", className: "bt-set-row bt-secret-summary", "aria-expanded": open, onClick: onToggle },
-      (0, import_react46.createElement)(
+      (0, import_react47.createElement)(
         "span",
         { className: "bt-set-copy" },
-        (0, import_react46.createElement)("span", { className: "bt-secret-title" }, provider.name, provider.name !== provider.id ? (0, import_react46.createElement)("span", { className: "bt-provider-id" }, provider.id) : null),
-        (0, import_react46.createElement)("span", { className: "bt-set-hint", "data-error": provider.error ? "" : void 0 }, hint)
+        (0, import_react47.createElement)("span", { className: "bt-secret-title" }, provider.name, provider.name !== provider.id ? (0, import_react47.createElement)("span", { className: "bt-provider-id" }, provider.id) : null),
+        (0, import_react47.createElement)("span", { className: "bt-set-hint", "data-error": provider.error ? "" : void 0 }, hint)
       ),
-      state ? (0, import_react46.createElement)("span", { className: "bt-set-control" }, (0, import_react46.createElement)("span", { className: "bt-provider-state", "data-state": state[0] }, state[1])) : null
+      state ? (0, import_react47.createElement)("span", { className: "bt-set-control" }, (0, import_react47.createElement)("span", { className: "bt-provider-state", "data-state": state[0] }, state[1])) : null
     ),
-    open ? (0, import_react46.createElement)(
+    open ? (0, import_react47.createElement)(
       "div",
       { className: "bt-secret-edit" },
-      provider.key?.writable ? (0, import_react46.createElement)(KeyEditor, { provider, apply: apply2, actions }) : null,
-      provider.key && !provider.key.writable ? (0, import_react46.createElement)("div", { className: "bt-set-hint" }, t("This key comes from outside DS Bot, such as an environment variable, and cannot be changed here.")) : null,
-      provider.models.length > 0 ? (0, import_react46.createElement)(
+      provider.key?.writable ? (0, import_react47.createElement)(KeyEditor, { provider, apply: apply2, actions }) : null,
+      provider.key && !provider.key.writable ? (0, import_react47.createElement)("div", { className: "bt-set-hint" }, t("This key comes from outside DS Bot, such as an environment variable, and cannot be changed here.")) : null,
+      provider.models.length > 0 ? (0, import_react47.createElement)(
         "div",
         { className: "bt-secret-edit-block" },
-        (0, import_react46.createElement)("div", { className: "bt-secret-edit-label" }, t("Models")),
-        (0, import_react46.createElement)(
+        (0, import_react47.createElement)("div", { className: "bt-secret-edit-label" }, t("Models")),
+        (0, import_react47.createElement)(
           "div",
           { className: "bt-provider-models" },
-          shown.map((model) => (0, import_react46.createElement)("span", { key: model.ref, className: "bt-tag", title: model.ref }, model.name)),
-          provider.models.length > shown.length ? (0, import_react46.createElement)("span", { className: "bt-set-hint" }, t("and {count} more", { count: provider.models.length - shown.length })) : null
+          shown.map((model) => (0, import_react47.createElement)("span", { key: model.ref, className: "bt-tag", title: model.ref }, model.name)),
+          provider.models.length > shown.length ? (0, import_react47.createElement)("span", { className: "bt-set-hint" }, t("and {count} more", { count: provider.models.length - shown.length })) : null
         )
       ) : null,
-      provider.removable ? (0, import_react46.createElement)(
+      provider.removable ? (0, import_react47.createElement)(
         "div",
         { className: "bt-secret-row-actions" },
         confirm ? [
-          (0, import_react46.createElement)("span", { key: "q", className: "bt-set-hint" }, t("Remove {name}? Bots on its models need another model.", { name: provider.name })),
-          (0, import_react46.createElement)("button", { key: "no", type: "button", className: "bt-soft bt-soft-sm", onClick: () => setConfirm(false) }, t("Keep")),
-          (0, import_react46.createElement)("button", { key: "yes", type: "button", className: "bt-soft bt-soft-sm bt-secret-danger", onClick: () => apply2(actions.removeProvider(provider.id)) }, t("Remove"))
-        ] : (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm bt-secret-danger", onClick: () => setConfirm(true) }, (0, import_react46.createElement)(TrashIcon), t("Remove provider"))
+          (0, import_react47.createElement)("span", { key: "q", className: "bt-set-hint" }, t("Remove {name}? Bots on its models need another model.", { name: provider.name })),
+          (0, import_react47.createElement)("button", { key: "no", type: "button", className: "bt-soft bt-soft-sm", onClick: () => setConfirm(false) }, t("Keep")),
+          (0, import_react47.createElement)("button", { key: "yes", type: "button", className: "bt-soft bt-soft-sm bt-secret-danger", onClick: () => apply2(actions.removeProvider(provider.id)) }, t("Remove"))
+        ] : (0, import_react47.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm bt-secret-danger", onClick: () => setConfirm(true) }, (0, import_react47.createElement)(TrashIcon), t("Remove provider"))
       ) : null
     ) : null
   );
 }
 function KeyEditor({ provider, apply: apply2, actions }) {
-  const [value, setValue] = (0, import_react46.useState)("");
-  const [saved, setSaved] = (0, import_react46.useState)(false);
+  const [value, setValue] = (0, import_react47.useState)("");
+  const [saved, setSaved] = (0, import_react47.useState)(false);
   const ready = value.trim() !== "";
   const save = () => {
     if (!ready) return;
@@ -17930,29 +22346,29 @@ function KeyEditor({ provider, apply: apply2, actions }) {
     setSaved(false);
   };
   const label = t("{provider} API key", { provider: provider.name });
-  return (0, import_react46.createElement)(
+  return (0, import_react47.createElement)(
     "div",
     { className: "bt-secret-edit-block" },
-    (0, import_react46.createElement)("div", { className: "bt-secret-edit-label" }, provider.key.configured ? t("Replace the API key") : t("API key")),
-    (0, import_react46.createElement)(
+    (0, import_react47.createElement)("div", { className: "bt-secret-edit-label" }, provider.key.configured ? t("Replace the API key") : t("API key")),
+    (0, import_react47.createElement)(
       "div",
       { className: "bt-secret-inline" },
-      (0, import_react46.createElement)("label", { className: "bt-q-field bt-secret-field" }, (0, import_react46.createElement)(KeyIcon), (0, import_react46.createElement)(MaskedInput, { value, onChange: edit, onEnter: save, label })),
-      (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: !ready, onClick: save }, t("Save")),
-      provider.key.configured ? (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm bt-secret-danger", onClick: () => apply2(actions.setProviderKey(provider.id, null)) }, t("Remove key")) : null
+      (0, import_react47.createElement)("label", { className: "bt-q-field bt-secret-field" }, (0, import_react47.createElement)(KeyIcon), (0, import_react47.createElement)(MaskedInput, { value, onChange: edit, onEnter: save, label })),
+      (0, import_react47.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: !ready, onClick: save }, t("Save")),
+      provider.key.configured ? (0, import_react47.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm bt-secret-danger", onClick: () => apply2(actions.setProviderKey(provider.id, null)) }, t("Remove key")) : null
     ),
-    saved ? (0, import_react46.createElement)("div", { className: "bt-set-hint bt-secret-ok", role: "status" }, (0, import_react46.createElement)(CheckIcon), t("Saved.")) : null
+    saved ? (0, import_react47.createElement)("div", { className: "bt-set-hint bt-secret-ok", role: "status" }, (0, import_react47.createElement)(CheckIcon), t("Saved.")) : null
   );
 }
 function AddProvider({ view, apply: apply2, actions, onDone }) {
-  const [mode, setMode] = (0, import_react46.useState)(view.addable.length > 0 ? "known" : "custom");
-  return (0, import_react46.createElement)(
+  const [mode, setMode] = (0, import_react47.useState)(view.addable.length > 0 ? "known" : "custom");
+  return (0, import_react47.createElement)(
     "div",
     { className: "bt-set-row bt-set-paste bt-provider-add" },
-    (0, import_react46.createElement)(
+    (0, import_react47.createElement)(
       Segmented,
       { label: t("Kind of provider"), value: mode },
-      [["known", t("Known provider")], ["custom", t("Custom API")]].map(([id, label]) => (0, import_react46.createElement)("button", {
+      [["known", t("Known provider")], ["custom", t("Custom API")]].map(([id, label]) => (0, import_react47.createElement)("button", {
         key: id,
         type: "button",
         "aria-pressed": mode === id,
@@ -17961,13 +22377,13 @@ function AddProvider({ view, apply: apply2, actions, onDone }) {
       }, label))
     ),
     // Both forms stay mounted, so switching keeps what is typed in the other.
-    (0, import_react46.createElement)("div", { hidden: mode !== "known" }, (0, import_react46.createElement)(KnownForm, { view, apply: apply2, actions, onDone })),
-    (0, import_react46.createElement)("div", { hidden: mode !== "custom" }, (0, import_react46.createElement)(CustomForm, { view, apply: apply2, actions, onDone }))
+    (0, import_react47.createElement)("div", { hidden: mode !== "known" }, (0, import_react47.createElement)(KnownForm, { view, apply: apply2, actions, onDone })),
+    (0, import_react47.createElement)("div", { hidden: mode !== "custom" }, (0, import_react47.createElement)(CustomForm, { view, apply: apply2, actions, onDone }))
   );
 }
 function KnownForm({ view, apply: apply2, actions, onDone }) {
-  const [provider, setProvider] = (0, import_react46.useState)("");
-  const [key, setKey] = (0, import_react46.useState)("");
+  const [provider, setProvider] = (0, import_react47.useState)("");
+  const [key, setKey] = (0, import_react47.useState)("");
   const options = [...view.addable].sort((a, b) => a.name.localeCompare(b.name));
   const add = () => {
     if (provider === "") return;
@@ -17975,24 +22391,24 @@ function KnownForm({ view, apply: apply2, actions, onDone }) {
       if (ok) onDone();
     });
   };
-  return (0, import_react46.createElement)(
+  return (0, import_react47.createElement)(
     "div",
     { className: "bt-provider-form" },
-    (0, import_react46.createElement)(
+    (0, import_react47.createElement)(
       "select",
       { className: "bt-select", "aria-label": t("Provider"), value: provider, onChange: (event) => setProvider(event.target.value) },
-      (0, import_react46.createElement)("option", { value: "", disabled: true }, t("Choose a provider")),
-      options.map((option) => (0, import_react46.createElement)("option", { key: option.id, value: option.id }, option.name))
+      (0, import_react47.createElement)("option", { value: "", disabled: true }, t("Choose a provider")),
+      options.map((option) => (0, import_react47.createElement)("option", { key: option.id, value: option.id }, option.name))
     ),
-    (0, import_react46.createElement)("label", { className: "bt-q-field bt-secret-field" }, (0, import_react46.createElement)(KeyIcon), (0, import_react46.createElement)(MaskedInput, { value: key, onChange: setKey, onEnter: add, label: t("API key") })),
-    (0, import_react46.createElement)(FormActions, { onCancel: onDone, onAdd: add, ready: provider !== "" })
+    (0, import_react47.createElement)("label", { className: "bt-q-field bt-secret-field" }, (0, import_react47.createElement)(KeyIcon), (0, import_react47.createElement)(MaskedInput, { value: key, onChange: setKey, onEnter: add, label: t("API key") })),
+    (0, import_react47.createElement)(FormActions, { onCancel: onDone, onAdd: add, ready: provider !== "" })
   );
 }
 function CustomForm({ view, apply: apply2, actions, onDone }) {
-  const [draft, setDraft] = (0, import_react46.useState)({ provider: "", name: "", baseURL: "", api: view.protocols[0], key: "", typed: "" });
-  const [found, setFound] = (0, import_react46.useState)(null);
-  const [picked, setPicked] = (0, import_react46.useState)([]);
-  const [asking, setAsking] = (0, import_react46.useState)(false);
+  const [draft, setDraft] = (0, import_react47.useState)({ provider: "", name: "", baseURL: "", api: view.protocols[0], key: "", typed: "" });
+  const [found, setFound] = (0, import_react47.useState)(null);
+  const [picked, setPicked] = (0, import_react47.useState)([]);
+  const [asking, setAsking] = (0, import_react47.useState)(false);
   const set = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
   const typed = draft.typed.split(/[\s,]+/).map((id) => id.trim()).filter(Boolean);
   const models = [...(found ?? []).filter((model) => picked.includes(model.id)), ...typed.filter((id) => !picked.includes(id)).map((id) => ({ id }))];
@@ -18011,7 +22427,7 @@ function CustomForm({ view, apply: apply2, actions, onDone }) {
       if (ok) onDone();
     });
   };
-  const input = (field, label, placeholder) => (0, import_react46.createElement)("input", {
+  const input = (field, label, placeholder) => (0, import_react47.createElement)("input", {
     className: "bt-input",
     "aria-label": label,
     placeholder,
@@ -18020,55 +22436,55 @@ function CustomForm({ view, apply: apply2, actions, onDone }) {
     autoComplete: "off",
     onChange: (event) => set(field, event.target.value)
   });
-  return (0, import_react46.createElement)(
+  return (0, import_react47.createElement)(
     "div",
     { className: "bt-provider-form" },
-    (0, import_react46.createElement)(
+    (0, import_react47.createElement)(
       "div",
       { className: "bt-provider-pair" },
       input("provider", t("Provider ID"), t("Provider ID, e.g. my-gateway")),
       input("name", t("Name"), t("Name (optional)"))
     ),
-    (0, import_react46.createElement)(
+    (0, import_react47.createElement)(
       "div",
       { className: "bt-provider-pair" },
       input("baseURL", t("Endpoint"), ENDPOINT_HINTS[draft.api] ?? "https://gateway.example/v1"),
-      (0, import_react46.createElement)(
+      (0, import_react47.createElement)(
         "select",
         { className: "bt-select", "aria-label": t("Protocol"), value: draft.api, onChange: (event) => set("api", event.target.value) },
-        view.protocols.map((api) => (0, import_react46.createElement)("option", { key: api, value: api }, PROTOCOL_NAMES[api] ?? api))
+        view.protocols.map((api) => (0, import_react47.createElement)("option", { key: api, value: api }, PROTOCOL_NAMES[api] ?? api))
       )
     ),
-    (0, import_react46.createElement)("label", { className: "bt-q-field bt-secret-field" }, (0, import_react46.createElement)(KeyIcon), (0, import_react46.createElement)(MaskedInput, { value: draft.key, onChange: (value) => set("key", value), label: t("API key") })),
-    (0, import_react46.createElement)(
+    (0, import_react47.createElement)("label", { className: "bt-q-field bt-secret-field" }, (0, import_react47.createElement)(KeyIcon), (0, import_react47.createElement)(MaskedInput, { value: draft.key, onChange: (value) => set("key", value), label: t("API key") })),
+    (0, import_react47.createElement)(
       "div",
       { className: "bt-secret-edit-block" },
-      (0, import_react46.createElement)(
+      (0, import_react47.createElement)(
         "div",
         { className: "bt-provider-models-head" },
-        (0, import_react46.createElement)("span", { className: "bt-secret-edit-label" }, t("Models")),
-        (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: asking || draft.baseURL.trim() === "", onClick: fetchModels }, asking ? t("Asking…") : t("Fetch models"))
+        (0, import_react47.createElement)("span", { className: "bt-secret-edit-label" }, t("Models")),
+        (0, import_react47.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: asking || draft.baseURL.trim() === "", onClick: fetchModels }, asking ? t("Asking…") : t("Fetch models"))
       ),
-      found !== null && found.length === 0 ? (0, import_react46.createElement)("div", { className: "bt-set-hint" }, t("The endpoint lists no models. Enter their ids below.")) : null,
-      found !== null && found.length > 0 ? (0, import_react46.createElement)("div", { className: "bt-secret-bots bt-provider-found" }, found.map((model) => (0, import_react46.createElement)("button", {
+      found !== null && found.length === 0 ? (0, import_react47.createElement)("div", { className: "bt-set-hint" }, t("The endpoint lists no models. Enter their ids below.")) : null,
+      found !== null && found.length > 0 ? (0, import_react47.createElement)("div", { className: "bt-secret-bots bt-provider-found" }, found.map((model) => (0, import_react47.createElement)("button", {
         key: model.id,
         type: "button",
         className: "bt-secret-bot",
         "aria-pressed": picked.includes(model.id),
         title: model.name && model.name !== model.id ? model.name : void 0,
         onClick: () => toggle(model.id)
-      }, (0, import_react46.createElement)("code", null, model.id), picked.includes(model.id) ? (0, import_react46.createElement)(CheckIcon) : null))) : null,
+      }, (0, import_react47.createElement)("code", null, model.id), picked.includes(model.id) ? (0, import_react47.createElement)(CheckIcon) : null))) : null,
       input("typed", t("Model ids"), t("Model ids, separated by commas"))
     ),
-    (0, import_react46.createElement)(FormActions, { onCancel: onDone, onAdd: add, ready })
+    (0, import_react47.createElement)(FormActions, { onCancel: onDone, onAdd: add, ready })
   );
 }
 function FormActions({ onCancel, onAdd, ready }) {
-  return (0, import_react46.createElement)(
+  return (0, import_react47.createElement)(
     "div",
     { className: "bt-secret-row-actions" },
-    (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: onCancel }, t("Cancel")),
-    (0, import_react46.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: !ready, onClick: onAdd }, t("Add"))
+    (0, import_react47.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: onCancel }, t("Cancel")),
+    (0, import_react47.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: !ready, onClick: onAdd }, t("Add"))
   );
 }
 var PROVIDERS_CSS = `
@@ -18098,19 +22514,19 @@ var PROVIDERS_CSS = `
 `;
 
 // src/client/mobile-settings.js
-var import_react47 = require("react");
+var import_react48 = require("react");
 var mobile = (endpoint, payload) => call("mobile", { endpoint, payload });
 function MobileDevicesPage() {
-  const [state, setState] = (0, import_react47.useState)(null);
-  const [pairing, setPairing] = (0, import_react47.useState)(null);
-  const [error, setError] = (0, import_react47.useState)("");
-  const [refreshError, setRefreshError] = (0, import_react47.useState)("");
-  const [busy, setBusy] = (0, import_react47.useState)(false);
-  const alive = (0, import_react47.useRef)(true);
-  const working = (0, import_react47.useRef)(false);
-  const [address, setAddress] = (0, import_react47.useState)("");
-  const [networkFamily, setNetworkFamily] = (0, import_react47.useState)(null);
-  (0, import_react47.useEffect)(() => {
+  const [state, setState] = (0, import_react48.useState)(null);
+  const [pairing, setPairing] = (0, import_react48.useState)(null);
+  const [error, setError] = (0, import_react48.useState)("");
+  const [refreshError, setRefreshError] = (0, import_react48.useState)("");
+  const [busy, setBusy] = (0, import_react48.useState)(false);
+  const alive = (0, import_react48.useRef)(true);
+  const working = (0, import_react48.useRef)(false);
+  const [address, setAddress] = (0, import_react48.useState)("");
+  const [networkFamily, setNetworkFamily] = (0, import_react48.useState)(null);
+  (0, import_react48.useEffect)(() => {
     let disposed = false;
     alive.current = true;
     const refresh = async () => {
@@ -18158,16 +22574,16 @@ function MobileDevicesPage() {
       if (alive.current) setBusy(false);
     }
   };
-  const row = (key, label, hint, children) => (0, import_react47.createElement)(
+  const row = (key, label, hint, children) => (0, import_react48.createElement)(
     "div",
     { key, className: "bt-set-row" },
-    (0, import_react47.createElement)("div", { className: "bt-set-copy" }, (0, import_react47.createElement)("span", null, label), hint ? (0, import_react47.createElement)("span", { className: "bt-set-hint" }, hint) : null),
+    (0, import_react48.createElement)("div", { className: "bt-set-copy" }, (0, import_react48.createElement)("span", null, label), hint ? (0, import_react48.createElement)("span", { className: "bt-set-hint" }, hint) : null),
     children
   );
-  const button = (label, action, primary = false, disabled = false) => (0, import_react47.createElement)("button", { type: "button", className: `bt-soft bt-soft-sm${primary ? " bt-mobile-primary" : ""}`, disabled: busy || disabled, onClick: action }, t(label));
-  const section = (key, title, children) => (0, import_react47.createElement)("section", { key, className: "bt-set-section" }, (0, import_react47.createElement)("h3", null, title), (0, import_react47.createElement)("div", { className: "bt-set-card" }, children));
+  const button = (label, action, primary = false, disabled = false) => (0, import_react48.createElement)("button", { type: "button", className: `bt-soft bt-soft-sm${primary ? " bt-mobile-primary" : ""}`, disabled: busy || disabled, onClick: action }, t(label));
+  const section = (key, title, children) => (0, import_react48.createElement)("section", { key, className: "bt-set-section" }, (0, import_react48.createElement)("h3", null, title), (0, import_react48.createElement)("div", { className: "bt-set-card" }, children));
   const enabled = state?.enabled;
-  const pending = state?.pending ?? [];
+  const pending2 = state?.pending ?? [];
   const devices = (state?.devices ?? []).filter((device) => !device.revokedAt);
   const activePairing = pairing && enabled && pairing.url === state.url && Date.now() < new Date(pairing.expiresAt).getTime();
   const problem = error || refreshError || state?.error || state?.https?.error;
@@ -18182,25 +22598,25 @@ function MobileDevicesPage() {
   const canSwitchFamily = addresses.some((item) => familyOf(item.address) !== family);
   const networkLocked = busy || enabled || state?.locked;
   const networkHint = !hasIpv6 && family !== 6 ? t("No usable IPv6 address was detected. Check IPv6 on this computer and router.") : enabled ? t("Turn off phone connection before switching between IPv4 and IPv6.") : family === 6 && !canSwitchFamily ? t("No IPv4 address is available on this computer.") : t("Choose IPv6 for this phone connection. Turn it off to use IPv4.");
-  return (0, import_react47.createElement)(
+  return (0, import_react48.createElement)(
     "div",
     { className: "bt-mobile-page", "aria-busy": busy },
-    problem ? (0, import_react47.createElement)("div", { className: "bt-mobile-error", role: "alert" }, (0, import_react47.createElement)("span", { className: "bt-error" }, hostText(problem)), button("Retry", () => void run2("status"))) : null,
-    !state ? (0, import_react47.createElement)("p", { role: "status" }, t("Loading devices…")) : (0, import_react47.createElement)(
+    problem ? (0, import_react48.createElement)("div", { className: "bt-mobile-error", role: "alert" }, (0, import_react48.createElement)("span", { className: "bt-error" }, hostText(problem)), button("Retry", () => void run2("status"))) : null,
+    !state ? (0, import_react48.createElement)("p", { role: "status" }, t("Loading devices…")) : (0, import_react48.createElement)(
       "div",
       { className: "bt-set-card" },
-      (0, import_react47.createElement)(
+      (0, import_react48.createElement)(
         "div",
         { className: "bt-mobile-intro" },
-        (0, import_react47.createElement)("span", { className: "bt-mobile-mark", "aria-hidden": true }, (0, import_react47.createElement)(PhoneIcon)),
-        (0, import_react47.createElement)("div", { className: "bt-set-copy" }, (0, import_react47.createElement)("h3", null, t("Connect your phone")), (0, import_react47.createElement)("p", { className: "bt-set-hint" }, t("Connect over your local network or a reachable IPv6 address. No domain or extra app is needed."))),
-        (0, import_react47.createElement)("span", { className: "bt-mobile-status", "data-enabled": enabled || void 0 }, t(enabled ? "Phone connection enabled" : "Phone connection off"))
+        (0, import_react48.createElement)("span", { className: "bt-mobile-mark", "aria-hidden": true }, (0, import_react48.createElement)(PhoneIcon)),
+        (0, import_react48.createElement)("div", { className: "bt-set-copy" }, (0, import_react48.createElement)("h3", null, t("Connect your phone")), (0, import_react48.createElement)("p", { className: "bt-set-hint" }, t("Connect over your local network or a reachable IPv6 address. No domain or extra app is needed."))),
+        (0, import_react48.createElement)("span", { className: "bt-mobile-status", "data-enabled": enabled || void 0 }, t(enabled ? "Phone connection enabled" : "Phone connection off"))
       ),
       state.https?.provider === "local" ? row(
         "ipv6",
         t("Use IPv6"),
         networkHint,
-        (0, import_react47.createElement)(
+        (0, import_react48.createElement)(
           "button",
           {
             type: "button",
@@ -18214,14 +22630,14 @@ function MobileDevicesPage() {
               setAddress("");
             }
           },
-          (0, import_react47.createElement)("span", { className: "bt-switch-knob", "aria-hidden": true })
+          (0, import_react48.createElement)("span", { className: "bt-switch-knob", "aria-hidden": true })
         )
       ) : null,
       state.https?.provider === "local" ? row(
         "network",
         t("Computer network address"),
         !available.length ? t(family === 6 ? "No usable IPv6 address is available." : "No usable IPv4 address is available.") : void 0,
-        (0, import_react47.createElement)(
+        (0, import_react48.createElement)(
           "select",
           {
             className: "bt-select",
@@ -18230,8 +22646,8 @@ function MobileDevicesPage() {
             onChange: (event) => setAddress(event.target.value),
             disabled: networkLocked || !available.length
           },
-          !available.length ? (0, import_react47.createElement)("option", { value: "" }, t("No network address available")) : null,
-          ...available.map((item) => (0, import_react47.createElement)(
+          !available.length ? (0, import_react48.createElement)("option", { value: "" }, t("No network address available")) : null,
+          ...available.map((item) => (0, import_react48.createElement)(
             "option",
             { key: item.address, value: item.address },
             item.name + " · " + (family === 6 ? t(item.scope === "global" ? "Public IPv6" : "Local IPv6") : "IPv4") + " · " + item.address
@@ -18242,7 +22658,7 @@ function MobileDevicesPage() {
         "off",
         t("Phone connection"),
         t(state.locked ? "Mobile access is disabled by this host configuration." : "Enable the connection, scan the QR code, then approve your phone."),
-        !state.locked && state.https?.provider === "local" ? (0, import_react47.createElement)(
+        !state.locked && state.https?.provider === "local" ? (0, import_react48.createElement)(
           "div",
           { className: "bt-mobile-actions" },
           button("Enable phone connection", () => void run2("https.enable", { address: chosenAddress }), true, !chosenAddress)
@@ -18251,20 +22667,20 @@ function MobileDevicesPage() {
       enabled && state.https?.provider === "local" ? row("https", t("Local HTTPS is running"), t("Both devices need a route to this address. Allow the selected port in your firewall."), button("Turn off phone connection", () => {
         if (window.confirm(t("Disconnect all phones from this host?"))) void run2("https.disable");
       })) : null,
-      selectedAddress?.scope === "global" ? (0, import_react47.createElement)("p", { className: "bt-set-hint bt-mobile-note" }, t("Public IPv6 can connect across networks when your phone supports IPv6 and your router and computer allow incoming connections. No relay is used.")) : null
+      selectedAddress?.scope === "global" ? (0, import_react48.createElement)("p", { className: "bt-set-hint bt-mobile-note" }, t("Public IPv6 can connect across networks when your phone supports IPv6 and your router and computer allow incoming connections. No relay is used.")) : null
     ),
-    activePairing ? section("pairing", t("Pair your phone"), (0, import_react47.createElement)(
+    activePairing ? section("pairing", t("Pair your phone"), (0, import_react48.createElement)(
       "div",
       { className: "bt-mobile-pairing" },
-      (0, import_react47.createElement)("div", { className: "bt-mobile-qr" }, (0, import_react47.createElement)("img", { src: pairing.qrDataUrl, width: 200, height: 200, alt: t("Scan this code in DS Bot Mobile to request access.") })),
-      (0, import_react47.createElement)(
+      (0, import_react48.createElement)("div", { className: "bt-mobile-qr" }, (0, import_react48.createElement)("img", { src: pairing.qrDataUrl, width: 200, height: 200, alt: t("Scan this code in DS Bot Mobile to request access.") })),
+      (0, import_react48.createElement)(
         "div",
         { className: "bt-mobile-steps" },
-        (0, import_react47.createElement)("ol", null, ...["Open DS Bot Mobile and scan this QR code.", "Confirm the connection on your phone.", "Approve your phone in Pending requests below."].map((step) => (0, import_react47.createElement)("li", { key: step }, t(step)))),
-        (0, import_react47.createElement)("p", { className: "bt-set-hint" }, t("This code expires in two minutes. Share it only with your own device.")),
+        (0, import_react48.createElement)("ol", null, ...["Open DS Bot Mobile and scan this QR code.", "Confirm the connection on your phone.", "Approve your phone in Pending requests below."].map((step) => (0, import_react48.createElement)("li", { key: step }, t(step)))),
+        (0, import_react48.createElement)("p", { className: "bt-set-hint" }, t("This code expires in two minutes. Share it only with your own device.")),
         button("Hide pairing code", () => setPairing(null))
       ),
-      (0, import_react47.createElement)("details", { className: "bt-mobile-manual" }, (0, import_react47.createElement)("summary", null, t("Manual pairing data")), (0, import_react47.createElement)("textarea", {
+      (0, import_react48.createElement)("details", { className: "bt-mobile-manual" }, (0, import_react48.createElement)("summary", null, t("Manual pairing data")), (0, import_react48.createElement)("textarea", {
         readOnly: true,
         rows: 4,
         "aria-label": t("Manual pairing data"),
@@ -18272,12 +22688,12 @@ function MobileDevicesPage() {
         value: JSON.stringify({ url: pairing.url, code: pairing.code, serverId: pairing.serverId, ...pairing.tlsPin ? { tlsPin: pairing.tlsPin } : {} })
       }))
     )) : null,
-    enabled ? section("pending", t("Pending requests · {count}", { count: pending.length }), pending.length ? pending.map((request) => row(
+    enabled ? section("pending", t("Pending requests · {count}", { count: pending2.length }), pending2.length ? pending2.map((request) => row(
       request.requestId,
       request.deviceName ?? t("Phone"),
       t("Requests access to your Bot team. Approve only a device you recognize."),
-      (0, import_react47.createElement)("div", { className: "bt-mobile-actions" }, button("Approve", () => void run2("pairing.approve", { requestId: request.requestId }), true), button("Deny", () => void run2("pairing.deny", { requestId: request.requestId })))
-    )) : (0, import_react47.createElement)("p", { className: "bt-mobile-empty" }, t("No pending requests. Scan a pairing code on your phone to get started."))) : null,
+      (0, import_react48.createElement)("div", { className: "bt-mobile-actions" }, button("Approve", () => void run2("pairing.approve", { requestId: request.requestId }), true), button("Deny", () => void run2("pairing.deny", { requestId: request.requestId })))
+    )) : (0, import_react48.createElement)("p", { className: "bt-mobile-empty" }, t("No pending requests. Scan a pairing code on your phone to get started."))) : null,
     enabled ? section("devices", t("Paired devices · {count}", { count: devices.length }), devices.length ? devices.map((device) => row(
       device.id,
       device.name ?? device.deviceName ?? t("Phone"),
@@ -18285,30 +22701,30 @@ function MobileDevicesPage() {
       button("Revoke access", () => {
         if (window.confirm(t("Revoke this device? It must pair again to reconnect."))) void run2("device.revoke", { id: device.id });
       })
-    )) : (0, import_react47.createElement)("p", { className: "bt-mobile-empty" }, t("No paired devices yet."))) : null,
-    state ? (0, import_react47.createElement)("p", { className: "bt-set-hint bt-mobile-note" }, t("Keep this computer or server running. Tool approvals remain in DSH. Revoking a device stops new access; it does not erase its local cache.")) : null
+    )) : (0, import_react48.createElement)("p", { className: "bt-mobile-empty" }, t("No paired devices yet."))) : null,
+    state ? (0, import_react48.createElement)("p", { className: "bt-set-hint bt-mobile-note" }, t("Keep this computer or server running. Tool approvals remain in DSH. Revoking a device stops new access; it does not erase its local cache.")) : null
   );
 }
 
 // src/client/settings.js
-var import_react48 = require("react");
+var import_react49 = require("react");
 var capitalize2 = (word) => word[0].toUpperCase() + word.slice(1);
 var SETTINGS_PAGES = [["general", "General"], ["models", "Models"], ["bots", "Bots"], ["groups", "Group chats"], ["mobile", "Mobile devices"], ["connectors", "Connectors"], ["capabilities", "Capabilities"], ["browser", "Computer and browser"], ["schedules", "Scheduled tasks"], ["usage", "Usage"], ["secrets", "Secrets"], ["feedback", "Feedback"], ["updates", "Plugin updates"], ["about", "About DS Bot"]];
 var PAGE_ICONS = { ...SETTINGS_ICONS, models: SlidersIcon, mobile: PhoneIcon, connectors: ConnectorIcon, capabilities: PlugIcon, browser: ConnectorIcon, schedules: ClockIcon, secrets: KeyIcon, feedback: FeedbackIcon, updates: ArrowDownIcon, about: InfoIcon };
 function SetSection({ title, className = "", children }) {
-  return (0, import_react48.createElement)("section", { className: `bt-set-section ${className}`.trim() }, (0, import_react48.createElement)("h3", null, title), (0, import_react48.createElement)("div", { className: "bt-set-card" }, children));
+  return (0, import_react49.createElement)("section", { className: `bt-set-section ${className}`.trim() }, (0, import_react49.createElement)("h3", null, title), (0, import_react49.createElement)("div", { className: "bt-set-card" }, children));
 }
 function SetRow({ label, hint, children, className = "" }) {
-  return (0, import_react48.createElement)(
+  return (0, import_react49.createElement)(
     "div",
     { className: `bt-set-row ${className}`.trim() },
-    (0, import_react48.createElement)("div", { className: "bt-set-copy" }, (0, import_react48.createElement)("span", null, label), hint ? (0, import_react48.createElement)("span", { className: "bt-set-hint" }, hint) : null),
-    children ? (0, import_react48.createElement)("div", { className: "bt-set-control" }, children) : null
+    (0, import_react49.createElement)("div", { className: "bt-set-copy" }, (0, import_react49.createElement)("span", null, label), hint ? (0, import_react49.createElement)("span", { className: "bt-set-hint" }, hint) : null),
+    children ? (0, import_react49.createElement)("div", { className: "bt-set-control" }, children) : null
   );
 }
 var LAYOUTS = [["bubble", "Bubble"], ["flat", "Flat"]];
 function Choice({ label, value, options, pick: pick2 }) {
-  return (0, import_react48.createElement)(Segmented, { label, value, className: "bt-look-seg" }, options.map(([id, text]) => (0, import_react48.createElement)("button", {
+  return (0, import_react49.createElement)(Segmented, { label, value, className: "bt-look-seg" }, options.map(([id, text]) => (0, import_react49.createElement)("button", {
     key: id,
     type: "button",
     "aria-pressed": value === id,
@@ -18318,70 +22734,70 @@ function Choice({ label, value, options, pick: pick2 }) {
   }, t(text))));
 }
 function WidthSlider({ label, value, save }) {
-  const [width, setWidth] = (0, import_react48.useState)(value);
-  const pending = (0, import_react48.useRef)(null);
-  const timer = (0, import_react48.useRef)(0);
-  const saveRef = (0, import_react48.useRef)(save);
+  const [width, setWidth] = (0, import_react49.useState)(value);
+  const pending2 = (0, import_react49.useRef)(null);
+  const timer = (0, import_react49.useRef)(0);
+  const saveRef = (0, import_react49.useRef)(save);
   saveRef.current = save;
-  (0, import_react48.useEffect)(() => {
-    if (pending.current === null) setWidth(value);
+  (0, import_react49.useEffect)(() => {
+    if (pending2.current === null) setWidth(value);
   }, [value]);
   const flush = () => {
-    const next = pending.current;
-    pending.current = null;
+    const next = pending2.current;
+    pending2.current = null;
     if (next !== null) saveRef.current(next);
   };
-  (0, import_react48.useEffect)(() => () => {
+  (0, import_react49.useEffect)(() => () => {
     clearTimeout(timer.current);
     flush();
   }, []);
   const pick2 = (next) => {
     setWidth(next);
-    pending.current = next;
+    pending2.current = next;
     clearTimeout(timer.current);
     timer.current = setTimeout(flush, 350);
   };
   const { min, max, step } = MESSAGE_WIDTH;
-  return (0, import_react48.createElement)(
+  return (0, import_react49.createElement)(
     "div",
     { className: "bt-range", style: { "--bt-fill": `${(width - min) / (max - min) * 100}%` } },
-    (0, import_react48.createElement)("input", { type: "range", min, max, step, value: width, "aria-label": label, "aria-valuetext": `${width}%`, onChange: (event) => pick2(Number(event.target.value)) }),
-    (0, import_react48.createElement)("output", null, `${width}%`)
+    (0, import_react49.createElement)("input", { type: "range", min, max, step, value: width, "aria-label": label, "aria-valuetext": `${width}%`, onChange: (event) => pick2(Number(event.target.value)) }),
+    (0, import_react49.createElement)("output", null, `${width}%`)
   );
 }
 function GeneralPage({ roster, actions, run: run2 }) {
   const prefs = roster.prefs ?? {};
   const themes = allThemes();
   const current = themes[prefs.theme] ? prefs.theme : "deepseek";
-  const [custom, setCustom] = (0, import_react48.useState)(prefs.accent ?? themes.deepseek.light.accent);
-  const timer = (0, import_react48.useRef)(0);
-  (0, import_react48.useEffect)(() => () => clearTimeout(timer.current), []);
+  const [custom, setCustom] = (0, import_react49.useState)(prefs.accent ?? themes.deepseek.light.accent);
+  const timer = (0, import_react49.useRef)(0);
+  (0, import_react49.useEffect)(() => () => clearTimeout(timer.current), []);
   const pickCustom = (value) => {
     setCustom(value);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => run2(actions.setPrefs({ accent: value })), 350);
   };
   return [
-    (0, import_react48.createElement)(
+    (0, import_react49.createElement)(
       SetSection,
       { key: "look", title: t("Appearance") },
-      (0, import_react48.createElement)(
+      (0, import_react49.createElement)(
         SetRow,
         { label: t("Theme"), hint: t("Colors for the whole team, on every device.") },
-        (0, import_react48.createElement)(
+        (0, import_react49.createElement)(
           "select",
           { className: "bt-select", "aria-label": t("Theme"), value: current, onChange: (event) => run2(actions.setPrefs({ theme: event.target.value })) },
-          Object.entries(themes).map(([id, theme]) => (0, import_react48.createElement)("option", { key: id, value: id }, t(theme.label)))
+          Object.entries(themes).map(([id, theme]) => (0, import_react49.createElement)("option", { key: id, value: id }, t(theme.label)))
         )
       ),
-      (0, import_react48.createElement)(
+      (0, import_react49.createElement)(
         SetRow,
         { label: t("Accent"), hint: t("Unread marks, badges, and the brand mark.") },
-        (0, import_react48.createElement)(
+        (0, import_react49.createElement)(
           "div",
           { className: "bt-swatches" },
-          (0, import_react48.createElement)("button", { type: "button", className: "bt-swatch bt-swatch-default", title: t("Theme accent"), "aria-label": t("Theme accent"), "aria-pressed": !prefs.accent, onClick: () => run2(actions.setPrefs({ accent: null })) }),
-          ACCENT_INKS.map((ink) => (0, import_react48.createElement)("button", {
+          (0, import_react49.createElement)("button", { type: "button", className: "bt-swatch bt-swatch-default", title: t("Theme accent"), "aria-label": t("Theme accent"), "aria-pressed": !prefs.accent, onClick: () => run2(actions.setPrefs({ accent: null })) }),
+          ACCENT_INKS.map((ink) => (0, import_react49.createElement)("button", {
             key: ink,
             type: "button",
             className: "bt-swatch",
@@ -18391,38 +22807,38 @@ function GeneralPage({ roster, actions, run: run2 }) {
             style: { background: INKS[ink][0] },
             onClick: () => run2(actions.setPrefs({ accent: INKS[ink][0] }))
           })),
-          (0, import_react48.createElement)(
+          (0, import_react49.createElement)(
             "label",
             { className: "bt-swatch bt-swatch-custom", title: t("Custom accent"), "data-on": Boolean(prefs.accent) && !ACCENT_INKS.some((ink) => INKS[ink][0] === prefs.accent) },
-            (0, import_react48.createElement)("input", { type: "color", value: custom, "aria-label": t("Custom accent"), onChange: (event) => pickCustom(event.target.value) })
+            (0, import_react49.createElement)("input", { type: "color", value: custom, "aria-label": t("Custom accent"), onChange: (event) => pickCustom(event.target.value) })
           )
         )
       ),
-      (0, import_react48.createElement)(SetRow, { label: t("Message layout") }, (0, import_react48.createElement)(Choice, { label: t("Message layout"), value: layoutOf(prefs), options: LAYOUTS, pick: (id) => run2(actions.setPrefs({ layout: id })) })),
+      (0, import_react49.createElement)(SetRow, { label: t("Message layout") }, (0, import_react49.createElement)(Choice, { label: t("Message layout"), value: layoutOf(prefs), options: LAYOUTS, pick: (id) => run2(actions.setPrefs({ layout: id })) })),
       // The flat layout's text has a width of its own; the bubble width stays for the user's messages.
-      layoutOf(prefs) === "flat" ? (0, import_react48.createElement)(SetRow, { label: t("Text width") }, (0, import_react48.createElement)(WidthSlider, { label: t("Text width"), value: flatWidthOf(prefs), save: (flatWidth) => run2(actions.setPrefs({ flatWidth })) })) : null,
-      (0, import_react48.createElement)(SetRow, { label: t("Bubble width") }, (0, import_react48.createElement)(WidthSlider, { label: t("Bubble width"), value: widthOf(prefs), save: (width) => run2(actions.setPrefs({ width })) })),
-      (0, import_react48.createElement)(SetRow, { label: t("Show thinking") }, (0, import_react48.createElement)(Switch, { label: t("Show thinking"), on: thinkingShown(prefs), onChange: (thinking) => run2(actions.setPrefs({ thinking })) }))
+      layoutOf(prefs) === "flat" ? (0, import_react49.createElement)(SetRow, { label: t("Text width") }, (0, import_react49.createElement)(WidthSlider, { label: t("Text width"), value: flatWidthOf(prefs), save: (flatWidth) => run2(actions.setPrefs({ flatWidth })) })) : null,
+      (0, import_react49.createElement)(SetRow, { label: t("Bubble width") }, (0, import_react49.createElement)(WidthSlider, { label: t("Bubble width"), value: widthOf(prefs), save: (width) => run2(actions.setPrefs({ width })) })),
+      (0, import_react49.createElement)(SetRow, { label: t("Show thinking") }, (0, import_react49.createElement)(Switch, { label: t("Show thinking"), on: thinkingShown(prefs), onChange: (thinking) => run2(actions.setPrefs({ thinking })) }))
     ),
-    actions.setSurface ? (0, import_react48.createElement)(
+    actions.setSurface ? (0, import_react49.createElement)(
       SetSection,
       { key: "mode", title: t("Mode") },
-      (0, import_react48.createElement)(
+      (0, import_react49.createElement)(
         SetRow,
         { label: t("Classic Agent mode") },
-        (0, import_react48.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => actions.setSurface("agent") }, t("Switch"))
+        (0, import_react49.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => actions.setSurface("agent") }, t("Switch"))
       )
     ) : null,
-    (0, import_react48.createElement)(LocationsSection, { key: "places", actions, run: run2 })
+    (0, import_react49.createElement)(LocationsSection, { key: "places", actions, run: run2 })
   ];
 }
 function LocationsSection({ actions, run: run2 }) {
   const app = globalThis.dsBotApp;
-  const [team, setTeam] = (0, import_react48.useState)(null);
-  const [data, setData] = (0, import_react48.useState)(null);
-  const [moving, setMoving] = (0, import_react48.useState)(false);
-  const busy = (0, import_react48.useRef)(false);
-  (0, import_react48.useEffect)(() => {
+  const [team, setTeam] = (0, import_react49.useState)(null);
+  const [data, setData] = (0, import_react49.useState)(null);
+  const [moving, setMoving] = (0, import_react49.useState)(false);
+  const busy = (0, import_react49.useRef)(false);
+  (0, import_react49.useEffect)(() => {
     void Promise.resolve(actions.folders()).then((info) => setTeam(info?.team ?? null)).catch(() => {
     });
     if (app !== void 0) void Promise.resolve(app.dataLocation()).then(setData).catch(() => {
@@ -18440,18 +22856,18 @@ function LocationsSection({ actions, run: run2 }) {
       setMoving(false);
     }));
   };
-  return (0, import_react48.createElement)(
+  return (0, import_react49.createElement)(
     SetSection,
     { title: t("Locations"), className: "bt-set-places" },
-    (0, import_react48.createElement)(
+    (0, import_react49.createElement)(
       SetRow,
       { label: t("Team workspace"), hint: t("Where Bots without a folder of their own work.") },
-      team === null ? null : (0, import_react48.createElement)(FolderMenu, { value: team, team: true, actions, run: run2, onPick: pickTeam, disabled: moving })
+      team === null ? null : (0, import_react49.createElement)(FolderMenu, { value: team, team: true, actions, run: run2, onPick: pickTeam, disabled: moving })
     ),
-    data === null ? null : (0, import_react48.createElement)(
+    data === null ? null : (0, import_react49.createElement)(
       SetRow,
       { label: t("Data location"), hint: data.path },
-      data.fixed ? null : (0, import_react48.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: moving, onClick: () => {
+      data.fixed ? null : (0, import_react49.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: moving, onClick: () => {
         if (!busy.current) void run2(app.moveData(team ?? void 0));
       } }, t("Change…"))
     )
@@ -18461,52 +22877,52 @@ function MainBotsSection({ roster, actions, run: run2 }) {
   const mains = (roster.mainBotIds ?? []).map((id) => roster.byId[id]).filter(Boolean);
   const [first, ...others] = mains;
   const candidates = roster.bots.filter((bot) => !isMainOf(roster, bot.id));
-  return (0, import_react48.createElement)(
+  return (0, import_react49.createElement)(
     SetSection,
     { title: t("Main Bot") },
-    (0, import_react48.createElement)(
+    (0, import_react49.createElement)(
       SetRow,
       {
         label: t("Main Bot"),
         hint: first ? t("First in the sidebar. Pick another Bot to hand it the role; {name} then stops being a Main Bot.", { name: first.name }) : void 0
       },
-      (0, import_react48.createElement)("select", {
+      (0, import_react49.createElement)("select", {
         className: "bt-select",
         "aria-label": t("Main Bot"),
         value: first?.id ?? "",
         onChange: (event) => run2(actions.setMain(event.target.value, true, first ? { replace: first.id } : {}))
-      }, first ? null : (0, import_react48.createElement)("option", { value: "" }, t("Choose a Bot…")), roster.bots.map((bot) => (0, import_react48.createElement)("option", { key: bot.id, value: bot.id }, bot.name)))
+      }, first ? null : (0, import_react49.createElement)("option", { value: "" }, t("Choose a Bot…")), roster.bots.map((bot) => (0, import_react49.createElement)("option", { key: bot.id, value: bot.id }, bot.name)))
     ),
-    others.map((bot) => (0, import_react48.createElement)(
+    others.map((bot) => (0, import_react49.createElement)(
       SetRow,
       { key: bot.id, label: bot.name, hint: t("Also a Main Bot.") },
-      (0, import_react48.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.setMain(bot.id, true, { primary: true })) }, t("Move to first")),
-      (0, import_react48.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.setMain(bot.id, false)) }, t("Remove Main Bot role"))
+      (0, import_react49.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.setMain(bot.id, true, { primary: true })) }, t("Move to first")),
+      (0, import_react49.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => run2(actions.setMain(bot.id, false)) }, t("Remove Main Bot role"))
     )),
-    candidates.length > 0 ? (0, import_react48.createElement)(
+    candidates.length > 0 ? (0, import_react49.createElement)(
       SetRow,
       { label: t("Add a Main Bot"), hint: t("Main Bots can create and change Bots, and run every group chat.") },
-      (0, import_react48.createElement)("select", {
+      (0, import_react49.createElement)("select", {
         className: "bt-select",
         "aria-label": t("Add a Main Bot"),
         value: "",
         onChange: (event) => {
           if (event.target.value) void run2(actions.setMain(event.target.value, true));
         }
-      }, (0, import_react48.createElement)("option", { value: "" }, t("Choose a Bot…")), candidates.map((bot) => (0, import_react48.createElement)("option", { key: bot.id, value: bot.id }, bot.name)))
+      }, (0, import_react49.createElement)("option", { value: "" }, t("Choose a Bot…")), candidates.map((bot) => (0, import_react49.createElement)("option", { key: bot.id, value: bot.id }, bot.name)))
     ) : null
   );
 }
 var MOTIONS = [["quiet", "Quiet"], ["normal", "Normal"], ["lively", "Lively"]];
 function MotionSection({ roster, actions, run: run2 }) {
   const motion = roster.prefs?.motion === "quiet" || roster.prefs?.motion === "lively" ? roster.prefs.motion : "normal";
-  return (0, import_react48.createElement)(
+  return (0, import_react49.createElement)(
     SetSection,
     { title: t("Animation") },
-    (0, import_react48.createElement)(
+    (0, import_react49.createElement)(
       SetRow,
       { label: t("Bot animation") },
-      (0, import_react48.createElement)(Segmented, { label: t("Bot animation"), value: motion, className: "bt-motion-seg" }, MOTIONS.map(([id, label]) => (0, import_react48.createElement)("button", {
+      (0, import_react49.createElement)(Segmented, { label: t("Bot animation"), value: motion, className: "bt-motion-seg" }, MOTIONS.map(([id, label]) => (0, import_react49.createElement)("button", {
         key: id,
         type: "button",
         "aria-pressed": motion === id,
@@ -18518,70 +22934,70 @@ function MotionSection({ roster, actions, run: run2 }) {
   );
 }
 function BotsPage({ roster, actions, run: run2 }) {
-  const [creating, setCreating] = (0, import_react48.useState)(false);
+  const [creating, setCreating] = (0, import_react49.useState)(false);
   return [
-    (0, import_react48.createElement)(MainBotsSection, { key: "main", roster, actions, run: run2 }),
-    (0, import_react48.createElement)(MotionSection, { key: "motion", roster, actions, run: run2 }),
-    creating ? (0, import_react48.createElement)(CreateBot, { key: "create", roster, actions, inline: true, onBack: () => setCreating(false), onCreated: (bot) => actions.openSettings("bots", bot.id) }) : (0, import_react48.createElement)(
+    (0, import_react49.createElement)(MainBotsSection, { key: "main", roster, actions, run: run2 }),
+    (0, import_react49.createElement)(MotionSection, { key: "motion", roster, actions, run: run2 }),
+    creating ? (0, import_react49.createElement)(CreateBot, { key: "create", roster, actions, inline: true, onBack: () => setCreating(false), onCreated: (bot) => actions.openSettings("bots", bot.id) }) : (0, import_react49.createElement)(
       "div",
       { key: "new", className: "bt-actions" },
-      (0, import_react48.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm bt-with-icon", onClick: () => setCreating(true) }, (0, import_react48.createElement)(PlusIcon), t("New Bot"))
+      (0, import_react49.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm bt-with-icon", onClick: () => setCreating(true) }, (0, import_react49.createElement)(PlusIcon), t("New Bot"))
     ),
-    (0, import_react48.createElement)(
+    (0, import_react49.createElement)(
       SetSection,
       { key: "bots", title: t("Bots · {count}", { count: roster.bots.length }) },
-      roster.bots.map((bot) => (0, import_react48.createElement)(
+      roster.bots.map((bot) => (0, import_react49.createElement)(
         "button",
         { key: bot.id, type: "button", className: "bt-set-row", onClick: () => actions.openSettings("bots", bot.id) },
-        (0, import_react48.createElement)(
+        (0, import_react49.createElement)(
           "span",
           { className: "bt-set-bot" },
-          (0, import_react48.createElement)(BotAvatar, { bot, size: 28, badge: false, live: false }),
-          (0, import_react48.createElement)("span", { className: "bt-row-title" }, bot.name),
-          bot.role ? (0, import_react48.createElement)("span", { className: "bt-tag" }, bot.role) : null,
-          isMainOf(roster, bot.id) ? (0, import_react48.createElement)("span", { className: "bt-tag" }, t("Main Bot")) : null,
-          bot.hidden && !isMainOf(roster, bot.id) ? (0, import_react48.createElement)("span", { className: "bt-tag" }, t("Hidden")) : null
+          (0, import_react49.createElement)(BotAvatar, { bot, size: 28, badge: false, live: false }),
+          (0, import_react49.createElement)("span", { className: "bt-row-title" }, bot.name),
+          bot.role ? (0, import_react49.createElement)("span", { className: "bt-tag" }, bot.role) : null,
+          isMainOf(roster, bot.id) ? (0, import_react49.createElement)("span", { className: "bt-tag" }, t("Main Bot")) : null,
+          bot.hidden && !isMainOf(roster, bot.id) ? (0, import_react49.createElement)("span", { className: "bt-tag" }, t("Hidden")) : null
         ),
-        (0, import_react48.createElement)("span", { className: "bt-chevron" }, (0, import_react48.createElement)(ChevronRightIcon))
+        (0, import_react49.createElement)("span", { className: "bt-chevron" }, (0, import_react49.createElement)(ChevronRightIcon))
       ))
     ),
-    (0, import_react48.createElement)(KeptPrivateSection, { key: "kept", roster, actions, run: run2, Section: SetSection, Row: SetRow })
+    (0, import_react49.createElement)(KeptPrivateSection, { key: "kept", roster, actions, run: run2, Section: SetSection, Row: SetRow })
   ];
 }
 function GroupsPage({ roster, actions, run: run2 }) {
-  const [creating, setCreating] = (0, import_react48.useState)(false);
+  const [creating, setCreating] = (0, import_react49.useState)(false);
   return [
-    creating ? (0, import_react48.createElement)(NewGroupForm, { key: "create", roster, actions, run: run2, onCancel: () => setCreating(false), onCreated: (room2) => actions.openSettings("groups", room2.id) }) : (0, import_react48.createElement)(
+    creating ? (0, import_react49.createElement)(NewGroupForm, { key: "create", roster, actions, run: run2, onCancel: () => setCreating(false), onCreated: (room2) => actions.openSettings("groups", room2.id) }) : (0, import_react49.createElement)(
       "div",
       { key: "new", className: "bt-actions" },
-      (0, import_react48.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm bt-with-icon", disabled: roster.bots.length < 2, title: roster.bots.length < 2 ? t("A group chat needs at least two Bots") : void 0, onClick: () => setCreating(true) }, (0, import_react48.createElement)(PlusIcon), t("Create group chat"))
+      (0, import_react49.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm bt-with-icon", disabled: roster.bots.length < 2, title: roster.bots.length < 2 ? t("A group chat needs at least two Bots") : void 0, onClick: () => setCreating(true) }, (0, import_react49.createElement)(PlusIcon), t("Create group chat"))
     ),
-    (0, import_react48.createElement)(
+    (0, import_react49.createElement)(
       SetSection,
       { key: "groups", title: t("Group chats · {count}", { count: roster.rooms.length }) },
-      roster.rooms.length === 0 ? (0, import_react48.createElement)(SetRow, { label: t("No group chats yet."), hint: t("A group chat lets several Bots work on one thing with you.") }) : roster.rooms.map((room2) => {
+      roster.rooms.length === 0 ? (0, import_react49.createElement)(SetRow, { label: t("No group chats yet."), hint: t("A group chat lets several Bots work on one thing with you.") }) : roster.rooms.map((room2) => {
         const admin = roster.byId[room2.admin];
-        return (0, import_react48.createElement)(
+        return (0, import_react49.createElement)(
           "button",
           { key: room2.id, type: "button", className: "bt-set-row", onClick: () => actions.openSettings("groups", room2.id) },
-          (0, import_react48.createElement)(
+          (0, import_react49.createElement)(
             "span",
             { className: "bt-set-bot" },
-            (0, import_react48.createElement)(RoomAvatar, { room: room2, roster, size: 28 }),
-            (0, import_react48.createElement)("span", { className: "bt-row-title" }, room2.name),
-            (0, import_react48.createElement)("span", { className: "bt-tag" }, t("{count} members", { count: room2.members.length })),
-            admin ? (0, import_react48.createElement)("span", { className: "bt-tag bt-tag-admin" }, (0, import_react48.createElement)(AdminStar), admin.name) : null,
-            room2.hidden ? (0, import_react48.createElement)("span", { className: "bt-tag" }, t("Hidden")) : null
+            (0, import_react49.createElement)(RoomAvatar, { room: room2, roster, size: 28 }),
+            (0, import_react49.createElement)("span", { className: "bt-row-title" }, room2.name),
+            (0, import_react49.createElement)("span", { className: "bt-tag" }, t("{count} members", { count: room2.members.length })),
+            admin ? (0, import_react49.createElement)("span", { className: "bt-tag bt-tag-admin" }, (0, import_react49.createElement)(AdminStar), admin.name) : null,
+            room2.hidden ? (0, import_react49.createElement)("span", { className: "bt-tag" }, t("Hidden")) : null
           ),
-          (0, import_react48.createElement)("span", { className: "bt-chevron" }, (0, import_react48.createElement)(ChevronRightIcon))
+          (0, import_react49.createElement)("span", { className: "bt-chevron" }, (0, import_react49.createElement)(ChevronRightIcon))
         );
       })
     )
   ];
 }
 function SettingsDialog({ page, id, onContinue, roster, actions, useUpdate, leaving = false }) {
-  const [error, setError] = (0, import_react48.useState)("");
-  const close = (0, import_react48.useCallback)(() => actions.closeSettings(), []);
+  const [error, setError] = (0, import_react49.useState)("");
+  const close = (0, import_react49.useCallback)(() => actions.closeSettings(), []);
   useEscape(close);
   const run2 = (promise) => Promise.resolve(promise).then(() => {
     setError("");
@@ -18600,32 +23016,32 @@ function SettingsDialog({ page, id, onContinue, roster, actions, useUpdate, leav
   const nav = useGlide(shown, { axis: "y" });
   const pageKey = `${shown}:${bot?.id ?? room2?.id ?? ""}`;
   const depth = bot || room2 ? 1 : 0;
-  const last = (0, import_react48.useRef)({ key: pageKey, depth, move: "up" });
+  const last = (0, import_react49.useRef)({ key: pageKey, depth, move: "up" });
   if (last.current.key !== pageKey) {
     last.current = { key: pageKey, depth, move: depth > last.current.depth ? "in" : depth < last.current.depth ? "out" : "up" };
   }
-  const [usageOpened, setUsageOpened] = (0, import_react48.useState)(shown === "usage");
+  const [usageOpened, setUsageOpened] = (0, import_react49.useState)(shown === "usage");
   if (shown === "usage" && !usageOpened) setUsageOpened(true);
-  const errorLine = error ? (0, import_react48.createElement)("div", { className: "bt-error", role: "alert", style: { padding: 0 } }, error) : null;
-  return (0, import_react48.createElement)(
+  const errorLine = error ? (0, import_react49.createElement)("div", { className: "bt-error", role: "alert", style: { padding: 0 } }, error) : null;
+  return (0, import_react49.createElement)(
     "div",
     { className: "bt-settings-layer", "data-leaving": leaving || void 0 },
-    (0, import_react48.createElement)("div", { className: "bt-scrim", onMouseDown: close }),
-    (0, import_react48.createElement)(
+    (0, import_react49.createElement)("div", { className: "bt-scrim", onMouseDown: close }),
+    (0, import_react49.createElement)(
       "div",
       { className: "bt-settings", role: "dialog", "aria-modal": true, "aria-label": t("DS Bot settings") },
-      (0, import_react48.createElement)(
+      (0, import_react49.createElement)(
         "nav",
         { ref: nav.box, className: "bt-settings-nav", "aria-label": t("Settings pages") },
-        (0, import_react48.createElement)("span", { ref: nav.thumb, className: "bt-thumb", "aria-hidden": true }),
-        pages.map(([key, text]) => (0, import_react48.createElement)("button", {
+        (0, import_react49.createElement)("span", { ref: nav.thumb, className: "bt-thumb", "aria-hidden": true }),
+        pages.map(([key, text]) => (0, import_react49.createElement)("button", {
           key,
           type: "button",
           className: "bt-settings-item",
           "aria-current": shown === key ? "page" : void 0,
           onClick: () => actions.openSettings(key)
-        }, (0, import_react48.createElement)(PAGE_ICONS[key]), t(text))),
-        actions.openHarnessSettings ? (0, import_react48.createElement)("button", {
+        }, (0, import_react49.createElement)(PAGE_ICONS[key]), t(text))),
+        actions.openHarnessSettings ? (0, import_react49.createElement)("button", {
           type: "button",
           className: "bt-settings-item bt-settings-shell",
           title: t("Models, providers, and the rest of DeepSeek Harness"),
@@ -18633,71 +23049,71 @@ function SettingsDialog({ page, id, onContinue, roster, actions, useUpdate, leav
             close();
             actions.openHarnessSettings();
           }
-        }, (0, import_react48.createElement)(SlidersIcon), t("Harness settings")) : null
+        }, (0, import_react49.createElement)(SlidersIcon), t("Harness settings")) : null
       ),
-      (0, import_react48.createElement)(
+      (0, import_react49.createElement)(
         "div",
         { className: "bt-settings-main" },
-        (0, import_react48.createElement)(
+        (0, import_react49.createElement)(
           "div",
           { className: "bt-settings-head" },
-          back ? (0, import_react48.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": back, title: back, onClick: () => actions.openSettings(shown) }, (0, import_react48.createElement)(ChevronLeftIcon)) : null,
-          (0, import_react48.createElement)("h2", { key: bot?.id ?? room2?.id ?? shown }, bot?.name ?? room2?.name ?? label)
+          back ? (0, import_react49.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": back, title: back, onClick: () => actions.openSettings(shown) }, (0, import_react49.createElement)(ChevronLeftIcon)) : null,
+          (0, import_react49.createElement)("h2", { key: bot?.id ?? room2?.id ?? shown }, bot?.name ?? room2?.name ?? label)
         ),
-        shown === "usage" ? null : (0, import_react48.createElement)(
+        shown === "usage" ? null : (0, import_react49.createElement)(
           "div",
           { key: pageKey, className: "bt-settings-scroll bt-settings-page", "data-move": last.current.move },
           errorLine,
-          shown === "general" ? (0, import_react48.createElement)(GeneralPage, { roster, actions, run: run2 }) : null,
-          shown === "mobile" ? (0, import_react48.createElement)(MobileDevicesPage) : null,
-          shown === "models" ? (0, import_react48.createElement)(ProvidersPage, { actions, run: run2, Section: SetSection }) : null,
-          bot ? (0, import_react48.createElement)("div", { className: "bt-settings-form" }, (0, import_react48.createElement)(BotSettingsForm, { key: bot.id, bot, roster, actions, run: run2 })) : null,
-          shown === "bots" && !bot ? (0, import_react48.createElement)(BotsPage, { roster, actions, run: run2 }) : null,
-          room2 ? (0, import_react48.createElement)("div", { className: "bt-settings-form" }, (0, import_react48.createElement)(GroupSettingsForm, { key: room2.id, room: room2, roster, actions, run: run2 })) : null,
-          shown === "groups" && !room2 ? (0, import_react48.createElement)(GroupsPage, { roster, actions, run: run2 }) : null,
-          shown === "connectors" ? (0, import_react48.createElement)(ConnectorsPage, { roster, actions }) : null,
-          shown === "capabilities" ? (0, import_react48.createElement)(CapabilitiesPage, { roster, actions, run: run2 }) : null,
-          shown === "browser" ? (0, import_react48.createElement)(BrowserPage, { roster, actions, run: run2, Section: SetSection, Row: SetRow, privateSetup: id === "private-desktop", onPrivateContinue: onContinue && (() => {
+          shown === "general" ? (0, import_react49.createElement)(GeneralPage, { roster, actions, run: run2 }) : null,
+          shown === "mobile" ? (0, import_react49.createElement)(MobileDevicesPage) : null,
+          shown === "models" ? (0, import_react49.createElement)(ProvidersPage, { actions, run: run2, Section: SetSection }) : null,
+          bot ? (0, import_react49.createElement)("div", { className: "bt-settings-form" }, (0, import_react49.createElement)(BotSettingsForm, { key: bot.id, bot, roster, actions, run: run2 })) : null,
+          shown === "bots" && !bot ? (0, import_react49.createElement)(BotsPage, { roster, actions, run: run2 }) : null,
+          room2 ? (0, import_react49.createElement)("div", { className: "bt-settings-form" }, (0, import_react49.createElement)(GroupSettingsForm, { key: room2.id, room: room2, roster, actions, run: run2 })) : null,
+          shown === "groups" && !room2 ? (0, import_react49.createElement)(GroupsPage, { roster, actions, run: run2 }) : null,
+          shown === "connectors" ? (0, import_react49.createElement)(ConnectorsPage, { roster, actions }) : null,
+          shown === "capabilities" ? (0, import_react49.createElement)(CapabilitiesPage, { roster, actions, run: run2 }) : null,
+          shown === "browser" ? (0, import_react49.createElement)(BrowserPage, { roster, actions, run: run2, Section: SetSection, Row: SetRow, privateSetup: id === "private-desktop", onPrivateContinue: onContinue && (() => {
             close();
             onContinue();
           }) }) : null,
-          shown === "schedules" ? (0, import_react48.createElement)(SchedulesPage, { roster, actions, start: id ?? void 0 }) : null,
-          shown === "secrets" ? (0, import_react48.createElement)(SecretsPage, { roster, actions, run: run2, Section: SetSection }) : null,
-          shown === "feedback" ? (0, import_react48.createElement)(FeedbackPage, { actions, run: run2, Section: SetSection, Row: SetRow }) : null,
-          shown === "about" || shown === "updates" ? (0, import_react48.createElement)(AboutPage, { useUpdate, actions, run: run2, Section: SetSection, Row: SetRow, updatesOnly: shown === "updates" }) : null
+          shown === "schedules" ? (0, import_react49.createElement)(SchedulesPage, { roster, actions, start: id ?? void 0 }) : null,
+          shown === "secrets" ? (0, import_react49.createElement)(SecretsPage, { roster, actions, run: run2, Section: SetSection }) : null,
+          shown === "feedback" ? (0, import_react49.createElement)(FeedbackPage, { actions, run: run2, Section: SetSection, Row: SetRow }) : null,
+          shown === "about" || shown === "updates" ? (0, import_react49.createElement)(AboutPage, { useUpdate, actions, run: run2, Section: SetSection, Row: SetRow, updatesOnly: shown === "updates" }) : null
         ),
-        usageOpened ? (0, import_react48.createElement)(
+        usageOpened ? (0, import_react49.createElement)(
           "div",
           { key: "usage", className: "bt-settings-scroll bt-settings-usage", "data-off": shown === "usage" ? void 0 : "", "aria-hidden": shown === "usage" ? void 0 : true },
           shown === "usage" ? errorLine : null,
-          (0, import_react48.createElement)(UsagePage, { roster, actions, focusId: usageFocus })
+          (0, import_react49.createElement)(UsagePage, { roster, actions, focusId: usageFocus })
         ) : null
       ),
-      (0, import_react48.createElement)("button", { type: "button", className: "bt-settings-close", "aria-label": t("Close settings"), onClick: close }, (0, import_react48.createElement)(CloseIcon))
+      (0, import_react49.createElement)("button", { type: "button", className: "bt-settings-close", "aria-label": t("Close settings"), onClick: close }, (0, import_react49.createElement)(CloseIcon))
     )
   );
 }
 
 // src/client/context-menu.js
-var import_react49 = require("react");
+var import_react50 = require("react");
 function ContextMenu({ menu, roster, actions, leaving = false }) {
   useEscape(() => actions.closeMenu());
-  (0, import_react49.useEffect)(() => {
+  (0, import_react50.useEffect)(() => {
     const onDown = (event) => {
       if (!(event.target instanceof Element) || !event.target.closest(".bt-menu")) actions.closeMenu();
     };
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, []);
-  const ref = (0, import_react49.useRef)(null);
-  const [place, setPlace] = (0, import_react49.useState)({ left: menu.x, top: menu.y });
+  const ref = (0, import_react50.useRef)(null);
+  const [place, setPlace] = (0, import_react50.useState)({ left: menu.x, top: menu.y });
   const tick = useViewport();
-  (0, import_react49.useLayoutEffect)(() => {
+  (0, import_react50.useLayoutEffect)(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
     setPlace({ left: Math.max(8, Math.min(menu.x, window.innerWidth - box.width - 8)), top: Math.max(8, Math.min(menu.y, viewBottom() - box.height - 8)) });
   }, [menu.x, menu.y, tick]);
-  if (menu.kind === "agent" || menu.kind === "agent-session") return (0, import_react49.createElement)(AgentMenu, { menu, roster, actions, leaving });
+  if (menu.kind === "agent" || menu.kind === "agent-session") return (0, import_react50.createElement)(AgentMenu, { menu, roster, actions, leaving });
   const bot = roster.byId[menu.id];
   const room2 = roster.roomsById[menu.id];
   const entry = bot ?? room2;
@@ -18728,14 +23144,14 @@ function ContextMenu({ menu, roster, actions, leaving = false }) {
       isMainBot ? null : [room2 ? t("Delete group") : t("Delete"), TrashIcon, () => bot ? actions.deleteBot(bot.id) : actions.deleteRoom(menu.id), true]
     ]
   ].map((group) => group.filter(Boolean)).filter((group) => group.length > 0);
-  return (0, import_react49.createElement)(
+  return (0, import_react50.createElement)(
     "div",
     { ref, className: "bt-menu", role: "menu", "aria-label": t("{name} actions", { name: bot?.name ?? room2.name }), style: place, "data-leaving": leaving || void 0 },
-    groups.map((group, index) => (0, import_react49.createElement)(
-      import_react49.Fragment,
+    groups.map((group, index) => (0, import_react50.createElement)(
+      import_react50.Fragment,
       { key: index },
-      index > 0 ? (0, import_react49.createElement)("div", { className: "bt-menu-sep", role: "separator" }) : null,
-      group.map(([label, Icon, run2, danger]) => (0, import_react49.createElement)("button", {
+      index > 0 ? (0, import_react50.createElement)("div", { className: "bt-menu-sep", role: "separator" }) : null,
+      group.map(([label, Icon, run2, danger]) => (0, import_react50.createElement)("button", {
         key: label,
         type: "button",
         role: "menuitem",
@@ -18744,15 +23160,15 @@ function ContextMenu({ menu, roster, actions, leaving = false }) {
           actions.closeMenu();
           void Promise.resolve(run2()).catch((error) => actions.reportError(error, "menu"));
         }
-      }, (0, import_react49.createElement)(Icon), label))
+      }, (0, import_react50.createElement)(Icon), label))
     ))
   );
 }
 function AgentMenu({ menu, roster, actions, leaving }) {
-  const ref = (0, import_react49.useRef)(null);
-  const [place, setPlace] = (0, import_react49.useState)({ left: menu.x, top: menu.y });
+  const ref = (0, import_react50.useRef)(null);
+  const [place, setPlace] = (0, import_react50.useState)({ left: menu.x, top: menu.y });
   const tick = useViewport();
-  (0, import_react49.useLayoutEffect)(() => {
+  (0, import_react50.useLayoutEffect)(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
     setPlace({ left: Math.max(8, Math.min(menu.x, window.innerWidth - box.width - 8)), top: Math.max(8, Math.min(menu.y, viewBottom() - box.height - 8)) });
@@ -18774,14 +23190,14 @@ function AgentMenu({ menu, roster, actions, leaving }) {
       [t("Archive"), TrashIcon, () => actions.archiveAgentSession(agent.id, menu.id), true]
     ]
   ];
-  return (0, import_react49.createElement)(
+  return (0, import_react50.createElement)(
     "div",
     { ref, className: "bt-menu", role: "menu", "aria-label": menu.kind === "agent" ? "DSH Agent" : t("Session actions"), style: place, "data-leaving": leaving || void 0 },
-    groups.map((group, index) => (0, import_react49.createElement)(
-      import_react49.Fragment,
+    groups.map((group, index) => (0, import_react50.createElement)(
+      import_react50.Fragment,
       { key: index },
-      index > 0 ? (0, import_react49.createElement)("div", { className: "bt-menu-sep", role: "separator" }) : null,
-      group.map(([label, Icon, run2, danger]) => (0, import_react49.createElement)("button", {
+      index > 0 ? (0, import_react50.createElement)("div", { className: "bt-menu-sep", role: "separator" }) : null,
+      group.map(([label, Icon, run2, danger]) => (0, import_react50.createElement)("button", {
         key: label,
         type: "button",
         role: "menuitem",
@@ -18790,13 +23206,13 @@ function AgentMenu({ menu, roster, actions, leaving }) {
           actions.closeMenu();
           void Promise.resolve(run2()).catch((error) => console.warn("[ds-bot]", error));
         }
-      }, (0, import_react49.createElement)(Icon), label))
+      }, (0, import_react50.createElement)(Icon), label))
     ))
   );
 }
 
 // src/client/member-status.js
-var import_react50 = require("react");
+var import_react51 = require("react");
 var NO_WORK = { bots: {}, rooms: {}, approvals: [] };
 var FACES_MAX = 3;
 var DOCK_EXIT_MS = 160;
@@ -18857,15 +23273,15 @@ function dockModel(sessionId, roster, work) {
   };
 }
 function Face({ bot, ask, state }) {
-  return (0, import_react50.createElement)(
+  return (0, import_react51.createElement)(
     "span",
     { className: "bt-mw-face", "data-ask": ask || void 0 },
-    (0, import_react50.createElement)(BotMark, { bot, size: 20, state: ask ? "alert" : state })
+    (0, import_react51.createElement)(BotMark, { bot, size: 20, state: ask ? "alert" : state })
   );
 }
 function useFitWidth(inner, key) {
-  const [width, setWidth] = (0, import_react50.useState)(null);
-  (0, import_react50.useLayoutEffect)(() => {
+  const [width, setWidth] = (0, import_react51.useState)(null);
+  (0, import_react51.useLayoutEffect)(() => {
     setWidth(key && inner.current ? inner.current.offsetWidth : null);
   }, [key]);
   return width;
@@ -18876,91 +23292,91 @@ function MemberDock({ sessionId, useRoster, useWork, actions }) {
   const live = dockModel(sessionId, roster, work);
   const [kept, leaving] = useLinger(live ? JSON.stringify(live) : null, DOCK_EXIT_MS);
   const model = kept ? JSON.parse(kept) : null;
-  const inner = (0, import_react50.useRef)(null);
+  const inner = (0, import_react51.useRef)(null);
   const width = useFitWidth(inner, kept);
   if (!model) return null;
   const faces = model.faces.map((face) => ({ ...face, bot: roster.byId[face.id] })).filter((face) => face.bot);
   const label = [model.waiting, model.doing].filter(Boolean).join(" · ");
   const open = () => model.open.details ? actions.showDetails(model.open.details) : actions.openSession(model.open.session);
-  return (0, import_react50.createElement)(
+  return (0, import_react51.createElement)(
     "div",
     { className: "bt-mw-dock", "data-leaving": leaving || void 0 },
-    (0, import_react50.createElement)(
+    (0, import_react51.createElement)(
       "button",
       { type: "button", className: "bt-mw-pill", "aria-label": label, onClick: open, disabled: leaving, style: width ? { width } : void 0 },
-      (0, import_react50.createElement)(
+      (0, import_react51.createElement)(
         "span",
         { ref: inner, className: "bt-mw-pill-in" },
-        (0, import_react50.createElement)("span", { className: "bt-mw-faces", "aria-hidden": true }, faces.map((face) => (0, import_react50.createElement)(Face, { key: face.id, ...face }))),
-        (0, import_react50.createElement)(
+        (0, import_react51.createElement)("span", { className: "bt-mw-faces", "aria-hidden": true }, faces.map((face) => (0, import_react51.createElement)(Face, { key: face.id, ...face }))),
+        (0, import_react51.createElement)(
           "span",
           { key: label, className: "bt-mw-label", "aria-hidden": true },
-          model.waiting ? (0, import_react50.createElement)("span", { className: "bt-mw-ask" }, model.waiting) : null,
-          model.waiting && model.doing ? (0, import_react50.createElement)("span", { className: "bt-mw-dot" }, "·") : null,
-          model.doing ? (0, import_react50.createElement)("span", { className: "bt-mw-doing" }, (0, import_react50.createElement)(Shimmer, null, model.doing)) : null
+          model.waiting ? (0, import_react51.createElement)("span", { className: "bt-mw-ask" }, model.waiting) : null,
+          model.waiting && model.doing ? (0, import_react51.createElement)("span", { className: "bt-mw-dot" }, "·") : null,
+          model.doing ? (0, import_react51.createElement)("span", { className: "bt-mw-doing" }, (0, import_react51.createElement)(Shimmer, null, model.doing)) : null
         )
       )
     )
   );
 }
-var stateLine = (className, at, ...what) => (0, import_react50.createElement)(
+var stateLine = (className, at, ...what) => (0, import_react51.createElement)(
   "span",
   { className },
-  (0, import_react50.createElement)("span", { className: "bt-member-what" }, ...what),
-  typeof at === "number" ? (0, import_react50.createElement)(Elapsed, { at, className: "bt-member-time" }) : null
+  (0, import_react51.createElement)("span", { className: "bt-member-what" }, ...what),
+  typeof at === "number" ? (0, import_react51.createElement)(Elapsed, { at, className: "bt-member-time" }) : null
 );
 function ApprovalCard({ approval, bot, actions }) {
-  const [busy, setBusy] = (0, import_react50.useState)(false);
+  const [busy, setBusy] = (0, import_react51.useState)(false);
   const answer = (choice) => {
     setBusy(true);
     void Promise.resolve(actions.answerApproval(approval.id, choice)).catch((error) => actions.reportError(error, "approval")).finally(() => setBusy(false));
   };
-  return (0, import_react50.createElement)(
+  return (0, import_react51.createElement)(
     "div",
     { className: "bt-mw-card", role: "group", "aria-label": t("{name} is waiting for your approval", { name: bot.name }) },
-    (0, import_react50.createElement)("div", { className: "bt-mw-tool" }, approval.tool),
-    approval.detail?.text ? (0, import_react50.createElement)("div", { className: "bt-mw-text" }, approval.detail.text) : null,
-    approval.reason ? (0, import_react50.createElement)("div", { className: "bt-mw-reason" }, approval.reason) : null,
-    approval.detail?.code ? (0, import_react50.createElement)("code", { className: "bt-mw-code", title: approval.detail.code }, approval.detail.code) : null,
-    approval.answerable ? (0, import_react50.createElement)(
+    (0, import_react51.createElement)("div", { className: "bt-mw-tool" }, approval.tool),
+    approval.detail?.text ? (0, import_react51.createElement)("div", { className: "bt-mw-text" }, approval.detail.text) : null,
+    approval.reason ? (0, import_react51.createElement)("div", { className: "bt-mw-reason" }, approval.reason) : null,
+    approval.detail?.code ? (0, import_react51.createElement)("code", { className: "bt-mw-code", title: approval.detail.code }, approval.detail.code) : null,
+    approval.answerable ? (0, import_react51.createElement)(
       "div",
       { className: "bt-mw-actions" },
-      (0, import_react50.createElement)("button", { type: "button", className: "bt-q-btn", disabled: busy, onClick: () => answer("reject") }, t("Reject")),
-      (0, import_react50.createElement)("button", { type: "button", className: "bt-q-submit", disabled: busy, onClick: () => answer("allow") }, t("Allow once"))
-    ) : (0, import_react50.createElement)(
+      (0, import_react51.createElement)("button", { type: "button", className: "bt-q-btn", disabled: busy, onClick: () => answer("reject") }, t("Reject")),
+      (0, import_react51.createElement)("button", { type: "button", className: "bt-q-submit", disabled: busy, onClick: () => answer("allow") }, t("Allow once"))
+    ) : (0, import_react51.createElement)(
       "div",
       { className: "bt-mw-actions" },
-      (0, import_react50.createElement)("button", { type: "button", className: "bt-q-btn", onClick: () => actions.openSession(bot.id) }, t("Open {name}'s chat", { name: bot.name }))
+      (0, import_react51.createElement)("button", { type: "button", className: "bt-q-btn", onClick: () => actions.openSession(bot.id) }, t("Open {name}'s chat", { name: bot.name }))
     )
   );
 }
 function MemberState({ entry, bot }) {
   if (entry?.state === "ask") return stateLine("bt-member-state bt-mw-ask", entry.approvals[0].at, t("Waiting for your approval"));
   if (entry?.state !== "work") return bot.role ? stateLine("bt-member-state", void 0, bot.role) : null;
-  return stateLine("bt-member-state", entry.doing.since, (0, import_react50.createElement)(Shimmer, null, `${workPhrase(entry.doing)}…`));
+  return stateLine("bt-member-state", entry.doing.since, (0, import_react51.createElement)(Shimmer, null, `${workPhrase(entry.doing)}…`));
 }
 function StopMemberWork({ entry, bot, room: room2, actions }) {
-  const [stopping, setStopping] = (0, import_react50.useState)(false);
+  const [stopping, setStopping] = (0, import_react51.useState)(false);
   if (!entry?.here || entry.state !== "work" && entry.state !== "ask") return null;
   const stop = () => {
     setStopping(true);
     void Promise.resolve(actions.stopMemberWork(room2.id, bot.id)).catch((error) => actions.reportError(error, "stop")).finally(() => setStopping(false));
   };
-  return (0, import_react50.createElement)("button", { type: "button", className: "bt-member-stop", disabled: stopping, "aria-label": `${t("Stop")} · ${bot.name}`, onClick: stop }, t("Stop"));
+  return (0, import_react51.createElement)("button", { type: "button", className: "bt-member-stop", disabled: stopping, "aria-label": `${t("Stop")} · ${bot.name}`, onClick: stop }, t("Stop"));
 }
 function StopRoomWork({ room: room2, entries: entries2, actions }) {
-  const [stopping, setStopping] = (0, import_react50.useState)(false);
+  const [stopping, setStopping] = (0, import_react51.useState)(false);
   if (!entries2.some((entry) => entry.here)) return null;
   const stop = () => {
     setStopping(true);
     void Promise.resolve(actions.stopRoomWork(room2.id)).catch((error) => actions.reportError(error, "stop")).finally(() => setStopping(false));
   };
   const label = t("Stop all work in this group");
-  return (0, import_react50.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: stopping, "aria-label": label, title: label, onClick: stop }, t("Stop all"));
+  return (0, import_react51.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: stopping, "aria-label": label, title: label, onClick: stop }, t("Stop all"));
 }
 function MemberApprovals({ entry, bot, actions }) {
   if (entry?.state !== "ask") return null;
-  return (0, import_react50.createElement)("div", { className: "bt-member-cards" }, entry.approvals.map((approval) => (0, import_react50.createElement)(ApprovalCard, { key: approval.id, approval, bot, actions })));
+  return (0, import_react51.createElement)("div", { className: "bt-member-cards" }, entry.approvals.map((approval) => (0, import_react51.createElement)(ApprovalCard, { key: approval.id, approval, bot, actions })));
 }
 function useMemberWork(room2, useWork) {
   const work = useWork?.((value) => value) ?? NO_WORK;
@@ -19024,7 +23440,7 @@ body[data-ds-dark-theme] .bt-member-state.bt-mw-ask{color:#f0b84a}
 `;
 
 // src/client/details-drawer.js
-var import_react51 = require("react");
+var import_react52 = require("react");
 function transcriptOf(list, id, name, hiddenTurns = []) {
   const outline = list.projectionsBySession?.[id]?.values?.turnOutline ?? list.byId[id]?.projectionValues?.turnOutline;
   if (!Array.isArray(outline)) return "";
@@ -19049,17 +23465,17 @@ var EMPTY_TABS = { ids: [], active: null };
 function PermissionRow({ bot, roster, actions, run: run2 }) {
   const catalog = roster.permissions;
   if (!catalog?.options?.length) return null;
-  return (0, import_react51.createElement)(
+  return (0, import_react52.createElement)(
     "div",
     { className: "bt-drawer-permission" },
-    (0, import_react51.createElement)("div", { className: "bt-section-title" }, t("Permissions")),
+    (0, import_react52.createElement)("div", { className: "bt-section-title" }, t("Permissions")),
     // A Bot without its own preset may run on another one set in DSH, so its first pick always applies.
-    (0, import_react51.createElement)(PermissionPicker, { catalog, saved: bot.permission ?? catalog.defaultPreset, repick: bot.permission === void 0, onPick: (permission) => run2(actions.updateBot(bot.id, { permission })) })
+    (0, import_react52.createElement)(PermissionPicker, { catalog, saved: bot.permission ?? catalog.defaultPreset, repick: bot.permission === void 0, onPick: (permission) => run2(actions.updateBot(bot.id, { permission })) })
   );
 }
 function RunStats({ bot, part, running, actions }) {
-  const [values, setValues] = (0, import_react51.useState)(null);
-  (0, import_react51.useEffect)(() => {
+  const [values, setValues] = (0, import_react52.useState)(null);
+  (0, import_react52.useEffect)(() => {
     if (!actions.runStats) return void 0;
     let current = true;
     actions.runStats(bot.id).then(
@@ -19076,56 +23492,56 @@ function RunStats({ bot, part, running, actions }) {
   }, [bot.id, part, running]);
   const shown = runStatsOf(values);
   if (shown.length === 0) return null;
-  return (0, import_react51.createElement)(
+  return (0, import_react52.createElement)(
     "div",
     { className: "bt-run-stats" },
-    shown.map((entry, index) => (0, import_react51.createElement)(
-      import_react51.Fragment,
+    shown.map((entry, index) => (0, import_react52.createElement)(
+      import_react52.Fragment,
       { key: entry.key },
-      index > 0 ? (0, import_react51.createElement)("span", { className: "bt-run-sep", "aria-hidden": true }, "·") : null,
-      (0, import_react51.createElement)("span", { title: entry.title }, entry.text)
+      index > 0 ? (0, import_react52.createElement)("span", { className: "bt-run-sep", "aria-hidden": true }, "·") : null,
+      (0, import_react52.createElement)("span", { title: entry.title }, entry.text)
     ))
   );
 }
 function BrowserCards({ bot, sessionId, roster, actions, useBrowserTabs, useBrowserPages }) {
   const state = useBrowserTabs((map) => map[bot.id] ?? EMPTY_TABS);
   const pages = useBrowserPages((map) => map);
-  (0, import_react51.useEffect)(() => {
+  (0, import_react52.useEffect)(() => {
     actions.browserEnsure?.(bot.id);
   }, [bot.id]);
   if (roster.browser !== true || !actions.browserShow) {
-    return (0, import_react51.createElement)("div", { className: "bt-muted" }, t("The browser is in DSH Desktop and the DS Bot app."));
+    return (0, import_react52.createElement)("div", { className: "bt-muted" }, t("The browser is in DSH Desktop and the DS Bot app."));
   }
   if (state.ids.length === 0) {
-    return (0, import_react51.createElement)(
+    return (0, import_react52.createElement)(
       "div",
       { className: "bt-browser-empty-mark" },
-      (0, import_react51.createElement)(BotMark, { bot, size: 40, state: "idle", live: true }),
-      (0, import_react51.createElement)("div", { className: "bt-browser-empty-title" }, t("{name}'s browser", { name: bot.name })),
-      (0, import_react51.createElement)("div", { className: "bt-muted" }, t("Open a page here and {name} can read it with you. Logins and cookies stay with {name}; other Bots never see them.", { name: bot.name })),
-      (0, import_react51.createElement)("button", { type: "button", className: "bt-browser-retry", onClick: () => actions.openBrowser(sessionId) }, t("Open browser"))
+      (0, import_react52.createElement)(BotMark, { bot, size: 40, state: "idle", live: true }),
+      (0, import_react52.createElement)("div", { className: "bt-browser-empty-title" }, t("{name}'s browser", { name: bot.name })),
+      (0, import_react52.createElement)("div", { className: "bt-muted" }, t("Open a page here and {name} can read it with you. Logins and cookies stay with {name}; other Bots never see them.", { name: bot.name })),
+      (0, import_react52.createElement)("button", { type: "button", className: "bt-browser-retry", onClick: () => actions.openBrowser(sessionId) }, t("Open browser"))
     );
   }
-  return (0, import_react51.createElement)(
+  return (0, import_react52.createElement)(
     "div",
     { className: "bt-bcards" },
     state.ids.map((tabId, index) => {
       const page = pages[tabId] ?? {};
       const label = page.title || shortUrl(page.url) || t("New tab");
-      return (0, import_react51.createElement)(
+      return (0, import_react52.createElement)(
         "div",
         { key: tabId, className: "bt-bcard", "data-active": state.active === tabId || void 0, style: { animationDelay: `${index * 30}ms` } },
-        (0, import_react51.createElement)(
+        (0, import_react52.createElement)(
           "button",
           { type: "button", className: "bt-bcard-shot", "aria-label": t("Open {title}", { title: label }), title: page.url, onClick: () => actions.browserPick(sessionId, tabId) },
-          page.excerpt ? (0, import_react51.createElement)(
+          page.excerpt ? (0, import_react52.createElement)(
             "span",
             { className: "bt-bcard-preview" },
-            (0, import_react51.createElement)("span", { className: "bt-bcard-ptitle" }, label),
-            (0, import_react51.createElement)("span", { className: "bt-bcard-excerpt" }, page.excerpt)
-          ) : (0, import_react51.createElement)("span", { className: "bt-bcard-blank" }, (0, import_react51.createElement)(GlobeIcon2), (0, import_react51.createElement)("span", null, label))
+            (0, import_react52.createElement)("span", { className: "bt-bcard-ptitle" }, label),
+            (0, import_react52.createElement)("span", { className: "bt-bcard-excerpt" }, page.excerpt)
+          ) : (0, import_react52.createElement)("span", { className: "bt-bcard-blank" }, (0, import_react52.createElement)(GlobeIcon2), (0, import_react52.createElement)("span", null, label))
         ),
-        (0, import_react51.createElement)("button", {
+        (0, import_react52.createElement)("button", {
           type: "button",
           className: "bt-bcard-x",
           "aria-label": t("Close tab"),
@@ -19134,29 +23550,29 @@ function BrowserCards({ bot, sessionId, roster, actions, useBrowserTabs, useBrow
             void actions.browserCloseTab(bot.id, tabId);
           }
         }, "×"),
-        (0, import_react51.createElement)(
+        (0, import_react52.createElement)(
           "div",
           { className: "bt-bcard-row" },
-          (0, import_react51.createElement)(Favicon, { src: page.favicon, className: "bt-bcard-fav" }),
-          (0, import_react51.createElement)("span", { className: "bt-bcard-title" }, label),
-          page.url ? (0, import_react51.createElement)("span", { className: "bt-bcard-host" }, hostOf2(page.url)) : null
+          (0, import_react52.createElement)(Favicon, { src: page.favicon, className: "bt-bcard-fav" }),
+          (0, import_react52.createElement)("span", { className: "bt-bcard-title" }, label),
+          page.url ? (0, import_react52.createElement)("span", { className: "bt-bcard-host" }, hostOf2(page.url)) : null
         )
       );
     }),
-    (0, import_react51.createElement)("button", { type: "button", className: "bt-bcard-new", style: { animationDelay: `${state.ids.length * 30}ms` }, onClick: () => actions.browserNewTab(sessionId) }, (0, import_react51.createElement)(PlusIcon), t("New tab"))
+    (0, import_react52.createElement)("button", { type: "button", className: "bt-bcard-new", style: { animationDelay: `${state.ids.length * 30}ms` }, onClick: () => actions.browserNewTab(sessionId) }, (0, import_react52.createElement)(PlusIcon), t("New tab"))
   );
 }
 function About({ text, title = "About" }) {
-  const [open, setOpen] = (0, import_react51.useState)(false);
+  const [open, setOpen] = (0, import_react52.useState)(false);
   const long = text.split("\n").length > 5 || text.length > 240;
-  const body = (0, import_react51.useRef)(null);
+  const body = (0, import_react52.useRef)(null);
   useMorph(body, open);
-  return (0, import_react51.createElement)(
+  return (0, import_react52.createElement)(
     "div",
     null,
-    (0, import_react51.createElement)("div", { className: "bt-section-title" }, t(title)),
-    (0, import_react51.createElement)("div", { ref: body, className: "bt-about", "data-open": open || void 0 }, text),
-    long ? (0, import_react51.createElement)("button", { type: "button", className: "bt-more", onClick: () => setOpen((value) => !value) }, open ? t("Show less") : t("Show more")) : null
+    (0, import_react52.createElement)("div", { className: "bt-section-title" }, t(title)),
+    (0, import_react52.createElement)("div", { ref: body, className: "bt-about", "data-open": open || void 0 }, text),
+    long ? (0, import_react52.createElement)("button", { type: "button", className: "bt-more", onClick: () => setOpen((value) => !value) }, open ? t("Show less") : t("Show more")) : null
   );
 }
 var PILE_MAX = 4;
@@ -19164,57 +23580,57 @@ function MemberPile({ room: room2, roster }) {
   const members = room2.members.map((id) => roster.byId[id]).filter(Boolean);
   const shown = members.length > PILE_MAX ? members.slice(0, PILE_MAX - 1) : members;
   const more = members.length - shown.length;
-  return (0, import_react51.createElement)(
+  return (0, import_react52.createElement)(
     "span",
     { className: "bt-pile", "aria-hidden": true },
-    shown.map((bot, index) => (0, import_react51.createElement)("span", { key: bot.id, className: "bt-pile-face", style: { animationDelay: `${index * 40}ms` } }, (0, import_react51.createElement)(BotMark, { bot, size: 44, live: true }))),
-    more > 0 ? (0, import_react51.createElement)("span", { key: "more", className: "bt-pile-face bt-pile-more", style: { animationDelay: `${shown.length * 40}ms` } }, `+${more}`) : null
+    shown.map((bot, index) => (0, import_react52.createElement)("span", { key: bot.id, className: "bt-pile-face", style: { animationDelay: `${index * 40}ms` } }, (0, import_react52.createElement)(BotMark, { bot, size: 44, live: true }))),
+    more > 0 ? (0, import_react52.createElement)("span", { key: "more", className: "bt-pile-face bt-pile-more", style: { animationDelay: `${shown.length * 40}ms` } }, `+${more}`) : null
   );
 }
 var markOf = (entry) => entry?.state === "ask" ? "alert" : entry?.state === "work" ? workState(entry.doing) : "idle";
 function MemberRow({ member, entry, room: room2, roster, actions }) {
-  return (0, import_react51.createElement)(
+  return (0, import_react52.createElement)(
     "div",
     { role: "listitem", className: "bt-member" },
-    (0, import_react51.createElement)(
+    (0, import_react52.createElement)(
       "div",
       { className: "bt-member-row" },
-      (0, import_react51.createElement)(
+      (0, import_react52.createElement)(
         "button",
         { type: "button", className: "bt-member-open", title: t("Open {name}'s chat", { name: member.name }), onClick: () => actions.openSession(member.id) },
-        (0, import_react51.createElement)(BotMark, { bot: member, size: 32, state: markOf(entry) }),
-        (0, import_react51.createElement)(
+        (0, import_react52.createElement)(BotMark, { bot: member, size: 32, state: markOf(entry) }),
+        (0, import_react52.createElement)(
           "span",
           { className: "bt-member-text" },
-          (0, import_react51.createElement)(
+          (0, import_react52.createElement)(
             "span",
             { className: "bt-member-line" },
-            (0, import_react51.createElement)("span", { className: "bt-member-name" }, member.name),
-            room2.admin === member.id ? (0, import_react51.createElement)("span", { className: "bt-tag" }, t("Admin")) : null
+            (0, import_react52.createElement)("span", { className: "bt-member-name" }, member.name),
+            room2.admin === member.id ? (0, import_react52.createElement)("span", { className: "bt-tag" }, t("Admin")) : null
           ),
-          (0, import_react51.createElement)(MemberState, { entry, bot: member, room: room2, roster })
+          (0, import_react52.createElement)(MemberState, { entry, bot: member, room: room2, roster })
         )
       ),
-      (0, import_react51.createElement)(StopMemberWork, { entry, bot: member, room: room2, actions })
+      (0, import_react52.createElement)(StopMemberWork, { entry, bot: member, room: room2, actions })
     ),
-    (0, import_react51.createElement)(MemberApprovals, { entry, bot: member, actions })
+    (0, import_react52.createElement)(MemberApprovals, { entry, bot: member, actions })
   );
 }
 function GroupOverview({ room: room2, roster, actions, usage, useWork, openSettings }) {
   const members = room2.members.map((id) => roster.byId[id]).filter(Boolean);
   const { entries: entries2 } = useMemberWork(room2, useWork);
   return [
-    room2.notice ? (0, import_react51.createElement)(About, { key: "notice", title: "Notice", text: room2.notice }) : (0, import_react51.createElement)("button", { key: "notice", type: "button", className: "bt-more", onClick: openSettings }, t("Add a notice in group settings")),
-    (0, import_react51.createElement)(
+    room2.notice ? (0, import_react52.createElement)(About, { key: "notice", title: "Notice", text: room2.notice }) : (0, import_react52.createElement)("button", { key: "notice", type: "button", className: "bt-more", onClick: openSettings }, t("Add a notice in group settings")),
+    (0, import_react52.createElement)(
       "div",
       { key: "members" },
-      (0, import_react51.createElement)(
+      (0, import_react52.createElement)(
         "div",
         { className: "bt-members-head" },
-        (0, import_react51.createElement)("div", { className: "bt-section-title" }, t("Members · {count}", { count: members.length })),
-        (0, import_react51.createElement)(StopRoomWork, { room: room2, entries: entries2, actions })
+        (0, import_react52.createElement)("div", { className: "bt-section-title" }, t("Members · {count}", { count: members.length })),
+        (0, import_react52.createElement)(StopRoomWork, { room: room2, entries: entries2, actions })
       ),
-      (0, import_react51.createElement)("div", { className: "bt-members", role: "list" }, members.map((member) => (0, import_react51.createElement)(MemberRow, {
+      (0, import_react52.createElement)("div", { className: "bt-members", role: "list" }, members.map((member) => (0, import_react52.createElement)(MemberRow, {
         key: member.id,
         member,
         entry: entries2.find((item) => item.id === member.id),
@@ -19223,24 +23639,24 @@ function GroupOverview({ room: room2, roster, actions, usage, useWork, openSetti
         actions
       })))
     ),
-    (0, import_react51.createElement)(
+    (0, import_react52.createElement)(
       "div",
       { key: "mode" },
-      (0, import_react51.createElement)("div", { className: "bt-section-title" }, t("Who answers")),
-      (0, import_react51.createElement)("div", { className: "bt-kv" }, (0, import_react51.createElement)("span", null, t(ROOM_MODES.find(([id]) => id === shownMode(room2, roster))?.[1] ?? "Everyone")))
+      (0, import_react52.createElement)("div", { className: "bt-section-title" }, t("Who answers")),
+      (0, import_react52.createElement)("div", { className: "bt-kv" }, (0, import_react52.createElement)("span", null, t(ROOM_MODES.find(([id]) => id === shownMode(room2, roster))?.[1] ?? "Everyone")))
     ),
-    room2.permission ? (0, import_react51.createElement)(
+    room2.permission ? (0, import_react52.createElement)(
       "div",
       { key: "permission" },
-      (0, import_react51.createElement)("div", { className: "bt-section-title" }, t("Permissions")),
-      (0, import_react51.createElement)("div", { className: "bt-kv" }, (0, import_react51.createElement)("span", { className: presetDanger(room2.permission) ? "bt-perm-danger" : void 0 }, presetName(room2.permission, roster.permissions)))
+      (0, import_react52.createElement)("div", { className: "bt-section-title" }, t("Permissions")),
+      (0, import_react52.createElement)("div", { className: "bt-kv" }, (0, import_react52.createElement)("span", { className: presetDanger(room2.permission) ? "bt-perm-danger" : void 0 }, presetName(room2.permission, roster.permissions)))
     ) : null,
-    roster.memory === false ? null : (0, import_react51.createElement)(MemoryRow, { key: "memory", owner: { id: room2.id, name: room2.name, group: true }, actions }),
-    usage ? (0, import_react51.createElement)(
+    roster.memory === false ? null : (0, import_react52.createElement)(MemoryRow, { key: "memory", owner: { id: room2.id, name: room2.name, group: true }, actions }),
+    usage ? (0, import_react52.createElement)(
       "div",
       { key: "usage" },
-      (0, import_react51.createElement)("div", { className: "bt-section-title" }, t("Usage")),
-      (0, import_react51.createElement)("div", { className: "bt-kv" }, (0, import_react51.createElement)("span", null, room2.name), (0, import_react51.createElement)("span", null, usage))
+      (0, import_react52.createElement)("div", { className: "bt-section-title" }, t("Usage")),
+      (0, import_react52.createElement)("div", { className: "bt-kv" }, (0, import_react52.createElement)("span", null, room2.name), (0, import_react52.createElement)("span", null, usage))
     ) : null
   ];
 }
@@ -19250,13 +23666,13 @@ function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, roster, a
   const isMainBot = isMainOf(roster, owner?.id);
   const tab = startTab === "computer" || startTab === "browser" && owner ? startTab : "details";
   const room2 = roster.roomsById[sessionId];
-  const [view, setView] = (0, import_react51.useState)(startTab === "settings" && (owner || room2) ? "settings" : "overview");
-  const [editing, setEditing] = (0, import_react51.useState)(Boolean(startRenaming && (roster.byId[sessionId] || roster.roomsById[sessionId])));
-  const [draftName, setDraftName] = (0, import_react51.useState)(roster.byId[sessionId]?.name ?? (roster.roomsById[sessionId]?.named ? roster.roomsById[sessionId].name : ""));
-  const [copied, setCopied] = (0, import_react51.useState)(false);
-  const [error, setError] = (0, import_react51.useState)("");
+  const [view, setView] = (0, import_react52.useState)(startTab === "settings" && (owner || room2) ? "settings" : "overview");
+  const [editing, setEditing] = (0, import_react52.useState)(Boolean(startRenaming && (roster.byId[sessionId] || roster.roomsById[sessionId])));
+  const [draftName, setDraftName] = (0, import_react52.useState)(roster.byId[sessionId]?.name ?? (roster.roomsById[sessionId]?.named ? roster.roomsById[sessionId].name : ""));
+  const [copied, setCopied] = (0, import_react52.useState)(false);
+  const [error, setError] = (0, import_react52.useState)("");
   const glide = useGlide(tab);
-  const last = (0, import_react51.useRef)({ view, tab, move: void 0 });
+  const last = (0, import_react52.useRef)({ view, tab, move: void 0 });
   if (last.current.view !== view) last.current = { view, tab, move: view === "settings" ? "in" : "out" };
   else if (last.current.tab !== tab) last.current = { view, tab, move: "tab" };
   const move = last.current.move;
@@ -19283,21 +23699,21 @@ function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, roster, a
       setTimeout(() => setCopied(false), 1600);
     });
   };
-  const errorLine = error ? (0, import_react51.createElement)("div", { className: "bt-error", role: "alert", style: { padding: 0 } }, error) : null;
+  const errorLine = error ? (0, import_react52.createElement)("div", { className: "bt-error", role: "alert", style: { padding: 0 } }, error) : null;
   if ((bot || room2) && view === "settings") {
     return [
-      (0, import_react51.createElement)(
+      (0, import_react52.createElement)(
         "div",
         { key: "head", className: "bt-subhead", "data-move": move },
-        (0, import_react51.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Back to details"), onClick: () => setView("overview") }, (0, import_react51.createElement)(ChevronLeftIcon)),
-        (0, import_react51.createElement)("span", { className: "bt-subhead-title" }, bot ? t("Settings") : t("Group settings")),
-        hasStrip ? null : (0, import_react51.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Close details"), onClick: close }, (0, import_react51.createElement)(CloseIcon))
+        (0, import_react52.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Back to details"), onClick: () => setView("overview") }, (0, import_react52.createElement)(ChevronLeftIcon)),
+        (0, import_react52.createElement)("span", { className: "bt-subhead-title" }, bot ? t("Settings") : t("Group settings")),
+        hasStrip ? null : (0, import_react52.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Close details"), onClick: close }, (0, import_react52.createElement)(CloseIcon))
       ),
-      (0, import_react51.createElement)(
+      (0, import_react52.createElement)(
         "div",
         { key: "set-body", className: "bt-drawer-body bt-set-body", "data-move": move },
         errorLine,
-        bot ? (0, import_react51.createElement)(BotSettingsForm, { bot, roster, actions, run: run2 }) : (0, import_react51.createElement)(GroupSettingsForm, { room: room2, roster, actions, run: run2, onDeleted: close })
+        bot ? (0, import_react52.createElement)(BotSettingsForm, { bot, roster, actions, run: run2 }) : (0, import_react52.createElement)(GroupSettingsForm, { room: room2, roster, actions, run: run2, onDeleted: close })
       )
     ];
   }
@@ -19308,18 +23724,18 @@ function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, roster, a
     canTerminal: actions.canOpenTerminal?.() === true,
     canFiles: actions.canOpenFiles?.() === true
   }).map((key) => menuItemFor(key, actions, sessionId));
-  const top = (0, import_react51.createElement)(
+  const top = (0, import_react52.createElement)(
     "div",
     { className: "bt-drawer-top", "data-move": side },
-    bot || room2 ? (0, import_react51.createElement)("button", { type: "button", className: "bt-round", "aria-label": bot ? t("Edit Bot") : t("Group settings"), title: bot ? t("Edit Bot") : t("Group settings"), "data-info-row": "settings", onClick: () => setView("settings") }, (0, import_react51.createElement)(GearIcon)) : null,
-    more.length > 0 ? (0, import_react51.createElement)("span", { "data-info-row": "more" }, (0, import_react51.createElement)(PanelMenu, { items: more, className: "bt-round", "aria-label": t("More") })) : null,
-    bot || room2 ? (0, import_react51.createElement)("button", { type: "button", className: "bt-round", "aria-label": copied ? t("Copied conversation") : t("Share conversation"), title: copied ? t("Copied") : t("Copy conversation as Markdown"), onClick: share }, copied ? (0, import_react51.createElement)("span", { key: "copied", className: "bt-pop-in" }, "✓") : (0, import_react51.createElement)(ShareIcon)) : null,
-    hasStrip ? null : (0, import_react51.createElement)("button", { type: "button", className: "bt-round", "aria-label": t("Close details"), onClick: close }, (0, import_react51.createElement)(CloseIcon))
+    bot || room2 ? (0, import_react52.createElement)("button", { type: "button", className: "bt-round", "aria-label": bot ? t("Edit Bot") : t("Group settings"), title: bot ? t("Edit Bot") : t("Group settings"), "data-info-row": "settings", onClick: () => setView("settings") }, (0, import_react52.createElement)(GearIcon)) : null,
+    more.length > 0 ? (0, import_react52.createElement)("span", { "data-info-row": "more" }, (0, import_react52.createElement)(PanelMenu, { items: more, className: "bt-round", "aria-label": t("More") })) : null,
+    bot || room2 ? (0, import_react52.createElement)("button", { type: "button", className: "bt-round", "aria-label": copied ? t("Copied conversation") : t("Share conversation"), title: copied ? t("Copied") : t("Copy conversation as Markdown"), onClick: share }, copied ? (0, import_react52.createElement)("span", { key: "copied", className: "bt-pop-in" }, "✓") : (0, import_react52.createElement)(ShareIcon)) : null,
+    hasStrip ? null : (0, import_react52.createElement)("button", { type: "button", className: "bt-round", "aria-label": t("Close details"), onClick: close }, (0, import_react52.createElement)(CloseIcon))
   );
   if (!bot && !room2) {
     return [
-      (0, import_react51.createElement)(import_react51.Fragment, { key: "top" }, top),
-      (0, import_react51.createElement)("div", { key: "body", className: "bt-drawer-body" }, (0, import_react51.createElement)("div", { className: "bt-muted" }, t("This conversation is not part of your Bot team.")))
+      (0, import_react52.createElement)(import_react52.Fragment, { key: "top" }, top),
+      (0, import_react52.createElement)("div", { key: "body", className: "bt-drawer-body" }, (0, import_react52.createElement)("div", { className: "bt-muted" }, t("This conversation is not part of your Bot team.")))
     ];
   }
   const current = bot?.name ?? room2.name;
@@ -19338,12 +23754,12 @@ function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, roster, a
   };
   if ((bot || room2) && globalThis.window?.dsBotApp?.computer) tabs.push("computer");
   return [
-    (0, import_react51.createElement)(import_react51.Fragment, { key: "top" }, top),
-    tab === "computer" ? null : (0, import_react51.createElement)(
+    (0, import_react52.createElement)(import_react52.Fragment, { key: "top" }, top),
+    tab === "computer" ? null : (0, import_react52.createElement)(
       "div",
       { key: "id", className: "bt-drawer-id", "data-move": side },
-      bot ? (0, import_react51.createElement)(BotAvatar, { bot, size: 64, state: botState(running, doing, roster.questions?.[part] !== void 0), main: isMainBot, badge: false, gaze: true, pokeable: true }) : (0, import_react51.createElement)(MemberPile, { room: room2, roster }),
-      editing ? (0, import_react51.createElement)("input", {
+      bot ? (0, import_react52.createElement)(BotAvatar, { bot, size: 64, state: botState(running, doing, roster.questions?.[part] !== void 0), main: isMainBot, badge: false, gaze: true, pokeable: true }) : (0, import_react52.createElement)(MemberPile, { room: room2, roster }),
+      editing ? (0, import_react52.createElement)("input", {
         className: "bt-drawer-name-input",
         autoFocus: true,
         value: draftName,
@@ -19358,58 +23774,58 @@ function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, roster, a
             setEditing(false);
           }
         }
-      }) : (0, import_react51.createElement)("button", { type: "button", className: "bt-drawer-name", "aria-label": t("Rename {name}", { name: current }), title: t("Rename"), onClick: () => {
+      }) : (0, import_react52.createElement)("button", { type: "button", className: "bt-drawer-name", "aria-label": t("Rename {name}", { name: current }), title: t("Rename"), onClick: () => {
         setDraftName(room2 && !room2.named ? "" : current);
         setEditing(true);
       } }, current),
-      subtitle ? (0, import_react51.createElement)("span", { className: "bt-drawer-role" }, subtitle) : null
+      subtitle ? (0, import_react52.createElement)("span", { className: "bt-drawer-role" }, subtitle) : null
     ),
-    tabs.length > 1 ? (0, import_react51.createElement)(
+    tabs.length > 1 ? (0, import_react52.createElement)(
       "div",
       { key: "tabs", ref: glide.box, className: "bt-tabs", role: "tablist", "data-move": side },
-      (0, import_react51.createElement)("span", { ref: glide.thumb, className: "bt-thumb", "aria-hidden": true }),
-      tabs.map((key) => (0, import_react51.createElement)("button", { key, type: "button", role: "tab", className: "bt-tab", "aria-selected": tab === key, onClick: () => openTab(key) }, t(TAB_LABELS[key])))
+      (0, import_react52.createElement)("span", { ref: glide.thumb, className: "bt-thumb", "aria-hidden": true }),
+      tabs.map((key) => (0, import_react52.createElement)("button", { key, type: "button", role: "tab", className: "bt-tab", "aria-selected": tab === key, onClick: () => openTab(key) }, t(TAB_LABELS[key])))
     ) : null,
-    (0, import_react51.createElement)(
+    (0, import_react52.createElement)(
       "div",
       { key: `body:${tab}`, className: tab === "computer" ? "bt-drawer-body bt-drawer-computer" : "bt-drawer-body", "data-move": move },
       errorLine,
-      room2 && tab === "details" ? (0, import_react51.createElement)(GroupOverview, { room: room2, roster, actions, usage, useWork, openSettings: () => setView("settings") }) : null,
+      room2 && tab === "details" ? (0, import_react52.createElement)(GroupOverview, { room: room2, roster, actions, usage, useWork, openSettings: () => setView("settings") }) : null,
       bot && tab === "details" ? [
-        (0, import_react51.createElement)(RunStats, { key: "stats", bot, part, running, actions }),
-        (0, import_react51.createElement)(
+        (0, import_react52.createElement)(RunStats, { key: "stats", bot, part, running, actions }),
+        (0, import_react52.createElement)(
           "div",
           { key: "model", className: "bt-drawer-model" },
-          (0, import_react51.createElement)("div", { className: "bt-section-title" }, t("Model")),
-          (0, import_react51.createElement)(ModelMenu, { bot, roster, actions, run: run2, wide: true }),
-          modelOf(bot, roster) ? null : (0, import_react51.createElement)("div", { className: "bt-note" }, t("Pick a model and {name} can start.", { name: bot.name }))
+          (0, import_react52.createElement)("div", { className: "bt-section-title" }, t("Model")),
+          (0, import_react52.createElement)(ModelMenu, { bot, roster, actions, run: run2, wide: true }),
+          modelOf(bot, roster) ? null : (0, import_react52.createElement)("div", { className: "bt-note" }, t("Pick a model and {name} can start.", { name: bot.name }))
         ),
-        (0, import_react51.createElement)(PermissionRow, { key: "permission", bot, roster, actions, run: run2 }),
-        (0, import_react51.createElement)(
+        (0, import_react52.createElement)(PermissionRow, { key: "permission", bot, roster, actions, run: run2 }),
+        (0, import_react52.createElement)(
           "div",
           { key: "folder", className: "bt-drawer-model" },
-          (0, import_react51.createElement)("div", { className: "bt-section-title" }, t("Working folder")),
-          (0, import_react51.createElement)(FolderMenu, { value: bot.workDir, actions, run: run2, wide: true, onPick: (workDir) => run2(actions.updateBot(bot.id, { workDir })) })
+          (0, import_react52.createElement)("div", { className: "bt-section-title" }, t("Working folder")),
+          (0, import_react52.createElement)(FolderMenu, { value: bot.workDir, actions, run: run2, wide: true, onPick: (workDir) => run2(actions.updateBot(bot.id, { workDir })) })
         ),
-        bot.instructions ? (0, import_react51.createElement)(About, { key: "about", text: bot.instructions }) : (0, import_react51.createElement)("button", { key: "about", type: "button", className: "bt-more", onClick: () => setView("settings") }, t("Add instructions in Bot settings")),
-        roster.memory === false ? null : (0, import_react51.createElement)(MemoryRow, { key: "memory", owner: { id: bot.id, name: bot.name }, actions }),
-        usage ? (0, import_react51.createElement)(
+        bot.instructions ? (0, import_react52.createElement)(About, { key: "about", text: bot.instructions }) : (0, import_react52.createElement)("button", { key: "about", type: "button", className: "bt-more", onClick: () => setView("settings") }, t("Add instructions in Bot settings")),
+        roster.memory === false ? null : (0, import_react52.createElement)(MemoryRow, { key: "memory", owner: { id: bot.id, name: bot.name }, actions }),
+        usage ? (0, import_react52.createElement)(
           "div",
           { key: "usage" },
-          (0, import_react51.createElement)("div", { className: "bt-section-title" }, t("Usage")),
-          (0, import_react51.createElement)("div", { className: "bt-kv" }, (0, import_react51.createElement)("span", null, bot.name), (0, import_react51.createElement)("span", null, usage))
+          (0, import_react52.createElement)("div", { className: "bt-section-title" }, t("Usage")),
+          (0, import_react52.createElement)("div", { className: "bt-kv" }, (0, import_react52.createElement)("span", null, bot.name), (0, import_react52.createElement)("span", null, usage))
         ) : null,
-        (0, import_react51.createElement)(ScheduleSummary, { key: "routines", bot, actions })
+        (0, import_react52.createElement)(ScheduleSummary, { key: "routines", bot, actions })
       ] : null,
-      tab === "computer" && !inMainView ? (0, import_react51.createElement)("p", { className: "bt-muted" }, t("Open this conversation to use the computer.")) : null,
-      tab === "computer" && inMainView ? (0, import_react51.createElement)(ComputerPane, {
+      tab === "computer" && !inMainView ? (0, import_react52.createElement)("p", { className: "bt-muted" }, t("Open this conversation to use the computer.")) : null,
+      tab === "computer" && inMainView ? (0, import_react52.createElement)(ComputerPane, {
         key: conversation,
         subject: bot?.id ?? room2.id,
         conversation,
         openSettings: (resume) => actions.openSettings("browser", resume ? "private-desktop" : null, resume),
         members: room2?.members.map((id) => roster.byId[id]).filter(Boolean)
       }) : null,
-      bot && tab === "browser" ? (0, import_react51.createElement)(BrowserCards, { bot, sessionId, roster, actions, useBrowserTabs, useBrowserPages }) : null
+      bot && tab === "browser" ? (0, import_react52.createElement)(BrowserCards, { bot, sessionId, roster, actions, useBrowserTabs, useBrowserPages }) : null
     )
   ];
 }
@@ -19420,7 +23836,7 @@ function rectsOverlap(a, b) {
 }
 
 // src/client/browser-pane.js
-var import_react52 = require("react");
+var import_react53 = require("react");
 var import_react_dom8 = require("react-dom");
 var PANEL_LINGER_MS = 300;
 var WIDTH_KEY = STORAGE.browserWidth;
@@ -19434,10 +23850,10 @@ var EMPTY_TABS2 = { ids: [], active: null };
 var SPRING_LEAD2 = springEasing(576, 39.4);
 var SPRING_TRAIL2 = springEasing(144, 19.7);
 var icon = (paths) => function BrowserIcon() {
-  return (0, import_react52.createElement)(
+  return (0, import_react53.createElement)(
     "svg",
     { width: 16, height: 16, viewBox: "0 0 20 20", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true },
-    paths.map((d, index) => (0, import_react52.createElement)("path", { key: index, d }))
+    paths.map((d, index) => (0, import_react53.createElement)("path", { key: index, d }))
   );
 };
 var GlobeIcon2 = icon(["M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14z", "M3 10h14", "M10 3c2 2.2 2.9 4.5 2.9 7S12 14.8 10 17c-2-2.2-2.9-4.5-2.9-7S8 5.2 10 3z"]);
@@ -19452,9 +23868,9 @@ var ImportIcon = icon(["M10 3.5v8.5", "M6 8.5l4 4 4-4", "M4.5 14v1.5a1.5 1.5 0 0
 var FileIcon = icon(["M6 3.5h5.5L14.5 6.5v10H6z", "M11 3.5v3.5h3.5"]);
 var WindowIcon = icon(["M4 5h12v9.5H4z", "M4 7.5h12"]);
 function Favicon({ src, className }) {
-  const [failed, setFailed] = (0, import_react52.useState)(null);
-  if (!src || failed === src) return (0, import_react52.createElement)("span", { className: `${className} bt-ptab-globe` }, (0, import_react52.createElement)(GlobeIcon2));
-  return (0, import_react52.createElement)("img", { className, src, alt: "", "aria-hidden": true, onError: () => setFailed(src) });
+  const [failed, setFailed] = (0, import_react53.useState)(null);
+  if (!src || failed === src) return (0, import_react53.createElement)("span", { className: `${className} bt-ptab-globe` }, (0, import_react53.createElement)(GlobeIcon2));
+  return (0, import_react53.createElement)("img", { className, src, alt: "", "aria-hidden": true, onError: () => setFailed(src) });
 }
 var savedWidth = () => {
   try {
@@ -19473,9 +23889,9 @@ var shortAddress = (url) => String(url ?? "").replace(/^https?:\/\//i, "").repla
 var reducedMotion2 = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 var tabLabel = (page) => page.title || shortAddress(page.url) || t("New tab");
 function PanelMenu({ items, className, "aria-label": label }) {
-  const [open, setOpen] = (0, import_react52.useState)(false);
-  const wrap = (0, import_react52.useRef)(null);
-  (0, import_react52.useEffect)(() => {
+  const [open, setOpen] = (0, import_react53.useState)(false);
+  const wrap = (0, import_react53.useRef)(null);
+  (0, import_react53.useEffect)(() => {
     if (!open) return void 0;
     const onDown = (event) => {
       if (wrap.current && !wrap.current.contains(event.target)) setOpen(false);
@@ -19493,10 +23909,10 @@ function PanelMenu({ items, className, "aria-label": label }) {
     };
   }, [open]);
   if (items.length === 0) return null;
-  return (0, import_react52.createElement)(
+  return (0, import_react53.createElement)(
     "span",
     { className: "bt-pmenu", ref: wrap },
-    (0, import_react52.createElement)("button", {
+    (0, import_react53.createElement)("button", {
       type: "button",
       className,
       "aria-label": label,
@@ -19504,11 +23920,11 @@ function PanelMenu({ items, className, "aria-label": label }) {
       "aria-haspopup": "menu",
       "aria-expanded": open,
       onClick: () => setOpen((value) => !value)
-    }, (0, import_react52.createElement)(DotsIcon)),
-    open ? (0, import_react52.createElement)(
+    }, (0, import_react53.createElement)(DotsIcon)),
+    open ? (0, import_react53.createElement)(
       "div",
       { className: "bt-pmenu-pop", role: "menu" },
-      items.map((item, index) => item.sep ? (0, import_react52.createElement)("span", { key: `sep-${index}`, className: "bt-pmenu-sep", role: "separator" }) : (0, import_react52.createElement)("button", {
+      items.map((item, index) => item.sep ? (0, import_react53.createElement)("span", { key: `sep-${index}`, className: "bt-pmenu-sep", role: "separator" }) : (0, import_react53.createElement)("button", {
         key: item.key,
         type: "button",
         role: "menuitem",
@@ -19517,7 +23933,7 @@ function PanelMenu({ items, className, "aria-label": label }) {
           setOpen(false);
           item.onPick();
         }
-      }, (0, import_react52.createElement)(item.icon), (0, import_react52.createElement)("span", null, item.label)))
+      }, (0, import_react53.createElement)(item.icon), (0, import_react53.createElement)("span", null, item.label)))
     ) : null
   );
 }
@@ -19543,12 +23959,12 @@ function menuItemFor(key, actions, subject) {
 var sideTitle = (chat) => chat?.entries?.[0]?.question?.trim() || t("Side chat");
 function PanelStrip({ bot, subject, view, ids, active, sides, side, canBrowse, reading, onView, actions, useBrowserPages }) {
   const pages = useBrowserPages((map) => map);
-  const wrap = (0, import_react52.useRef)(null);
-  const ind = (0, import_react52.useRef)(null);
-  const spot = (0, import_react52.useRef)(null);
-  const under = (0, import_react52.useRef)(null);
-  const watcher = (0, import_react52.useRef)(null);
-  (0, import_react52.useLayoutEffect)(() => {
+  const wrap = (0, import_react53.useRef)(null);
+  const ind = (0, import_react53.useRef)(null);
+  const spot = (0, import_react53.useRef)(null);
+  const under = (0, import_react53.useRef)(null);
+  const watcher = (0, import_react53.useRef)(null);
+  (0, import_react53.useLayoutEffect)(() => {
     const box = wrap.current;
     const capsule = ind.current;
     if (!box || !capsule) return void 0;
@@ -19581,7 +23997,7 @@ function PanelStrip({ bot, subject, view, ids, active, sides, side, canBrowse, r
       trail.cancel();
     };
   });
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     const box = wrap.current;
     if (!box) return void 0;
     const observer = new ResizeObserver(() => {
@@ -19605,13 +24021,13 @@ function PanelStrip({ bot, subject, view, ids, active, sides, side, canBrowse, r
     canTerminal: actions.canOpenTerminal?.() === true,
     canFiles: actions.canOpenFiles?.() === true
   }).map((key) => menuItemFor(key, actions, subject));
-  return (0, import_react52.createElement)(
+  return (0, import_react53.createElement)(
     "div",
     { className: "bt-ptabs", role: "tablist", "aria-label": t("Panel tabs") },
-    (0, import_react52.createElement)(
+    (0, import_react53.createElement)(
       "div",
       { className: "bt-ptabs-in", ref: wrap },
-      (0, import_react52.createElement)(
+      (0, import_react53.createElement)(
         "button",
         {
           type: "button",
@@ -19621,13 +24037,13 @@ function PanelStrip({ bot, subject, view, ids, active, sides, side, canBrowse, r
           title: bot.name,
           onClick: () => onView("details")
         },
-        (0, import_react52.createElement)(BotMark, { bot, size: 20, state: reading ? "searching" : "idle" }),
-        view === "details" ? (0, import_react52.createElement)("span", { className: "bt-ptab-name" }, bot.name) : null
+        (0, import_react53.createElement)(BotMark, { bot, size: 20, state: reading ? "searching" : "idle" }),
+        view === "details" ? (0, import_react53.createElement)("span", { className: "bt-ptab-name" }, bot.name) : null
       ),
       ids.map((tabId) => {
         const page = pages[tabId] ?? EMPTY_PAGE;
         const on = view === "browser" && tabId === active;
-        return (0, import_react52.createElement)(
+        return (0, import_react53.createElement)(
           "button",
           {
             key: tabId,
@@ -19648,9 +24064,9 @@ function PanelStrip({ bot, subject, view, ids, active, sides, side, canBrowse, r
               }
             }
           },
-          (0, import_react52.createElement)(Favicon, { src: page.favicon, className: "bt-ptab-fav" }),
-          (0, import_react52.createElement)("span", { className: "bt-ptab-title" }, tabLabel(page)),
-          (0, import_react52.createElement)("span", {
+          (0, import_react53.createElement)(Favicon, { src: page.favicon, className: "bt-ptab-fav" }),
+          (0, import_react53.createElement)("span", { className: "bt-ptab-title" }, tabLabel(page)),
+          (0, import_react53.createElement)("span", {
             className: "bt-ptab-x",
             role: "button",
             "aria-label": t("Close tab"),
@@ -19664,7 +24080,7 @@ function PanelStrip({ bot, subject, view, ids, active, sides, side, canBrowse, r
       }),
       sides.map((chat) => {
         const on = view === "side" && chat.id === side;
-        return (0, import_react52.createElement)(
+        return (0, import_react53.createElement)(
           "button",
           {
             key: chat.id,
@@ -19682,9 +24098,9 @@ function PanelStrip({ bot, subject, view, ids, active, sides, side, canBrowse, r
               }
             }
           },
-          (0, import_react52.createElement)("span", { className: "bt-ptab-globe", "aria-hidden": true }, (0, import_react52.createElement)(SideIcon)),
-          (0, import_react52.createElement)("span", { className: "bt-ptab-title" }, sideTitle(chat)),
-          (0, import_react52.createElement)("span", {
+          (0, import_react53.createElement)("span", { className: "bt-ptab-globe", "aria-hidden": true }, (0, import_react53.createElement)(SideIcon)),
+          (0, import_react53.createElement)("span", { className: "bt-ptab-title" }, sideTitle(chat)),
+          (0, import_react53.createElement)("span", {
             className: "bt-ptab-x",
             role: "button",
             "aria-label": t("Close side chat"),
@@ -19696,30 +24112,30 @@ function PanelStrip({ bot, subject, view, ids, active, sides, side, canBrowse, r
           }, "×")
         );
       }),
-      (0, import_react52.createElement)("span", { ref: ind, className: "bt-ptab-ind", "aria-hidden": true })
+      (0, import_react53.createElement)("span", { ref: ind, className: "bt-ptab-ind", "aria-hidden": true })
     ),
     // The `···` and Close stay outside the scrolling tabs, so a narrow panel keeps both.
-    (0, import_react52.createElement)(PanelMenu, { items, className: "bt-ptab-new", "aria-label": t("More") }),
-    (0, import_react52.createElement)("button", { type: "button", className: "bt-icon-btn bt-ptab-close", "aria-label": t("Close panel"), title: t("Close panel"), onClick: () => actions.closePanel() }, (0, import_react52.createElement)(CloseIcon3))
+    (0, import_react53.createElement)(PanelMenu, { items, className: "bt-ptab-new", "aria-label": t("More") }),
+    (0, import_react53.createElement)("button", { type: "button", className: "bt-icon-btn bt-ptab-close", "aria-label": t("Close panel"), title: t("Close panel"), onClick: () => actions.closePanel() }, (0, import_react53.createElement)(CloseIcon3))
   );
 }
 function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, hold }) {
   const page = useBrowserPages((pages) => pages[tabId ?? ""]) ?? EMPTY_PAGE;
-  const frame = (0, import_react52.useRef)(null);
-  const input = (0, import_react52.useRef)(null);
-  const [draft, setDraft] = (0, import_react52.useState)(null);
-  const [covered, setCovered] = (0, import_react52.useState)(false);
+  const frame = (0, import_react53.useRef)(null);
+  const input = (0, import_react53.useRef)(null);
+  const [draft, setDraft] = (0, import_react53.useState)(null);
+  const [covered, setCovered] = (0, import_react53.useState)(false);
   const imports = actions.browserImport;
-  const [flow, setFlow] = (0, import_react52.useState)(null);
-  const flowRef = (0, import_react52.useRef)(null);
-  const [sources, setSources] = (0, import_react52.useState)(null);
-  const [busy, setBusy] = (0, import_react52.useState)(false);
+  const [flow, setFlow] = (0, import_react53.useState)(null);
+  const flowRef = (0, import_react53.useRef)(null);
+  const [sources, setSources] = (0, import_react53.useState)(null);
+  const [busy, setBusy] = (0, import_react53.useState)(false);
   const setFlowTracked = (next) => {
     flowRef.current = typeof next === "function" ? next(flowRef.current) : next;
     setFlow(flowRef.current);
   };
   const showGuest = landed && !leaving && !covered && Boolean(page.url) && !page.error && flow === null;
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     const update = () => {
       const panel = frame.current?.getBoundingClientRect();
       const overlaps2 = panel && [...document.querySelectorAll('[role="dialog"],[role="menu"],[role="listbox"]')].some((element) => rectsOverlap(panel, element.getBoundingClientRect()));
@@ -19734,7 +24150,7 @@ function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, ho
       window.removeEventListener("resize", update);
     };
   }, []);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     setFlowTracked(null);
     return () => {
       const id = typeof flowRef.current === "object" && flowRef.current !== null ? flowRef.current.id : null;
@@ -19778,7 +24194,7 @@ function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, ho
     if (id) void imports?.cancel(id).catch(() => {
     });
   };
-  (0, import_react52.useLayoutEffect)(() => {
+  (0, import_react53.useLayoutEffect)(() => {
     const element = frame.current;
     if (!element || leaving || !tabId) {
       void actions.browserShow(null);
@@ -19804,7 +24220,7 @@ function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, ho
       window.removeEventListener("resize", schedule);
     };
   }, [tabId, showGuest, leaving]);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     setDraft(null);
     if (landed && !page.url) input.current?.focus();
   }, [tabId, landed]);
@@ -19820,39 +24236,39 @@ function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, ho
   };
   const editing = draft !== null;
   const secure = /^https:/i.test(page.url);
-  return (0, import_react52.createElement)(
+  return (0, import_react53.createElement)(
     "div",
     { className: "bt-panel-view bt-panel-browser", "aria-label": t("{name}'s browser", { name: bot.name }) },
-    (0, import_react52.createElement)("button", { type: "button", className: "bt-button", "aria-pressed": bot.mobileControl === true, onClick: () => actions.browserMobileControl(bot.id, bot.mobileControl !== true) }, bot.mobileControl ? t("Disable mobile browser control") : t("Allow mobile browser control")),
-    actions.browserTakeover ? (0, import_react52.createElement)(
+    (0, import_react53.createElement)("button", { type: "button", className: "bt-button", "aria-pressed": bot.mobileControl === true, onClick: () => actions.browserMobileControl(bot.id, bot.mobileControl !== true) }, bot.mobileControl ? t("Disable mobile browser control") : t("Allow mobile browser control")),
+    actions.browserTakeover ? (0, import_react53.createElement)(
       "div",
       { className: "bt-browser-takeover", "data-held": hold?.by === "user" || void 0 },
-      (0, import_react52.createElement)("span", null, hold?.by === "user" ? t("You control this browser") : hold?.by === "bot" ? t("The Bot handed this browser to you: {reason}", { reason: hold.reason }) : t("The Bot controls this browser")),
-      hold?.by ? (0, import_react52.createElement)("button", { type: "button", onClick: () => void actions.browserGiveBack(bot.id) }, t("Give back")) : (0, import_react52.createElement)(
+      (0, import_react53.createElement)("span", null, hold?.by === "user" ? t("You control this browser") : hold?.by === "bot" ? t("The Bot handed this browser to you: {reason}", { reason: hold.reason }) : t("The Bot controls this browser")),
+      hold?.by ? (0, import_react53.createElement)("button", { type: "button", onClick: () => void actions.browserGiveBack(bot.id) }, t("Give back")) : (0, import_react53.createElement)(
         "span",
         { className: "bt-browser-takeover-actions" },
-        (0, import_react52.createElement)("button", { type: "button", onClick: () => void actions.browserTakeover(bot.id) }, t("Take over")),
-        (0, import_react52.createElement)("button", { type: "button", onClick: () => void actions.browserStop(bot.id) }, t("Stop"))
+        (0, import_react53.createElement)("button", { type: "button", onClick: () => void actions.browserTakeover(bot.id) }, t("Take over")),
+        (0, import_react53.createElement)("button", { type: "button", onClick: () => void actions.browserStop(bot.id) }, t("Stop"))
       )
     ) : null,
-    (0, import_react52.createElement)(
+    (0, import_react53.createElement)(
       "div",
       { className: "bt-browser-bar" },
-      (0, import_react52.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Back"), title: t("Back"), disabled: !page.canGoBack, onClick: () => actions.browserCommand(tabId, "back") }, (0, import_react52.createElement)(BackIcon)),
-      (0, import_react52.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Forward"), title: t("Forward"), disabled: !page.canGoForward, onClick: () => actions.browserCommand(tabId, "forward") }, (0, import_react52.createElement)(ForwardIcon)),
-      (0, import_react52.createElement)("button", {
+      (0, import_react53.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Back"), title: t("Back"), disabled: !page.canGoBack, onClick: () => actions.browserCommand(tabId, "back") }, (0, import_react53.createElement)(BackIcon)),
+      (0, import_react53.createElement)("button", { type: "button", className: "bt-icon-btn", "aria-label": t("Forward"), title: t("Forward"), disabled: !page.canGoForward, onClick: () => actions.browserCommand(tabId, "forward") }, (0, import_react53.createElement)(ForwardIcon)),
+      (0, import_react53.createElement)("button", {
         type: "button",
         className: "bt-icon-btn",
         disabled: !page.url,
         "aria-label": page.loading ? t("Stop") : t("Reload"),
         title: page.loading ? t("Stop") : t("Reload"),
         onClick: () => actions.browserCommand(tabId, page.loading ? "stop" : "reload")
-      }, (0, import_react52.createElement)(page.loading ? StopIcon : ReloadIcon)),
-      (0, import_react52.createElement)(
+      }, (0, import_react53.createElement)(page.loading ? StopIcon : ReloadIcon)),
+      (0, import_react53.createElement)(
         "form",
         { className: "bt-browser-address", onSubmit: go, "data-editing": editing || void 0 },
-        (0, import_react52.createElement)("span", { className: "bt-browser-scheme", "aria-hidden": true }, (0, import_react52.createElement)(secure && !editing ? LockIcon2 : GlobeIcon2)),
-        (0, import_react52.createElement)("input", {
+        (0, import_react53.createElement)("span", { className: "bt-browser-scheme", "aria-hidden": true }, (0, import_react53.createElement)(secure && !editing ? LockIcon2 : GlobeIcon2)),
+        (0, import_react53.createElement)("input", {
           ref: input,
           type: "text",
           spellCheck: false,
@@ -19881,14 +24297,14 @@ function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, ho
           }
         })
       ),
-      (0, import_react52.createElement)("button", {
+      (0, import_react53.createElement)("button", {
         type: "button",
         className: "bt-icon-btn",
         "aria-label": t("New browser tab"),
         title: t("New browser tab"),
         onClick: () => actions.browserNewTab(bot.id)
-      }, (0, import_react52.createElement)(PlusTabIcon)),
-      imports ? (0, import_react52.createElement)("button", {
+      }, (0, import_react53.createElement)(PlusTabIcon)),
+      imports ? (0, import_react53.createElement)("button", {
         type: "button",
         className: "bt-icon-btn bt-import-btn",
         "aria-label": t("Import cookies"),
@@ -19899,29 +24315,29 @@ function BrowserView({ bot, tabId, leaving, landed, actions, useBrowserPages, ho
           if (flow === "menu") setFlowTracked(null);
           else openImport();
         }
-      }, (0, import_react52.createElement)(ImportIcon)) : null,
-      page.loading ? (0, import_react52.createElement)("span", { className: "bt-browser-progress", "aria-hidden": true }) : null
+      }, (0, import_react53.createElement)(ImportIcon)) : null,
+      page.loading ? (0, import_react53.createElement)("span", { className: "bt-browser-progress", "aria-hidden": true }) : null
     ),
-    (0, import_react52.createElement)(
+    (0, import_react53.createElement)(
       "div",
       { ref: frame, className: "bt-browser-frame", "data-guest": showGuest || void 0 },
-      flow === "menu" ? (0, import_react52.createElement)(ImportMenu, { sources, busy, onFile: pickFile, onSource: pickSource, onClose: () => setFlowTracked(null) }) : null,
-      typeof flow === "object" && flow !== null ? (0, import_react52.createElement)(ImportCard, { flow, page, busy, onApply: applyImport, onCancel: cancelImport, onCloseAndImport: closeAndImport, onDone: () => setFlowTracked(null), onReload: () => actions.browserCommand(tabId, "reload") }) : null,
-      flow === null && page.error ? (0, import_react52.createElement)(
+      flow === "menu" ? (0, import_react53.createElement)(ImportMenu, { sources, busy, onFile: pickFile, onSource: pickSource, onClose: () => setFlowTracked(null) }) : null,
+      typeof flow === "object" && flow !== null ? (0, import_react53.createElement)(ImportCard, { flow, page, busy, onApply: applyImport, onCancel: cancelImport, onCloseAndImport: closeAndImport, onDone: () => setFlowTracked(null), onReload: () => actions.browserCommand(tabId, "reload") }) : null,
+      flow === null && page.error ? (0, import_react53.createElement)(
         "div",
         { className: "bt-browser-empty" },
-        (0, import_react52.createElement)("div", { className: "bt-browser-empty-title" }, t("This page didn’t load")),
-        (0, import_react52.createElement)("div", { className: "bt-browser-empty-text" }, t(page.error)),
-        page.url ? (0, import_react52.createElement)("button", { type: "button", className: "bt-browser-retry", onClick: () => {
+        (0, import_react53.createElement)("div", { className: "bt-browser-empty-title" }, t("This page didn’t load")),
+        (0, import_react53.createElement)("div", { className: "bt-browser-empty-text" }, t(page.error)),
+        page.url ? (0, import_react53.createElement)("button", { type: "button", className: "bt-browser-retry", onClick: () => {
           void actions.browserNavigate(tabId, page.url);
         } }, t("Try again")) : null
-      ) : flow === null && !page.url ? (0, import_react52.createElement)(
+      ) : flow === null && !page.url ? (0, import_react53.createElement)(
         "div",
         { className: "bt-browser-empty" },
-        (0, import_react52.createElement)(BotMark, { bot, size: 48, state: "idle", live: true }),
-        (0, import_react52.createElement)("div", { className: "bt-browser-empty-title" }, t("{name}'s browser", { name: bot.name })),
-        (0, import_react52.createElement)("div", { className: "bt-browser-empty-text" }, t("Open a page here and {name} can read it with you. Logins and cookies stay with {name}; other Bots never see them.", { name: bot.name })),
-        imports ? (0, import_react52.createElement)("button", { type: "button", className: "bt-browser-retry", onClick: openImport }, t("Import cookies")) : null
+        (0, import_react53.createElement)(BotMark, { bot, size: 48, state: "idle", live: true }),
+        (0, import_react53.createElement)("div", { className: "bt-browser-empty-title" }, t("{name}'s browser", { name: bot.name })),
+        (0, import_react53.createElement)("div", { className: "bt-browser-empty-text" }, t("Open a page here and {name} can read it with you. Logins and cookies stay with {name}; other Bots never see them.", { name: bot.name })),
+        imports ? (0, import_react53.createElement)("button", { type: "button", className: "bt-browser-retry", onClick: openImport }, t("Import cookies")) : null
       ) : null
     )
   );
@@ -19933,25 +24349,25 @@ function importError(error) {
   return String(error);
 }
 function ImportMenu({ sources, busy, onFile, onSource, onClose }) {
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     const close = (event) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [onClose]);
-  return (0, import_react52.createElement)(
+  return (0, import_react53.createElement)(
     "div",
     { className: "bt-import-menu", role: "menu", "aria-label": t("Import cookies") },
-    (0, import_react52.createElement)("div", { className: "bt-import-menu-title" }, t("Import cookies")),
-    (0, import_react52.createElement)(
+    (0, import_react53.createElement)("div", { className: "bt-import-menu-title" }, t("Import cookies")),
+    (0, import_react53.createElement)(
       "button",
       { type: "button", className: "bt-import-item", role: "menuitem", disabled: busy, onClick: onFile },
-      (0, import_react52.createElement)(FileIcon, { className: "bt-import-item-icon" }),
-      (0, import_react52.createElement)("span", { className: "bt-import-item-name" }, t("From a file…")),
-      (0, import_react52.createElement)("span", { className: "bt-import-item-sub" }, t("cookies.txt, JSON, storageState"))
+      (0, import_react53.createElement)(FileIcon, { className: "bt-import-item-icon" }),
+      (0, import_react53.createElement)("span", { className: "bt-import-item-name" }, t("From a file…")),
+      (0, import_react53.createElement)("span", { className: "bt-import-item-sub" }, t("cookies.txt, JSON, storageState"))
     ),
-    sources === null ? (0, import_react52.createElement)("div", { className: "bt-import-menu-note" }, t("Loading…")) : sources.length === 0 ? (0, import_react52.createElement)("div", { className: "bt-import-menu-note" }, t("No browsers found")) : sources.map((source) => (0, import_react52.createElement)(
+    sources === null ? (0, import_react53.createElement)("div", { className: "bt-import-menu-note" }, t("Loading…")) : sources.length === 0 ? (0, import_react53.createElement)("div", { className: "bt-import-menu-note" }, t("No browsers found")) : sources.map((source) => (0, import_react53.createElement)(
       "button",
       {
         key: source.id,
@@ -19961,83 +24377,83 @@ function ImportMenu({ sources, busy, onFile, onSource, onClose }) {
         disabled: busy,
         onClick: () => onSource(source)
       },
-      (0, import_react52.createElement)(WindowIcon, { className: "bt-import-item-icon" }),
-      (0, import_react52.createElement)("span", { className: "bt-import-item-name" }, source.label),
-      (0, import_react52.createElement)("span", { className: "bt-import-item-sub" }, t("Copy of its cookies"))
+      (0, import_react53.createElement)(WindowIcon, { className: "bt-import-item-icon" }),
+      (0, import_react53.createElement)("span", { className: "bt-import-item-name" }, source.label),
+      (0, import_react53.createElement)("span", { className: "bt-import-item-sub" }, t("Copy of its cookies"))
     ))
   );
 }
 function ImportCard({ flow, page, busy, onApply, onCancel, onCloseAndImport, onDone, onReload }) {
   const { stage } = flow;
   if (stage === "running") {
-    return (0, import_react52.createElement)("div", { className: "bt-import-card" }, (0, import_react52.createElement)(
+    return (0, import_react53.createElement)("div", { className: "bt-import-card" }, (0, import_react53.createElement)(
       "div",
       { className: "bt-import-box" },
-      (0, import_react52.createElement)("div", { className: "bt-import-title" }, t("{name} is running", { name: flow.source.name })),
-      (0, import_react52.createElement)("div", { className: "bt-import-text" }, t("It must close for a moment so its cookies can be copied. It will reopen with your tabs.")),
-      (0, import_react52.createElement)(
+      (0, import_react53.createElement)("div", { className: "bt-import-title" }, t("{name} is running", { name: flow.source.name })),
+      (0, import_react53.createElement)("div", { className: "bt-import-text" }, t("It must close for a moment so its cookies can be copied. It will reopen with your tabs.")),
+      (0, import_react53.createElement)(
         "div",
         { className: "bt-import-actions" },
-        (0, import_react52.createElement)("button", { type: "button", className: "bt-import-primary", disabled: busy, onClick: onCloseAndImport }, busy ? t("Closing…") : t("Close {name} and import", { name: flow.source.name })),
-        (0, import_react52.createElement)("button", { type: "button", className: "bt-import-plain", disabled: busy, onClick: onCancel }, t("Cancel"))
+        (0, import_react53.createElement)("button", { type: "button", className: "bt-import-primary", disabled: busy, onClick: onCloseAndImport }, busy ? t("Closing…") : t("Close {name} and import", { name: flow.source.name })),
+        (0, import_react53.createElement)("button", { type: "button", className: "bt-import-plain", disabled: busy, onClick: onCancel }, t("Cancel"))
       )
     ));
   }
   if (stage === "error") {
-    return (0, import_react52.createElement)("div", { className: "bt-import-card" }, (0, import_react52.createElement)(
+    return (0, import_react53.createElement)("div", { className: "bt-import-card" }, (0, import_react53.createElement)(
       "div",
       { className: "bt-import-box" },
-      (0, import_react52.createElement)("div", { className: "bt-import-title" }, t("Import failed")),
-      (0, import_react52.createElement)("div", { className: "bt-import-text" }, flow.message),
-      (0, import_react52.createElement)("div", { className: "bt-import-actions" }, (0, import_react52.createElement)("button", { type: "button", className: "bt-import-plain", onClick: onCancel }, t("Close")))
+      (0, import_react53.createElement)("div", { className: "bt-import-title" }, t("Import failed")),
+      (0, import_react53.createElement)("div", { className: "bt-import-text" }, flow.message),
+      (0, import_react53.createElement)("div", { className: "bt-import-actions" }, (0, import_react53.createElement)("button", { type: "button", className: "bt-import-plain", onClick: onCancel }, t("Close")))
     ));
   }
   if (stage === "result") {
     const { report } = flow;
     const problems = [...report.dropped ?? [], ...report.failed ?? []];
-    return (0, import_react52.createElement)("div", { className: "bt-import-card" }, (0, import_react52.createElement)(
+    return (0, import_react53.createElement)("div", { className: "bt-import-card" }, (0, import_react53.createElement)(
       "div",
       { className: "bt-import-box" },
-      (0, import_react52.createElement)("div", { className: "bt-import-title" }, report.stored > 0 ? t("Imported {count} cookies", { count: report.stored }) : t("No cookies were stored")),
-      flow.label ? (0, import_react52.createElement)("div", { className: "bt-import-sub" }, flow.label) : null,
-      problems.length ? (0, import_react52.createElement)(
+      (0, import_react53.createElement)("div", { className: "bt-import-title" }, report.stored > 0 ? t("Imported {count} cookies", { count: report.stored }) : t("No cookies were stored")),
+      flow.label ? (0, import_react53.createElement)("div", { className: "bt-import-sub" }, flow.label) : null,
+      problems.length ? (0, import_react53.createElement)(
         "div",
         { className: "bt-import-list" },
-        problems.slice(0, 8).map((item, index) => (0, import_react52.createElement)(
+        problems.slice(0, 8).map((item, index) => (0, import_react53.createElement)(
           "div",
           { key: index, className: "bt-import-line" },
-          (0, import_react52.createElement)("span", { className: "bt-import-line-name" }, item.name ?? "—"),
-          (0, import_react52.createElement)("span", { className: "bt-import-line-reason" }, item.reason)
+          (0, import_react53.createElement)("span", { className: "bt-import-line-name" }, item.name ?? "—"),
+          (0, import_react53.createElement)("span", { className: "bt-import-line-reason" }, item.reason)
         )),
-        problems.length > 8 ? (0, import_react52.createElement)("div", { className: "bt-import-line" }, (0, import_react52.createElement)("span", { className: "bt-import-line-reason" }, t("and {count} more", { count: problems.length - 8 }))) : null
+        problems.length > 8 ? (0, import_react53.createElement)("div", { className: "bt-import-line" }, (0, import_react53.createElement)("span", { className: "bt-import-line-reason" }, t("and {count} more", { count: problems.length - 8 }))) : null
       ) : null,
-      (0, import_react52.createElement)(
+      (0, import_react53.createElement)(
         "div",
         { className: "bt-import-actions" },
-        page.url ? (0, import_react52.createElement)("button", { type: "button", className: "bt-import-plain", onClick: onReload }, t("Reload the page")) : null,
-        (0, import_react52.createElement)("button", { type: "button", className: "bt-import-primary", onClick: onDone }, t("Done"))
+        page.url ? (0, import_react53.createElement)("button", { type: "button", className: "bt-import-plain", onClick: onReload }, t("Reload the page")) : null,
+        (0, import_react53.createElement)("button", { type: "button", className: "bt-import-primary", onClick: onDone }, t("Done"))
       )
     ));
   }
   const { preview } = flow;
-  return (0, import_react52.createElement)("div", { className: "bt-import-card" }, (0, import_react52.createElement)(
+  return (0, import_react53.createElement)("div", { className: "bt-import-card" }, (0, import_react53.createElement)(
     "div",
     { className: "bt-import-box" },
-    (0, import_react52.createElement)("div", { className: "bt-import-title" }, t("Import {count} cookies", { count: preview.cookies })),
-    (0, import_react52.createElement)(
+    (0, import_react53.createElement)("div", { className: "bt-import-title" }, t("Import {count} cookies", { count: preview.cookies })),
+    (0, import_react53.createElement)(
       "div",
       { className: "bt-import-sub" },
       preview.source?.label ?? "",
       flow.restarted ? ` · ${t("the browser was restarted")}` : ""
     ),
-    preview.sites.length ? (0, import_react52.createElement)(
+    preview.sites.length ? (0, import_react53.createElement)(
       "div",
       { className: "bt-import-list" },
-      preview.sites.map((site) => (0, import_react52.createElement)(
+      preview.sites.map((site) => (0, import_react53.createElement)(
         "div",
         { key: site.site, className: "bt-import-line" },
-        (0, import_react52.createElement)("span", { className: "bt-import-line-name" }, site.site),
-        (0, import_react52.createElement)(
+        (0, import_react53.createElement)("span", { className: "bt-import-line-name" }, site.site),
+        (0, import_react53.createElement)(
           "span",
           { className: "bt-import-line-count" },
           t("{count}", { count: site.cookies }),
@@ -20045,35 +24461,35 @@ function ImportCard({ flow, page, busy, onApply, onCancel, onCloseAndImport, onD
         )
       ))
     ) : null,
-    preview.skipped.length ? (0, import_react52.createElement)(
+    preview.skipped.length ? (0, import_react53.createElement)(
       "div",
       { className: "bt-import-list" },
-      (0, import_react52.createElement)("div", { className: "bt-import-note" }, t("{count} skipped", { count: preview.skipped.length })),
-      preview.skipped.slice(0, 5).map((item, index) => (0, import_react52.createElement)(
+      (0, import_react53.createElement)("div", { className: "bt-import-note" }, t("{count} skipped", { count: preview.skipped.length })),
+      preview.skipped.slice(0, 5).map((item, index) => (0, import_react53.createElement)(
         "div",
         { key: index, className: "bt-import-line" },
-        (0, import_react52.createElement)("span", { className: "bt-import-line-name" }, item.name ?? item.where),
-        (0, import_react52.createElement)("span", { className: "bt-import-line-reason" }, item.reason)
+        (0, import_react53.createElement)("span", { className: "bt-import-line-name" }, item.name ?? item.where),
+        (0, import_react53.createElement)("span", { className: "bt-import-line-reason" }, item.reason)
       )),
-      preview.skipped.length > 5 ? (0, import_react52.createElement)("div", { className: "bt-import-line" }, (0, import_react52.createElement)("span", { className: "bt-import-line-reason" }, t("and {count} more", { count: preview.skipped.length - 5 }))) : null
+      preview.skipped.length > 5 ? (0, import_react53.createElement)("div", { className: "bt-import-line" }, (0, import_react53.createElement)("span", { className: "bt-import-line-reason" }, t("and {count} more", { count: preview.skipped.length - 5 }))) : null
     ) : null,
-    preview.warnings.length ? (0, import_react52.createElement)(
+    preview.warnings.length ? (0, import_react53.createElement)(
       "details",
       { className: "bt-import-warns" },
-      (0, import_react52.createElement)("summary", null, t("{count} adjusted", { count: preview.warnings.reduce((n, w) => n + w.count, 0) })),
-      preview.warnings.map((w, index) => (0, import_react52.createElement)(
+      (0, import_react53.createElement)("summary", null, t("{count} adjusted", { count: preview.warnings.reduce((n, w) => n + w.count, 0) })),
+      preview.warnings.map((w, index) => (0, import_react53.createElement)(
         "div",
         { key: index, className: "bt-import-line" },
-        (0, import_react52.createElement)("span", { className: "bt-import-line-reason" }, `${w.count} × ${w.message}`)
+        (0, import_react53.createElement)("span", { className: "bt-import-line-reason" }, `${w.count} × ${w.message}`)
       ))
     ) : null,
-    preview.notes.includes("session-cookies") ? (0, import_react52.createElement)("div", { className: "bt-import-note" }, t("Cookies without an expiry stay until the app closes.")) : null,
-    preview.notes.includes("local-storage-left") ? (0, import_react52.createElement)("div", { className: "bt-import-note" }, t("Some sites also keep sign-in outside cookies; you may need to sign in again there.")) : null,
-    (0, import_react52.createElement)(
+    preview.notes.includes("session-cookies") ? (0, import_react53.createElement)("div", { className: "bt-import-note" }, t("Cookies without an expiry stay until the app closes.")) : null,
+    preview.notes.includes("local-storage-left") ? (0, import_react53.createElement)("div", { className: "bt-import-note" }, t("Some sites also keep sign-in outside cookies; you may need to sign in again there.")) : null,
+    (0, import_react53.createElement)(
       "div",
       { className: "bt-import-actions" },
-      (0, import_react52.createElement)("button", { type: "button", className: "bt-import-primary", disabled: busy, onClick: onApply }, busy ? t("Importing…") : t("Import")),
-      (0, import_react52.createElement)("button", { type: "button", className: "bt-import-plain", disabled: busy, onClick: onCancel }, t("Cancel"))
+      (0, import_react53.createElement)("button", { type: "button", className: "bt-import-primary", disabled: busy, onClick: onApply }, busy ? t("Importing…") : t("Import")),
+      (0, import_react53.createElement)("button", { type: "button", className: "bt-import-plain", disabled: busy, onClick: onCancel }, t("Cancel"))
     )
   ));
 }
@@ -20087,44 +24503,44 @@ function BotPanel({ pane, leaving, room: room2, overlay, roster, actions, deskto
   const active = tabState.active;
   const page = useBrowserPages((pages) => (active ? pages[active] : null) ?? EMPTY_PAGE);
   const hold = useBrowserHolds?.((map) => bot ? map[bot.id] ?? null : null) ?? null;
-  const root = (0, import_react52.useRef)(null);
-  const fly = (0, import_react52.useRef)(null);
-  const [landed, setLanded] = (0, import_react52.useState)(false);
-  const [settling, setSettling] = (0, import_react52.useState)(false);
-  const [width, setWidth] = (0, import_react52.useState)(savedWidth);
-  const [computerWidth, setComputerWidth] = (0, import_react52.useState)(DEFAULT_COMPUTER_WIDTH);
-  const [dragging, setDragging] = (0, import_react52.useState)(false);
-  const [resizing, setResizing] = (0, import_react52.useState)(false);
+  const root = (0, import_react53.useRef)(null);
+  const fly = (0, import_react53.useRef)(null);
+  const [landed, setLanded] = (0, import_react53.useState)(false);
+  const [settling, setSettling] = (0, import_react53.useState)(false);
+  const [width, setWidth] = (0, import_react53.useState)(savedWidth);
+  const [computerWidth, setComputerWidth] = (0, import_react53.useState)(DEFAULT_COMPUTER_WIDTH);
+  const [dragging, setDragging] = (0, import_react53.useState)(false);
+  const [resizing, setResizing] = (0, import_react53.useState)(false);
   const instant = dragging || resizing;
-  const [reading, setReading] = (0, import_react52.useState)(false);
+  const [reading, setReading] = (0, import_react53.useState)(false);
   const layoutView = panelLayoutView(view, pane.tab);
   const preferredWidth = layoutView === "computer" ? computerWidth : width ?? (view === "browser" ? DEFAULT_WIDTH : DETAILS_WIDTH);
   const panelWidth = fitWidth(preferredWidth, widthRange(layoutView, room2));
-  (0, import_react52.useLayoutEffect)(() => {
+  (0, import_react53.useLayoutEffect)(() => {
     if (view === "browser" && width === null) setWidth(DEFAULT_WIDTH);
   }, [view, width]);
-  (0, import_react52.useLayoutEffect)(() => {
+  (0, import_react53.useLayoutEffect)(() => {
     chatRoom.hold(instant);
   }, [instant]);
-  const [last, setLast] = (0, import_react52.useState)({ view: layoutView, width: panelWidth });
+  const [last, setLast] = (0, import_react53.useState)({ view: layoutView, width: panelWidth });
   if (last.view !== layoutView || last.width !== panelWidth) {
     setLast({ view: layoutView, width: panelWidth });
     if (last.view !== layoutView) setSettling(last.width !== panelWidth && !instant);
   }
-  const shownView = (0, import_react52.useRef)(view);
-  (0, import_react52.useLayoutEffect)(() => {
+  const shownView = (0, import_react53.useRef)(view);
+  (0, import_react53.useLayoutEffect)(() => {
     const switched = settling && shownView.current !== view;
     shownView.current = view;
     if (switched) chatRoom.hold(true);
     chatRoom.setRight(leaving || overlay ? null : panelWidth);
     if (switched) chatRoom.hold(false);
   }, [view, panelWidth, leaving, overlay]);
-  (0, import_react52.useEffect)(() => () => {
+  (0, import_react53.useEffect)(() => () => {
     chatRoom.setRight(null);
     chatRoom.hold(false);
   }, []);
-  const mounted = (0, import_react52.useRef)(false);
-  (0, import_react52.useEffect)(() => {
+  const mounted = (0, import_react53.useRef)(false);
+  (0, import_react53.useEffect)(() => {
     if (!mounted.current) {
       mounted.current = true;
       return void 0;
@@ -20133,31 +24549,31 @@ function BotPanel({ pane, leaving, room: room2, overlay, roster, actions, deskto
     const timer = setTimeout(() => setResizing(false), 160);
     return () => clearTimeout(timer);
   }, [room2]);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     if (!settling) return void 0;
     const timer = setTimeout(() => setSettling(false), SPRING_SHAPE.duration + 40);
     return () => clearTimeout(timer);
   }, [settling, view]);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     const timer = setTimeout(() => setLanded(true), 360);
     return () => clearTimeout(timer);
   }, []);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     if (canBrowse) actions.browserEnsure(bot.id);
   }, [bot?.id, canBrowse]);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     if (view === "browser" && (active === null || !tabState.ids.includes(active))) actions.setPanelView("details");
   }, [view, active, tabState.ids.length]);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     if (pane.view === "side" && sideChat === void 0) actions.setPanelView("details");
   }, [pane.view, sideChat]);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     if (view !== "browser" || leaving) void actions.browserShow?.(null);
   }, [view, leaving]);
-  (0, import_react52.useEffect)(() => () => {
+  (0, import_react53.useEffect)(() => () => {
     void actions.browserShow?.(null);
   }, []);
-  (0, import_react52.useEffect)(() => {
+  (0, import_react53.useEffect)(() => {
     if (!page.readAt || Date.now() - page.readAt > READ_FLASH_MS) return void 0;
     setReading(true);
     const timer = setTimeout(() => setReading(false), READ_FLASH_MS);
@@ -20200,7 +24616,7 @@ function BotPanel({ pane, leaving, room: room2, overlay, roster, actions, deskto
       return actions[name](...args);
     };
   }
-  (0, import_react52.useLayoutEffect)(() => {
+  (0, import_react53.useLayoutEffect)(() => {
     const move = fly.current;
     if (!move) return;
     fly.current = null;
@@ -20287,7 +24703,7 @@ function BotPanel({ pane, leaving, room: room2, overlay, roster, actions, deskto
     for (const name of ends) grip.addEventListener(name, onEnd);
   };
   const hasStrip = panelHasStrip(canBrowse, tabState.ids.length, sideChats.length);
-  return (0, import_react52.createElement)(
+  return (0, import_react53.createElement)(
     "aside",
     {
       ref: root,
@@ -20306,15 +24722,15 @@ function BotPanel({ pane, leaving, room: room2, overlay, roster, actions, deskto
         if (event.target === event.currentTarget) setLanded(true);
       }
     },
-    leaving || overlay ? null : (0, import_react52.createElement)("div", { className: "bt-panel-grip", role: "separator", "aria-orientation": "vertical", "aria-label": t("Resize panel"), onPointerDown: startResize }),
+    leaving || overlay ? null : (0, import_react53.createElement)("div", { className: "bt-panel-grip", role: "separator", "aria-orientation": "vertical", "aria-label": t("Resize panel"), onPointerDown: startResize }),
     // Over the whole window while dragging: the cursor stays a resize cursor and the
     // pages underneath (the chat, the guest) see no pointer.
-    dragging ? (0, import_react_dom8.createPortal)((0, import_react52.createElement)("div", { className: "bt-drag-shield", "aria-hidden": true }), document.body) : null,
-    hasStrip ? (0, import_react52.createElement)(PanelStrip, { bot, subject: pane.id, view, ids: tabState.ids, active, sides: sideChats, side: pane.side, canBrowse, reading, onView: switchView, actions: panelActions, useBrowserPages }) : null,
-    view === "browser" && bot ? (0, import_react52.createElement)(BrowserView, { key: `browser:${active}`, bot: { ...bot, mobileControl: tabState.mobileControl }, tabId: active, leaving, landed: landed && !settling, actions, useBrowserPages, hold }) : view === "side" && sideChat ? (0, import_react52.createElement)("div", { key: `side:${sideChat.id}`, className: "bt-panel-view" }, (0, import_react52.createElement)(SideChatView, { subject: pane.id, chat: sideChat, actions: panelActions })) : (0, import_react52.createElement)(
+    dragging ? (0, import_react_dom8.createPortal)((0, import_react53.createElement)("div", { className: "bt-drag-shield", "aria-hidden": true }), document.body) : null,
+    hasStrip ? (0, import_react53.createElement)(PanelStrip, { bot, subject: pane.id, view, ids: tabState.ids, active, sides: sideChats, side: pane.side, canBrowse, reading, onView: switchView, actions: panelActions, useBrowserPages }) : null,
+    view === "browser" && bot ? (0, import_react53.createElement)(BrowserView, { key: `browser:${active}`, bot: { ...bot, mobileControl: tabState.mobileControl }, tabId: active, leaving, landed: landed && !settling, actions, useBrowserPages, hold }) : view === "side" && sideChat ? (0, import_react53.createElement)("div", { key: `side:${sideChat.id}`, className: "bt-panel-view" }, (0, import_react53.createElement)(SideChatView, { subject: pane.id, chat: sideChat, actions: panelActions })) : (0, import_react53.createElement)(
       "div",
       { key: `details:${pane.id}:${pane.renaming ? "rename" : ""}:${pane.tab === "settings" ? "settings" : ""}`, className: "bt-panel-view" },
-      (0, import_react52.createElement)(DetailsDrawer, {
+      (0, import_react53.createElement)(DetailsDrawer, {
         sessionId: pane.id,
         startRenaming: pane.renaming,
         startTab: pane.tab,
@@ -20456,7 +24872,7 @@ var BROWSER_CSS = `
 `;
 
 // src/client/overlays.js
-var import_react53 = require("react");
+var import_react54 = require("react");
 var import_react_dom9 = require("react-dom");
 var DIALOG_EXIT_MS = 160;
 var MENU_EXIT_MS3 = 120;
@@ -20468,8 +24884,8 @@ function Overlays({ useRoster, useUi, useSessions, useSessionStatus, useActivity
   const pref = useSidebarPref ? useSidebarPref((value) => value) : "open";
   const desktopConversation = useDesktopConversation((value) => value);
   const current = useSessions((list) => Object.values(list.byId).find((session) => (session?.retainedBy?.mainView ?? 0) > 0)?.id ?? null);
-  const previous = (0, import_react53.useRef)(current);
-  (0, import_react53.useEffect)(() => {
+  const previous = (0, import_react54.useRef)(current);
+  (0, import_react54.useEffect)(() => {
     if (previous.current === current) return;
     previous.current = current;
     if (current) actions.followPanel?.(current);
@@ -20483,8 +24899,8 @@ function Overlays({ useRoster, useUi, useSessions, useSessionStatus, useActivity
     panel: open ? { view: panelLayoutView(open.view, open.tab), yielded: ui2.panelYield === true } : null
   });
   const shown = open !== null && layout.panel !== "folded" ? open : null;
-  const [kept, setKept] = (0, import_react53.useState)(shown);
-  (0, import_react53.useEffect)(() => {
+  const [kept, setKept] = (0, import_react54.useState)(shown);
+  (0, import_react54.useEffect)(() => {
     if (shown) {
       setKept(shown);
       return void 0;
@@ -20503,17 +24919,17 @@ function Overlays({ useRoster, useUi, useSessions, useSessionStatus, useActivity
   const [memory, memoryLeaving] = useLinger(ui2.memory && memoryOwner(ui2.memory) ? ui2.memory : null, DIALOG_EXIT_MS);
   const owner = memory ? memoryOwner(memory) : null;
   const [menu, menuLeaving] = useLinger(ui2.menu, MENU_EXIT_MS3);
-  return (0, import_react53.createElement)(
-    import_react53.Fragment,
+  return (0, import_react54.createElement)(
+    import_react54.Fragment,
     null,
-    pane ? (0, import_react_dom9.createPortal)((0, import_react53.createElement)(BotPanel, { pane, leaving: shown === null, room: layout.room, overlay: layout.panel === "overlay", roster, actions, desktopConversation, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages, useBrowserHolds }), document.body) : null,
-    ui2.newChat ? (0, import_react_dom9.createPortal)((0, import_react53.createElement)(NewChat, { key: ui2.newChat, mode: ui2.newChat, roster, actions }), document.body) : null,
-    ui2.palette ? (0, import_react_dom9.createPortal)((0, import_react53.createElement)(CommandPalette, { key: ui2.palette.token, start: ui2.palette.query, token: ui2.palette.token, roster, actions, useSessions }), document.body) : null,
-    ui2.exchange ? (0, import_react_dom9.createPortal)((0, import_react53.createElement)(ExchangeDialog, { pair: ui2.exchange, roster, actions }), document.body) : null,
-    ui2.voice ? (0, import_react_dom9.createPortal)((0, import_react53.createElement)(VoiceMode, { key: ui2.voice, sessionId: ui2.voice, roster, actions, useSessions, useSessionStatus }), document.body) : null,
-    menu ? (0, import_react_dom9.createPortal)((0, import_react53.createElement)(ContextMenu, { key: `${menu.kind ?? ""}:${menu.id}:${menu.x}:${menu.y}`, menu, roster, actions, leaving: menuLeaving }), document.body) : null,
-    settings ? (0, import_react_dom9.createPortal)((0, import_react53.createElement)(SettingsDialog, { page: settings.page, id: settings.id, onContinue: settingsLeaving ? void 0 : settings.onContinue, roster, actions, useUpdate, leaving: settingsLeaving }), document.body) : null,
-    owner ? (0, import_react_dom9.createPortal)((0, import_react53.createElement)(MemoryDialog, { key: owner.id, owner, actions, leaving: memoryLeaving }), document.body) : null
+    pane ? (0, import_react_dom9.createPortal)((0, import_react54.createElement)(BotPanel, { pane, leaving: shown === null, room: layout.room, overlay: layout.panel === "overlay", roster, actions, desktopConversation, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages, useBrowserHolds }), document.body) : null,
+    ui2.newChat ? (0, import_react_dom9.createPortal)((0, import_react54.createElement)(NewChat, { key: ui2.newChat, mode: ui2.newChat, roster, actions }), document.body) : null,
+    ui2.palette ? (0, import_react_dom9.createPortal)((0, import_react54.createElement)(CommandPalette, { key: ui2.palette.token, start: ui2.palette.query, token: ui2.palette.token, roster, actions, useSessions }), document.body) : null,
+    ui2.exchange ? (0, import_react_dom9.createPortal)((0, import_react54.createElement)(ExchangeDialog, { pair: ui2.exchange, roster, actions }), document.body) : null,
+    ui2.voice ? (0, import_react_dom9.createPortal)((0, import_react54.createElement)(VoiceMode, { key: ui2.voice, sessionId: ui2.voice, roster, actions, useSessions, useSessionStatus }), document.body) : null,
+    menu ? (0, import_react_dom9.createPortal)((0, import_react54.createElement)(ContextMenu, { key: `${menu.kind ?? ""}:${menu.id}:${menu.x}:${menu.y}`, menu, roster, actions, leaving: menuLeaving }), document.body) : null,
+    settings ? (0, import_react_dom9.createPortal)((0, import_react54.createElement)(SettingsDialog, { page: settings.page, id: settings.id, onContinue: settingsLeaving ? void 0 : settings.onContinue, roster, actions, useUpdate, leaving: settingsLeaving }), document.body) : null,
+    owner ? (0, import_react_dom9.createPortal)((0, import_react54.createElement)(MemoryDialog, { key: owner.id, owner, actions, leaving: memoryLeaving }), document.body) : null
   );
 }
 
@@ -21197,7 +25613,7 @@ function createBotBrowsers({ bridge, createSource: createSource2, storage = glob
   async function create(tabId) {
     const botId = owner.get(tabId);
     const guest = await makeGuest({ bridge, document: doc, botId, tabId });
-    const pending = pages.getSnapshot()[tabId]?.url || savedTab(botId, tabId)?.url;
+    const pending2 = pages.getSnapshot()[tabId]?.url || savedTab(botId, tabId)?.url;
     const reservation = guest.appView ? void 0 : await bridge.acquire(`bot:${botId}`);
     if (disposed) {
       if (reservation) await bridge.release(reservation.lease).catch(() => {
@@ -21206,7 +25622,7 @@ function createBotBrowsers({ bridge, createSource: createSource2, storage = glob
       });
       return void 0;
     }
-    if (guest.appView) await bridge.views.create(botId, tabId, pending ?? "");
+    if (guest.appView) await bridge.views.create(botId, tabId, pending2 ?? "");
     const element = guest.element;
     element.dataset.sidebarBrowserFrame = "webview";
     Object.assign(element.style, { position: "fixed", display: "flex", border: "0", pointerEvents: "auto", background: "#fff" });
@@ -21217,7 +25633,7 @@ function createBotBrowsers({ bridge, createSource: createSource2, storage = glob
       element.setAttribute("allowpopups", "");
       element.setAttribute("src", `about:blank#${reservation.lease}`);
     }
-    const entry = { botId, tabId, element, lease: reservation?.lease, appView: guest.appView, botAttached: false, ready: false, fresh: !guest.appView, pending: guest.appView ? void 0 : pending, usedAt: Date.now() };
+    const entry = { botId, tabId, element, lease: reservation?.lease, appView: guest.appView, botAttached: false, ready: false, fresh: !guest.appView, pending: guest.appView ? void 0 : pending2, usedAt: Date.now() };
     const lifetime = new AbortController();
     entry.stop = () => lifetime.abort();
     const { signal } = lifetime;
@@ -21677,13 +26093,13 @@ function lineDiff(before, after) {
 }
 
 // src/client/learning-card.js
-var import_react54 = require("react");
+var import_react55 = require("react");
 var failedAnswers = /* @__PURE__ */ new Map();
 function ProposalCard({ proposal, initialError = "", onFailure, onResolved, actions }) {
-  const [busy, setBusy] = (0, import_react54.useState)(false);
-  const [error, setError] = (0, import_react54.useState)(initialError);
-  const busyRef = (0, import_react54.useRef)(false);
-  const titleId = (0, import_react54.useId)();
+  const [busy, setBusy] = (0, import_react55.useState)(false);
+  const [error, setError] = (0, import_react55.useState)(initialError);
+  const busyRef = (0, import_react55.useRef)(false);
+  const titleId = (0, import_react55.useId)();
   const answer = (approve) => {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -21699,58 +26115,58 @@ function ProposalCard({ proposal, initialError = "", onFailure, onResolved, acti
     });
   };
   const update = proposal.action === "update";
-  const rows2 = (0, import_react54.useMemo)(() => lineDiff(update ? proposal.previous?.content : "", proposal.content), [update, proposal.previous?.content, proposal.content]);
+  const rows2 = (0, import_react55.useMemo)(() => lineDiff(update ? proposal.previous?.content : "", proposal.content), [update, proposal.previous?.content, proposal.content]);
   if (proposal.kind === "agents") {
     const blocks = proposal.edits.map((edit) => [
       ...(edit.op === "add" ? [] : editLines(edit.old)).map((line) => ({ kind: "removed", line })),
       ...(edit.op === "remove" ? [] : editLines(edit.text)).map((line) => ({ kind: "added", line }))
     ]);
-    return (0, import_react54.createElement)(
+    return (0, import_react55.createElement)(
       "section",
       { className: "bt-q bt-learning-card", role: "group", "aria-labelledby": titleId, "aria-busy": busy },
-      (0, import_react54.createElement)(ProposalHead, { titleId, icon: PencilIcon, title: t("AGENTS.md update") }),
-      (0, import_react54.createElement)(FileBox, { name: "AGENTS.md", path: proposal.folder, state: proposal.exists === false ? "Added" : "Modified", blocks }),
-      proposal.edits.map((edit, index) => edit.why ? (0, import_react54.createElement)("p", { className: "bt-learning-why", key: index }, edit.why) : null),
-      error ? (0, import_react54.createElement)("div", { className: "bt-learning-error", role: "alert" }, error) : null,
-      (0, import_react54.createElement)(ProposalFoot, { busy, answer })
+      (0, import_react55.createElement)(ProposalHead, { titleId, icon: PencilIcon, title: t("AGENTS.md update") }),
+      (0, import_react55.createElement)(FileBox, { name: "AGENTS.md", path: proposal.folder, state: proposal.exists === false ? "Added" : "Modified", blocks }),
+      proposal.edits.map((edit, index) => edit.why ? (0, import_react55.createElement)("p", { className: "bt-learning-why", key: index }, edit.why) : null),
+      error ? (0, import_react55.createElement)("div", { className: "bt-learning-error", role: "alert" }, error) : null,
+      (0, import_react55.createElement)(ProposalFoot, { busy, answer })
     );
   }
   const oldDetail = update && typeof proposal.previous?.description === "string" && proposal.previous.description !== proposal.description ? proposal.previous.description : void 0;
-  return (0, import_react54.createElement)(
+  return (0, import_react55.createElement)(
     "section",
     { className: "bt-q bt-learning-card", role: "group", "aria-labelledby": titleId, "aria-busy": busy },
-    (0, import_react54.createElement)(ProposalHead, { titleId, title: proposal.name, kind: t(update ? "Skill update" : "New skill"), detail: proposal.description, oldDetail }),
-    (0, import_react54.createElement)(FileBox, { name: "SKILL.md", path: `skills/${proposal.name}`, state: update ? "Updated" : "Added", blocks: [rows2] }),
-    proposal.why ? (0, import_react54.createElement)("p", { className: "bt-learning-why" }, proposal.why) : null,
-    error ? (0, import_react54.createElement)("div", { className: "bt-learning-error", role: "alert" }, error) : null,
-    (0, import_react54.createElement)(ProposalFoot, { busy, answer })
+    (0, import_react55.createElement)(ProposalHead, { titleId, title: proposal.name, kind: t(update ? "Skill update" : "New skill"), detail: proposal.description, oldDetail }),
+    (0, import_react55.createElement)(FileBox, { name: "SKILL.md", path: `skills/${proposal.name}`, state: update ? "Updated" : "Added", blocks: [rows2] }),
+    proposal.why ? (0, import_react55.createElement)("p", { className: "bt-learning-why" }, proposal.why) : null,
+    error ? (0, import_react55.createElement)("div", { className: "bt-learning-error", role: "alert" }, error) : null,
+    (0, import_react55.createElement)(ProposalFoot, { busy, answer })
   );
 }
 function ProposalHead({ titleId, icon: icon2 = MemoryIcon, title, kind, detail, oldDetail }) {
-  return (0, import_react54.createElement)(
+  return (0, import_react55.createElement)(
     "div",
     { className: "bt-q-head" },
-    (0, import_react54.createElement)("span", { className: "bt-learning-icon", "aria-hidden": true }, (0, import_react54.createElement)(icon2)),
-    (0, import_react54.createElement)(
+    (0, import_react55.createElement)("span", { className: "bt-learning-icon", "aria-hidden": true }, (0, import_react55.createElement)(icon2)),
+    (0, import_react55.createElement)(
       "div",
       { className: "bt-q-text" },
-      (0, import_react54.createElement)("p", { className: "bt-q-title", id: titleId }, title),
-      kind ? (0, import_react54.createElement)("div", { className: "bt-q-detail" }, kind) : null,
-      oldDetail ? (0, import_react54.createElement)("p", { className: "bt-learning-description bt-learning-old" }, (0, import_react54.createElement)("del", null, oldDetail)) : null,
-      detail ? (0, import_react54.createElement)("p", { className: "bt-learning-description" }, detail) : null
+      (0, import_react55.createElement)("p", { className: "bt-q-title", id: titleId }, title),
+      kind ? (0, import_react55.createElement)("div", { className: "bt-q-detail" }, kind) : null,
+      oldDetail ? (0, import_react55.createElement)("p", { className: "bt-learning-description bt-learning-old" }, (0, import_react55.createElement)("del", null, oldDetail)) : null,
+      detail ? (0, import_react55.createElement)("p", { className: "bt-learning-description" }, detail) : null
     ),
-    (0, import_react54.createElement)("span", { className: "bt-q-badge bt-learning-status" }, (0, import_react54.createElement)("span", { className: "bt-learning-dot", "aria-hidden": true }), t("Awaiting approval"))
+    (0, import_react55.createElement)("span", { className: "bt-q-badge bt-learning-status" }, (0, import_react55.createElement)("span", { className: "bt-learning-dot", "aria-hidden": true }), t("Awaiting approval"))
   );
 }
 function ProposalFoot({ busy, answer }) {
-  return (0, import_react54.createElement)(
+  return (0, import_react55.createElement)(
     "div",
     { className: "bt-q-foot bt-learning-foot" },
-    (0, import_react54.createElement)("button", { type: "button", className: "bt-learning-btn bt-learning-decline", disabled: busy, onClick: () => answer(false) }, t("Decline")),
-    (0, import_react54.createElement)(
+    (0, import_react55.createElement)("button", { type: "button", className: "bt-learning-btn bt-learning-decline", disabled: busy, onClick: () => answer(false) }, t("Decline")),
+    (0, import_react55.createElement)(
       "button",
       { type: "button", className: "bt-learning-btn bt-learning-approve", disabled: busy, onClick: () => answer(true) },
-      (0, import_react54.createElement)(CheckIcon),
+      (0, import_react55.createElement)(CheckIcon),
       t("Approve")
     )
   );
@@ -21758,43 +26174,43 @@ function ProposalFoot({ busy, answer }) {
 var COLLAPSE_ROWS = 8;
 var SIGNS = { added: "+", removed: "−", same: "" };
 function FileBox({ name, path, state, blocks }) {
-  const [open, setOpen] = (0, import_react54.useState)(false);
+  const [open, setOpen] = (0, import_react55.useState)(false);
   const all = blocks.flat();
   const added = all.filter((row) => row.kind === "added").length;
   const removed = all.filter((row) => row.kind === "removed").length;
   const folds = all.length > COLLAPSE_ROWS;
   const shut = folds && !open;
-  return (0, import_react54.createElement)(
+  return (0, import_react55.createElement)(
     "div",
     { className: "bt-learning-file" },
-    (0, import_react54.createElement)(
+    (0, import_react55.createElement)(
       "div",
       { className: "bt-learning-filehead" },
-      (0, import_react54.createElement)("span", { className: "bt-learning-name" }, name),
-      path ? (0, import_react54.createElement)("span", { className: "bt-learning-path" }, path) : null,
-      (0, import_react54.createElement)("span", { className: "bt-learning-spacer" }),
-      added > 0 ? (0, import_react54.createElement)("span", { className: "bt-learning-plus" }, `+${added}`) : null,
-      removed > 0 ? (0, import_react54.createElement)("span", { className: "bt-learning-minus" }, `−${removed}`) : null,
-      (0, import_react54.createElement)("span", { className: `bt-learning-state bt-learning-state-${state.toLowerCase()}` }, t(state))
+      (0, import_react55.createElement)("span", { className: "bt-learning-name" }, name),
+      path ? (0, import_react55.createElement)("span", { className: "bt-learning-path" }, path) : null,
+      (0, import_react55.createElement)("span", { className: "bt-learning-spacer" }),
+      added > 0 ? (0, import_react55.createElement)("span", { className: "bt-learning-plus" }, `+${added}`) : null,
+      removed > 0 ? (0, import_react55.createElement)("span", { className: "bt-learning-minus" }, `−${removed}`) : null,
+      (0, import_react55.createElement)("span", { className: `bt-learning-state bt-learning-state-${state.toLowerCase()}` }, t(state))
     ),
-    (0, import_react54.createElement)(
+    (0, import_react55.createElement)(
       "div",
       { className: shut ? "bt-learning-code bt-learning-shut" : "bt-learning-code" },
       blocks.map((rows2, blockIndex) => [
-        blockIndex > 0 ? (0, import_react54.createElement)("div", { className: "bt-learning-gap", key: `gap-${blockIndex}` }) : null,
-        ...rows2.map((row, rowIndex) => (0, import_react54.createElement)(
+        blockIndex > 0 ? (0, import_react55.createElement)("div", { className: "bt-learning-gap", key: `gap-${blockIndex}` }) : null,
+        ...rows2.map((row, rowIndex) => (0, import_react55.createElement)(
           "div",
           { className: `bt-learning-row bt-learning-${row.kind}`, key: `${blockIndex}-${rowIndex}` },
-          (0, import_react54.createElement)("span", { className: "bt-learning-num", "aria-hidden": true }, row.number ?? ""),
-          (0, import_react54.createElement)("span", { className: "bt-learning-sign", "aria-hidden": true }, SIGNS[row.kind]),
-          (0, import_react54.createElement)("span", { className: "bt-learning-text" }, row.line || " ")
+          (0, import_react55.createElement)("span", { className: "bt-learning-num", "aria-hidden": true }, row.number ?? ""),
+          (0, import_react55.createElement)("span", { className: "bt-learning-sign", "aria-hidden": true }, SIGNS[row.kind]),
+          (0, import_react55.createElement)("span", { className: "bt-learning-text" }, row.line || " ")
         ))
       ])
     ),
-    folds ? (0, import_react54.createElement)(
+    folds ? (0, import_react55.createElement)(
       "div",
       { className: shut ? "bt-learning-morebar bt-learning-morebar-shut" : "bt-learning-morebar" },
-      (0, import_react54.createElement)(
+      (0, import_react55.createElement)(
         "button",
         { type: "button", className: "bt-learning-more", "aria-expanded": open, onClick: () => setOpen(!open) },
         t(open ? "Show less" : "Show all {count} lines", { count: all.length })
@@ -21805,7 +26221,7 @@ function FileBox({ name, path, state, blocks }) {
 function LearningProposals({ turn, dock, sessionId, useRoster, actions }) {
   const roster = useRoster((value) => value);
   const facts = useTurnFacts(sessionId, actions);
-  const [failed, setFailed] = (0, import_react54.useState)({});
+  const [failed, setFailed] = (0, import_react55.useState)({});
   const bot = roster.byId?.[sessionId];
   if (!bot || currentPart(bot) !== sessionId) return null;
   const proposals = roster.learning?.[bot.id] ?? [];
@@ -21832,10 +26248,10 @@ function LearningProposals({ turn, dock, sessionId, useRoster, actions }) {
     delete next[id];
     return next;
   });
-  return (0, import_react54.createElement)("div", { className: dock ? "bt-learning-stack bt-learning-dock" : "bt-learning-stack" }, cards.map((proposal) => (0, import_react54.createElement)(
+  return (0, import_react55.createElement)("div", { className: dock ? "bt-learning-stack bt-learning-dock" : "bt-learning-stack" }, cards.map((proposal) => (0, import_react55.createElement)(
     "div",
     { className: "bt-q-inline", key: proposal.id },
-    (0, import_react54.createElement)(ProposalCard, {
+    (0, import_react55.createElement)(ProposalCard, {
       proposal,
       initialError: failed[proposal.id]?.error ?? failedAnswers.get(proposal.id)?.error,
       onFailure,
@@ -21845,10 +26261,10 @@ function LearningProposals({ turn, dock, sessionId, useRoster, actions }) {
   )));
 }
 function LearningTurnTail(props) {
-  return (0, import_react54.createElement)(LearningProposals, { ...props, dock: false });
+  return (0, import_react55.createElement)(LearningProposals, { ...props, dock: false });
 }
 function LearningDock(props) {
-  return (0, import_react54.createElement)(LearningProposals, { ...props, dock: true });
+  return (0, import_react55.createElement)(LearningProposals, { ...props, dock: true });
 }
 var LEARNING_CSS = `
 .bt-learning-stack{display:flex;flex-direction:column;gap:4px}
@@ -21919,9 +26335,9 @@ function createSwitchWindow(settle) {
   let token = null;
   return {
     moved() {
-      const self = token = {};
+      const self2 = token = {};
       settle(() => {
-        if (token === self) token = null;
+        if (token === self2) token = null;
       });
     },
     get pending() {
@@ -21931,7 +26347,7 @@ function createSwitchWindow(settle) {
 }
 
 // src/client/mobile-approvals.js
-var import_react55 = require("react");
+var import_react56 = require("react");
 function approvalReason(request, locale = "en") {
   const copy2 = request.displayReason;
   return copy2?.[locale] ?? copy2?.[locale.split("-")[0]] ?? copy2?.en ?? request.reason ?? `${request.toolName} requires your approval.`;
@@ -22020,7 +26436,7 @@ function liveApprovalCommand(snapshot, request) {
 }
 function ApprovalCommand({ request, useChat }) {
   const command = useChat((snapshot) => liveApprovalCommand(snapshot, request));
-  return command ? (0, import_react55.createElement)("div", { className: "bt-mobile-approval-command" }, command) : null;
+  return command ? (0, import_react56.createElement)("div", { className: "bt-mobile-approval-command" }, command) : null;
 }
 function approvalSession(request, roster) {
   const room2 = roster.roomsById[request.conversationId];
@@ -22033,25 +26449,25 @@ function MobileApprovalDock({ sessionId, useMobileApprovals, useRoster, useChat,
   const roster = useRoster((value) => value);
   const requests = state.requests.filter((request) => approvalSession(request, roster) === sessionId);
   if (requests.length === 0) return null;
-  return (0, import_react55.createElement)("section", { className: "bt-mobile-approvals", "aria-label": "Pending approvals" }, requests.map((request) => {
+  return (0, import_react56.createElement)("section", { className: "bt-mobile-approvals", "aria-label": "Pending approvals" }, requests.map((request) => {
     const busy = state.busy.includes(request.id);
-    return (0, import_react55.createElement)(
+    return (0, import_react56.createElement)(
       "section",
       { key: request.id, className: "bt-mobile-approval", "aria-label": `${request.toolName} approval`, "aria-busy": busy },
-      (0, import_react55.createElement)("div", { className: "bt-mobile-approval-strip", role: "status" }, "Approval required", (0, import_react55.createElement)("code", null, request.toolName)),
-      (0, import_react55.createElement)(
+      (0, import_react56.createElement)("div", { className: "bt-mobile-approval-strip", role: "status" }, "Approval required", (0, import_react56.createElement)("code", null, request.toolName)),
+      (0, import_react56.createElement)(
         "div",
         { className: "bt-mobile-approval-body", tabIndex: 0, role: "group", "aria-label": "Approval details" },
-        (0, import_react55.createElement)("p", null, approvalReason(request, language())),
-        request.callId && request.sessionId === sessionId && useChat ? (0, import_react55.createElement)(ApprovalCommand, { request, useChat }) : null
+        (0, import_react56.createElement)("p", null, approvalReason(request, language())),
+        request.callId && request.sessionId === sessionId && useChat ? (0, import_react56.createElement)(ApprovalCommand, { request, useChat }) : null
       ),
-      !state.connected ? (0, import_react55.createElement)("p", { className: "bt-mobile-approval-error", role: "alert" }, "Connection lost. Waiting to confirm that this request is still pending.") : state.errors[request.id] ? (0, import_react55.createElement)("p", { className: "bt-mobile-approval-error", role: "alert" }, state.errors[request.id]) : null,
-      (0, import_react55.createElement)(
+      !state.connected ? (0, import_react56.createElement)("p", { className: "bt-mobile-approval-error", role: "alert" }, "Connection lost. Waiting to confirm that this request is still pending.") : state.errors[request.id] ? (0, import_react56.createElement)("p", { className: "bt-mobile-approval-error", role: "alert" }, state.errors[request.id]) : null,
+      (0, import_react56.createElement)(
         "div",
         { className: "bt-mobile-approval-actions" },
-        (0, import_react55.createElement)("span", { className: "bt-mobile-approval-hint" }, "Answer here or on your paired phone."),
-        (0, import_react55.createElement)("button", { type: "button", disabled: busy || !state.connected, onClick: () => void actions.answerMobileApproval(request.id, "rejected") }, "Reject"),
-        (0, import_react55.createElement)("button", { type: "button", className: "bt-mobile-approval-allow", disabled: busy || !state.connected, onClick: () => void actions.answerMobileApproval(request.id, "allowed-once") }, "Allow once")
+        (0, import_react56.createElement)("span", { className: "bt-mobile-approval-hint" }, "Answer here or on your paired phone."),
+        (0, import_react56.createElement)("button", { type: "button", disabled: busy || !state.connected, onClick: () => void actions.answerMobileApproval(request.id, "rejected") }, "Reject"),
+        (0, import_react56.createElement)("button", { type: "button", className: "bt-mobile-approval-allow", disabled: busy || !state.connected, onClick: () => void actions.answerMobileApproval(request.id, "allowed-once") }, "Allow once")
       )
     );
   }));
@@ -22065,13 +26481,13 @@ function MobileApprovalNotice({ useMobileApprovals, useSessions, useRoster, acti
     return target && target !== current;
   });
   if (requests.length === 0) return null;
-  return (0, import_react55.createElement)("aside", { className: "bt-mobile-approval-notices", "aria-label": "Approvals in other conversations" }, requests.map((request) => {
+  return (0, import_react56.createElement)("aside", { className: "bt-mobile-approval-notices", "aria-label": "Approvals in other conversations" }, requests.map((request) => {
     const owner = roster.byId[request.conversationId] ?? roster.roomsById[request.conversationId];
-    return (0, import_react55.createElement)(
+    return (0, import_react56.createElement)(
       "button",
       { key: request.id, type: "button", className: "bt-mobile-approval-notice", onClick: () => actions.openMobileApproval(approvalSession(request, roster)) },
-      (0, import_react55.createElement)("span", null, `${owner?.name || "A team conversation"} needs approval`),
-      (0, import_react55.createElement)("span", { className: "bt-mobile-approval-hint" }, `${request.toolName} · Open conversation`)
+      (0, import_react56.createElement)("span", null, `${owner?.name || "A team conversation"} needs approval`),
+      (0, import_react56.createElement)("span", { className: "bt-mobile-approval-hint" }, `${request.toolName} · Open conversation`)
     );
   }));
 }
@@ -22096,7 +26512,7 @@ var MOBILE_APPROVAL_CSS = `
 `;
 
 // src/client/user-message.js
-var import_react56 = require("react");
+var import_react57 = require("react");
 var ui = __toESM(require("@deepseek-ai/dsh-client-ui-primitives"), 1);
 var canDrawUserMessages = () => typeof ui.projectUserText === "function";
 function contentParts(content) {
@@ -22128,38 +26544,38 @@ function userTextParts(text, bots, referenceLabels = []) {
   return parts;
 }
 function UserText({ text, bots, referenceLabels, skillNames, references, actions }) {
-  return userTextParts(text, bots, referenceLabels).map((part, index) => part.bot ? (0, import_react56.createElement)(
+  return userTextParts(text, bots, referenceLabels).map((part, index) => part.bot ? (0, import_react57.createElement)(
     "button",
     { key: index, type: "button", className: "bt-umention", title: `@${part.bot.name}`, onClick: () => actions.openSession(part.bot.id) },
-    (0, import_react56.createElement)(BotMark, { bot: part.bot, size: 16 }),
+    (0, import_react57.createElement)(BotMark, { bot: part.bot, size: 16 }),
     part.label
-  ) : (0, import_react56.createElement)(import_react56.Fragment, { key: index }, ui.projectUserText(part.text, referenceLabels, skillNames, "skill", references)));
+  ) : (0, import_react57.createElement)(import_react57.Fragment, { key: index }, ui.projectUserText(part.text, referenceLabels, skillNames, "skill", references)));
 }
 function Attachments({ attachments, renderMessageImages }) {
   const compact2 = attachments.length > 1;
-  return (0, import_react56.createElement)("div", { className: "bt-uattach" }, attachments.map((block, index) => {
+  return (0, import_react57.createElement)("div", { className: "bt-uattach" }, attachments.map((block, index) => {
     if (block.type === "image") {
-      return renderMessageImages ? (0, import_react56.createElement)(import_react56.Fragment, { key: index }, renderMessageImages({ images: [{ attachment: block.attachment }], align: "end", compact: compact2 })) : null;
+      return renderMessageImages ? (0, import_react57.createElement)(import_react57.Fragment, { key: index }, renderMessageImages({ images: [{ attachment: block.attachment }], align: "end", compact: compact2 })) : null;
     }
     const file = block.attachment;
     const meta = [ui.fileExtension?.(file.name)?.toUpperCase().slice(0, 8), ui.fileSizeText?.(file.bytes)].filter(Boolean).join(" · ");
-    return (0, import_react56.createElement)(
+    return (0, import_react57.createElement)(
       "span",
       { key: index, className: "bt-ufile", title: file.name },
-      ui.FileTypeIcon ? (0, import_react56.createElement)(ui.FileTypeIcon, { path: file.name, className: "bt-ufile-icon" }) : null,
-      (0, import_react56.createElement)("span", { className: "bt-ufile-text" }, (0, import_react56.createElement)("span", { className: "bt-ufile-name" }, file.name), meta ? (0, import_react56.createElement)("span", { className: "bt-ufile-meta" }, meta) : null)
+      ui.FileTypeIcon ? (0, import_react57.createElement)(ui.FileTypeIcon, { path: file.name, className: "bt-ufile-icon" }) : null,
+      (0, import_react57.createElement)("span", { className: "bt-ufile-text" }, (0, import_react57.createElement)("span", { className: "bt-ufile-name" }, file.name), meta ? (0, import_react57.createElement)("span", { className: "bt-ufile-meta" }, meta) : null)
     );
   }));
 }
 function CopyButton({ text }) {
-  const [copied, setCopied] = (0, import_react56.useState)(false);
+  const [copied, setCopied] = (0, import_react57.useState)(false);
   const copy2 = () => {
     void navigator.clipboard?.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1e3);
     });
   };
-  return (0, import_react56.createElement)("button", { type: "button", className: "bt-tool", "aria-label": copied ? t("Copied") : t("Copy"), title: copied ? t("Copied") : t("Copy"), onClick: copy2 }, copied ? (0, import_react56.createElement)(CheckIcon) : (0, import_react56.createElement)(CopyIcon));
+  return (0, import_react57.createElement)("button", { type: "button", className: "bt-tool", "aria-label": copied ? t("Copied") : t("Copy"), title: copied ? t("Copied") : t("Copy"), onClick: copy2 }, copied ? (0, import_react57.createElement)(CheckIcon) : (0, import_react57.createElement)(CopyIcon));
 }
 var clock3 = (time) => typeof time === "number" ? new Date(time).toLocaleTimeString(dateLocale(), { hour: "numeric", minute: "2-digit" }) : void 0;
 function UserMessageCell({ node, sessionId, useRoster, actions, renderMessageImages, openFile, openSkill }) {
@@ -22171,10 +26587,10 @@ function UserMessageCell({ node, sessionId, useRoster, actions, renderMessageIma
   const steering = node.kind === "steering";
   const groupTime = roster.roomsById?.[sessionId] && Number.isFinite(data.time) ? messageClock(data.time) : void 0;
   const { shown, folded, control } = useFold(text, { markdown: false });
-  const body = (0, import_react56.createElement)(UserText, { text: shown, bots: mentionableBots(roster, sessionId), referenceLabels, skillNames: data.skillNames ?? [], references, actions });
-  const row = (0, import_react56.useRef)(null);
-  const [toolsOpen, setToolsOpen] = (0, import_react56.useState)(false);
-  (0, import_react56.useEffect)(() => {
+  const body = (0, import_react57.createElement)(UserText, { text: shown, bots: mentionableBots(roster, sessionId), referenceLabels, skillNames: data.skillNames ?? [], references, actions });
+  const row = (0, import_react57.useRef)(null);
+  const [toolsOpen, setToolsOpen] = (0, import_react57.useState)(false);
+  (0, import_react57.useEffect)(() => {
     if (!toolsOpen) return void 0;
     const onDown = (event) => {
       if (!row.current?.contains(event.target)) setToolsOpen(false);
@@ -22190,24 +26606,24 @@ function UserMessageCell({ node, sessionId, useRoster, actions, renderMessageIma
     if (!noHover() || event.target instanceof Element && event.target.closest("a,button,input,textarea,select,pre,code,[role=button],[role=link]")) return;
     setToolsOpen((value) => !value);
   };
-  return (0, import_react56.createElement)(
+  return (0, import_react57.createElement)(
     "div",
     { ref: row, className: "bt-umsg", "data-steering": steering || void 0 },
-    (0, import_react56.createElement)(
+    (0, import_react57.createElement)(
       "div",
       { className: "bt-ustack" },
-      attachments.length > 0 ? (0, import_react56.createElement)(Attachments, { attachments, renderMessageImages }) : null,
-      text !== "" || rest.length > 0 ? (0, import_react56.createElement)(
+      attachments.length > 0 ? (0, import_react57.createElement)(Attachments, { attachments, renderMessageImages }) : null,
+      text !== "" || rest.length > 0 ? (0, import_react57.createElement)(
         "div",
         { className: "bt-ubody", title: clock3(data.time), "data-folded": folded || void 0, onClick: tapTools },
-        control ? (0, import_react56.createElement)("div", { className: "bt-fold-body" }, body) : body,
+        control ? (0, import_react57.createElement)("div", { className: "bt-fold-body" }, body) : body,
         control,
-        rest.map((block, index) => ui.JsonBlock ? (0, import_react56.createElement)(ui.JsonBlock, { key: index, label: t("Content"), payload: block }) : null)
+        rest.map((block, index) => ui.JsonBlock ? (0, import_react57.createElement)(ui.JsonBlock, { key: index, label: t("Content"), payload: block }) : null)
       ) : null,
-      referenceLabels.length > 0 ? (0, import_react56.createElement)("div", { className: "bt-urefs" }, t("Referenced {labels}", { labels: referenceLabels.join(t(", ")) })) : null,
-      groupTime ? (0, import_react56.createElement)("div", { className: "bt-utime", title: clockLabel(data.time) }, groupTime) : null
+      referenceLabels.length > 0 ? (0, import_react57.createElement)("div", { className: "bt-urefs" }, t("Referenced {labels}", { labels: referenceLabels.join(t(", ")) })) : null,
+      groupTime ? (0, import_react57.createElement)("div", { className: "bt-utime", title: clockLabel(data.time) }, groupTime) : null
     ),
-    text === "" ? null : (0, import_react56.createElement)("div", { className: "bt-utools", "data-open": toolsOpen || void 0 }, (0, import_react56.createElement)(CopyButton, { text }))
+    text === "" ? null : (0, import_react57.createElement)("div", { className: "bt-utools", "data-open": toolsOpen || void 0 }, (0, import_react57.createElement)(CopyButton, { text }))
   );
 }
 var USER_MESSAGE_CSS = `
@@ -22917,8 +27333,8 @@ function apply(ctx) {
         sources: () => bridge.importSources(),
         pick: () => bridge.importPick(),
         live: (source, close) => bridge.importLive(source, close),
-        apply: (botId, pending) => bridge.importApply(`bot:${botId}`, pending),
-        cancel: (pending) => bridge.importCancel(pending)
+        apply: (botId, pending2) => bridge.importApply(`bot:${botId}`, pending2),
+        cancel: (pending2) => bridge.importCancel(pending2)
       } : null
     });
   }
