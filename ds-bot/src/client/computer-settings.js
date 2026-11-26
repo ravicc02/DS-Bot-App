@@ -11,6 +11,7 @@ const installCommands = {
 }
 
 const PHASES = {
+  'preparing-desktop': 'Preparing the private desktop…', 'restarting-desktop': 'Restarting the private desktop…',
   'checking-runtime': 'Checking desktop runtime…', 'initializing-runtime': 'Initializing the Podman machine…',
   'starting-runtime': 'Starting the Podman machine…', 'waiting-runtime': 'Waiting for the desktop service…',
   'enabling-runtime-limits': 'Enabling desktop resource limits…',
@@ -126,12 +127,13 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
     if (value.id === operation.current && Object.hasOwn(PHASES, value.phase)) setProgress(value)
   }), [bridge])
 
+  const awaitingConfirmation = (busy === 'prepare' || busy === 'restart') && !progress
   useEffect(() => {
-    if (!busy) return undefined
-    const started = Date.now()
-    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
+    if (!busy || awaitingConfirmation) return undefined
+    const started = performance.now()
+    const timer = setInterval(() => setElapsed(Math.floor((performance.now() - started) / 1000)), 1000)
     return () => clearInterval(timer)
-  }, [busy])
+  }, [busy, awaitingConfirmation])
 
   if (!bridge?.settings) return null
   async function run(op, action, success) {
@@ -227,7 +229,7 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
     }, 'The private desktop was deleted.')
   }
   function start(instance, restart) {
-    void run('desktop', async id => {
+    void run(restart ? 'restart' : 'desktop', async id => {
       if (!await bridge.settings(restart ? 'restart-instance' : 'start-instance', instanceOperator(instance), id)) return false
       await recheck()
       return true
@@ -284,6 +286,8 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   const setupInstance = instances?.find(matchesSetup)
   const setupReady = prepared && Boolean(setupInstance?.running && setupFrame?.id === setupInstance.id)
   const progressView = fallback => {
+    if (awaitingConfirmation) return h('div', { className: 'bt-computer-progress' },
+      h('div', { role: 'status' }, t('Waiting for confirmation…')))
     const label = t(PHASES[progress?.phase] ?? fallback)
     const { step, total } = progress?.detail ?? {}
     return h('div', { className: 'bt-computer-progress' },
@@ -314,7 +318,7 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
       extra: busy === 'create' ? progressView('Loading desktop…') : setupReady ? previewImage(setupFrame) : null },
   ]
   const feedback = busy || notice || error ? h('div', { className: 'bt-computer-feedback' },
-    busy === 'desktop' || ((busy === 'prepare' || busy === 'create') && shown === 'manage') ? progressView('Loading desktop…')
+    busy === 'desktop' || busy === 'restart' || ((busy === 'prepare' || busy === 'create') && shown === 'manage') ? progressView('Loading desktop…')
       : busy === 'prepare' || busy === 'create' || (busy === 'start' && podman) ? null
         : busy || notice ? h('span', { className: 'bt-muted', role: 'status' }, t(busy ? 'Working…' : notice)) : null,
     error ? h('p', { className: 'bt-error', role: 'alert' }, error) : null) : null

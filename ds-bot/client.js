@@ -157,7 +157,9 @@ var ZH = {
   "Desktop disconnected. Take control to reconnect.": "桌面已断开，请重新接管。",
   "Bots waiting": "排队中的 Bot",
   "Enable shared mode in Settings to use a desktop in this group.": "在设置中启用共享模式后，群聊才能使用桌面。",
+  "Waiting for confirmation…": "等待确认…",
   "Preparing the private desktop…": "正在准备私有桌面…",
+  "Restarting the private desktop…": "正在重启私有桌面…",
   "Desktop prepared. Check startup to see its screen.": "桌面已准备好。点击「检查启动」查看画面。",
   "Prepare the private desktop first.": "请先准备私有桌面。",
   "The private desktop runtime did not respond. Try again in a moment.": "私有桌面运行环境未响应，请稍后重试。",
@@ -16615,6 +16617,8 @@ var installCommands = {
   podman: "winget install --exact --id RedHat.Podman-Desktop"
 };
 var PHASES = {
+  "preparing-desktop": "Preparing the private desktop…",
+  "restarting-desktop": "Restarting the private desktop…",
   "checking-runtime": "Checking desktop runtime…",
   "initializing-runtime": "Initializing the Podman machine…",
   "starting-runtime": "Starting the Podman machine…",
@@ -16767,12 +16771,13 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
   (0, import_react42.useEffect)(() => bridge?.onProgress?.((value) => {
     if (value.id === operation.current && Object.hasOwn(PHASES, value.phase)) setProgress(value);
   }), [bridge]);
+  const awaitingConfirmation = (busy === "prepare" || busy === "restart") && !progress;
   (0, import_react42.useEffect)(() => {
-    if (!busy) return void 0;
-    const started = Date.now();
-    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1e3)), 1e3);
+    if (!busy || awaitingConfirmation) return void 0;
+    const started = performance.now();
+    const timer = setInterval(() => setElapsed(Math.floor((performance.now() - started) / 1e3)), 1e3);
     return () => clearInterval(timer);
-  }, [busy]);
+  }, [busy, awaitingConfirmation]);
   if (!bridge?.settings) return null;
   async function run2(op, action, success) {
     if (operation.current) return;
@@ -16871,7 +16876,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
     }, "The private desktop was deleted.");
   }
   function start(instance, restart) {
-    void run2("desktop", async (id) => {
+    void run2(restart ? "restart" : "desktop", async (id) => {
       if (!await bridge.settings(restart ? "restart-instance" : "start-instance", instanceOperator(instance), id)) return false;
       await recheck();
       return true;
@@ -16936,6 +16941,11 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
   const setupInstance = instances?.find(matchesSetup);
   const setupReady = prepared && Boolean(setupInstance?.running && setupFrame?.id === setupInstance.id);
   const progressView = (fallback) => {
+    if (awaitingConfirmation) return (0, import_react42.createElement)(
+      "div",
+      { className: "bt-computer-progress" },
+      (0, import_react42.createElement)("div", { role: "status" }, t("Waiting for confirmation…"))
+    );
     const label = t(PHASES[progress?.phase] ?? fallback);
     const { step, total } = progress?.detail ?? {};
     return (0, import_react42.createElement)(
@@ -16987,7 +16997,7 @@ function ComputerSettings({ Section, Row: Row3, bots, privateSetup = false, onCo
   const feedback = busy || notice || error ? (0, import_react42.createElement)(
     "div",
     { className: "bt-computer-feedback" },
-    busy === "desktop" || (busy === "prepare" || busy === "create") && shown === "manage" ? progressView("Loading desktop…") : busy === "prepare" || busy === "create" || busy === "start" && podman ? null : busy || notice ? (0, import_react42.createElement)("span", { className: "bt-muted", role: "status" }, t(busy ? "Working…" : notice)) : null,
+    busy === "desktop" || busy === "restart" || (busy === "prepare" || busy === "create") && shown === "manage" ? progressView("Loading desktop…") : busy === "prepare" || busy === "create" || busy === "start" && podman ? null : busy || notice ? (0, import_react42.createElement)("span", { className: "bt-muted", role: "status" }, t(busy ? "Working…" : notice)) : null,
     error ? (0, import_react42.createElement)("p", { className: "bt-error", role: "alert" }, error) : null
   ) : null;
   const management = (0, import_react42.createElement)(

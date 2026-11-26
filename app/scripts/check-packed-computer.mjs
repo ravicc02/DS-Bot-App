@@ -443,6 +443,11 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     const freshMachine = process.env.DS_BOT_PACKED_FRESH_MACHINE === '1'
     if (freshMachine) assert.equal(setupStage, 'start', 'Start this test with no DS Bot Podman machine.')
     const setupProgress = step => `document.querySelector('.bt-computer-steps li:nth-child(${step}) .bt-computer-progress')`
+    const checkConfirmation = async progress => {
+      await until(`/Waiting for confirmation|等待确认/.test(${progress}?.textContent ?? '')`, 'waiting for desktop confirmation')
+      await sleep(1200)
+      assert.equal(await evaluate(`Boolean(${progress}?.querySelector('progress, time'))`), false)
+    }
     const checkProgress = async (step, screenshot) => {
       const progress = setupProgress(step)
       await until(`${progress}?.querySelector('progress') && /[0-9]+:[0-9]{2}/.test(${progress}.querySelector('time')?.textContent ?? '')`,
@@ -462,10 +467,14 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       assert.equal(await evaluate(`${prepareButton}?.disabled`), false, await evaluate(setupAlert))
       console.log('check-packed: the setup guide started the Podman machine')
     }
-    await Promise.all([
-      nativeButton(python, pid, ['Prepare', '准备']),
-      click(settings, 'Prepare desktop', '准备桌面'),
-    ])
+    await click(settings, 'Prepare desktop', '准备桌面')
+    await checkConfirmation(setupProgress(3))
+    await nativeButton(python, pid, ['Cancel', '取消'])
+    await until(`!${setupProgress(3)}`, 'preparation cancellation clears progress')
+    assert.equal(existsSync(imageRecord), Boolean(legacyDockerImage))
+    await click(settings, 'Prepare desktop', '准备桌面')
+    await checkConfirmation(setupProgress(3))
+    await nativeButton(python, pid, ['Prepare', '准备'])
     await checkProgress(3, process.env.DS_BOT_PACKED_PREPARE_PROGRESS_SCREENSHOT)
     const preparedButton = byText(settings, ['Create desktop', '创建桌面'])
     const setupEnd = Date.now() + 16 * 60_000
@@ -1073,7 +1082,9 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       assert.deepEqual(JSON.parse(readFileSync(settingsFile, 'utf8')).limits, { memoryGb: 3, cpus: 1 })
       assert.deepEqual(await resourceLimits(second), [2, 2, 2], 'Saving limits must not interrupt a running desktop.')
       const beforeRestart = await startedAt(second)
-      await Promise.all([nativeButton(python, pid, ['Restart', '重启']), evaluate(`(${restart}).click()`)])
+      await evaluate(`(${restart}).click()`)
+      await checkConfirmation("document.querySelector('.bt-computer-feedback .bt-computer-progress')")
+      await nativeButton(python, pid, ['Restart', '重启'])
       await until(`!!(${restart}) && !(${restart}).disabled && /is running|正在运行/.test(document.querySelector('.bt-computer-settings [role=status]')?.textContent ?? '')`, 'the second Bot desktop restarted from settings')
       assert.notEqual(await startedAt(second), beforeRestart)
       assert.deepEqual(await resourceLimits(second), [3, 3, 1])

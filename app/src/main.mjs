@@ -279,7 +279,9 @@ async function start() {
       })
       if (response !== 1) return false
       assertComputerWindow(event)
-      await computer.setup(rebuild, progressTo(event, id))
+      const report = progressTo(event, id)
+      report('preparing-desktop')
+      await computer.setup(rebuild, report)
       return true
     })
     ipcMain.handle('ds-bot:computer-settings', async (event, op, value, id) => {
@@ -363,7 +365,9 @@ async function start() {
           if (response !== 1) return false
           assertComputerWindow(event)
         }
-        return computer.startPrivateInstance(value ?? undefined, restart, progressTo(event, id))
+        const report = progressTo(event, id)
+        if (restart) report('restarting-desktop')
+        return computer.startPrivateInstance(value ?? undefined, restart, report)
       }
       if (op === 'install') {
         await electronShell.openExternal(runtime.name === 'podman' ? 'https://podman-desktop.io/docs/installation/windows-install'
