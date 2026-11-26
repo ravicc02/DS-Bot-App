@@ -378,7 +378,26 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     const marker = `fixture-${target}-${Date.now()}`
     const mode = !readInput ? 'observe' : point ? 'replace-local' : 'replace-private'
     await api('send', { sessionId: state.mainBotId, text: `Computer smoke: ${mode} ${marker}${point ? ` ${point.x} ${point.y}` : ''}` })
-    await click('[data-approval-key] button', 'Allow once', '允许一次')
+    try {
+      await click('[data-approval-key] button', 'Allow once', '允许一次')
+    } catch (error) {
+      const current = await api('state', {})
+      const active = current.bots.find(bot => bot.id === current.mainBotId).sessionId
+      const { target: selected } = await api('computer-status', { subject: current.mainBotId })
+      const requests = log().slice(previous).map(row => ({
+        currentSession: row.session === active,
+        hasPrompt: row.last?.includes(marker) ?? false,
+        handoff: row.last?.startsWith('[Handoff · part ') ?? false,
+        hasComputerTool: row.toolNames?.includes('computer_observe') ?? false,
+        calledComputerTool: row.out?.some(part => part.name === 'computer_observe') ?? false,
+        computerFailed: row.out?.some(part => part.text?.startsWith(`Computer smoke ${marker}: failed.`)) ?? false,
+      }))
+      throw new Error(`${target} desktop: ${error.message} ${JSON.stringify({
+        selected, sameSession: active === session, switching: current.work.bots[current.mainBotId]?.switching === true,
+        running: Boolean(current.work.turns[active]), approvalPending: current.work.approvals.some(entry => entry.sessionId === active),
+        approvalButtons: await evaluate("document.querySelectorAll('[data-approval-key] button').length"), requests,
+      })}`, { cause: error })
+    }
     const response = `document.body.innerText.split('\\n').find(line => line.startsWith(${JSON.stringify(`Computer smoke ${marker}:`)}))`
     await until(response, 'the mock model reporting its computer action', 45_000)
     assert.equal(await evaluate(response), `Computer smoke ${marker}: ${readInput ? 'submitted.' : 'screenshot received.'}`)

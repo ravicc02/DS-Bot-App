@@ -140,9 +140,11 @@ function decide(body) {
   }
   const computerPrompt = message => {
     if (message?.role !== 'user') return null
-    const content = textOf(message.content).trim()
-    const direct = /^Computer smoke: (observe|input|replace-local|replace-private) (fixture-[a-z0-9-]+)(?: (\d+) (\d+))?$/u.exec(content)
+    // A handoff and the new user request can arrive as separate blocks of one message.
+    const directPattern = /^Computer smoke: (observe|input|replace-local|replace-private) (fixture-[a-z0-9-]+)(?: (\d+) (\d+))?$/u
+    const direct = textBlocks(message.content).map(value => directPattern.exec(value.trim())).findLast(Boolean)
     if (direct) return { mode: direct[1], marker: direct[2], x: direct[3], y: direct[4] }
+    const content = textOf(message.content).trim()
     if (!content.startsWith('[Group chat')) return null
     const round = /(?:^|\n)This round so far[^\n]*:\n([\s\S]*?)(?:\n\n|$)/u.exec(content)?.[1]
     const opener = round?.split('\n').findLast(line => line.startsWith('User: '))

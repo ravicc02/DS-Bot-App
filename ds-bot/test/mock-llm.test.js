@@ -51,6 +51,24 @@ async function startMock(t) {
   })
 }
 
+test('the computer fixture recognizes a new prompt beside a handoff package', async (t) => {
+  const url = await startMock(t)
+  const names = ['computer_observe']
+  const prompt = 'Computer smoke: observe fixture-rollover-1'
+  const handoff = { type: 'text', text: `[Handoff · part 2]\nEarlier user request:\n${prompt}` }
+  const user = (...content) => ({ role: 'user', content })
+  const reference = await call(url, [user(handoff)], names)
+  assert.deepEqual(reference.tools, [])
+
+  const messages = [user(handoff, { type: 'text', text: prompt })]
+  const out = await call(url, messages, names)
+  assert.deepEqual(out.tools.map(used => used.name), names)
+  fold(messages, out)
+  messages.at(-1).content[0].content = [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA==' } }]
+  const finished = await call(url, messages, names)
+  assert.equal(finished.text, 'Computer smoke fixture-rollover-1: screenshot received.')
+})
+
 // "长任务 N [K]" adds about K×1000 characters per step, defaulting to 4. A missing K once
 // parsed as NaN, so every step after the opener silently sent no text block.
 test('长任务 writes text on every step when the step size is left out', async (t) => {

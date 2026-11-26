@@ -132,7 +132,7 @@ function checkSharp(app) {
 
 function startMock() {
   const mock = spawn(process.execPath, [join(root, '..', 'ds-bot', 'dev', 'mock-llm.mjs')], {
-    env: { ...process.env, MOCK_PORT: '0', MOCK_LOG: join(work, 'mock.log') }, stdio: ['ignore', 'pipe', 'inherit'],
+    env: { ...process.env, MOCK_PORT: '0', MOCK_LOG: join(work, 'mock.log'), ...(computerCheck ? { MOCK_LOG_TOOLS: '1' } : {}) }, stdio: ['ignore', 'pipe', 'inherit'],
   })
   children.push(mock)
   return new Promise((done, reject) => {
