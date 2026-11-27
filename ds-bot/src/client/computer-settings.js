@@ -73,6 +73,7 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   const [cpuCount, setCpuCount] = useState('')
   const [settings, setSettings] = useState(null)
   const [instances, setInstances] = useState(null)
+  const [inventoryError, setInventoryError] = useState('')
   const botIds = JSON.stringify(bots.map(bot => bot.id).sort())
   const [busy, setBusy] = useState('')
   const [progress, setProgress] = useState(null)
@@ -167,6 +168,8 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   function applyStatus(result) {
     setStage(result.stage)
     setInstances(result.instances)
+    setInventoryError(result.inventoryError ?? '')
+    if (result.stage !== 'prepared') setOpen(mode => mode === 'manage' ? 'setup' : mode)
     setSetupFrame(frame => frame && result.instances?.some(instance => instance.id === frame.id && instance.running) ? frame : null)
   }
   async function recheck() {
@@ -325,10 +328,11 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
   ]
   const progressOutsideSteps = busy && (busy !== 'start' || podman) ? OPERATION_PROGRESS[busy] : undefined
   const progressInSteps = shown === 'setup' && progressOutsideSteps && ['start', 'prepare', 'create'].includes(busy)
-  const feedback = (busy && !progressInSteps) || notice || error ? h('div', { className: 'bt-computer-feedback' },
+  const problem = error || (!busy && inventoryError)
+  const feedback = (busy && !progressInSteps) || notice || problem ? h('div', { className: 'bt-computer-feedback' },
     progressInSteps ? null : progressOutsideSteps ? progressView(progressOutsideSteps)
       : busy || notice ? h('span', { className: 'bt-muted', role: 'status' }, t(busy ? 'Working…' : notice)) : null,
-    error ? h('p', { className: 'bt-error', role: 'alert' }, error) : null) : null
+    problem ? h('p', { className: 'bt-error', role: 'alert' }, problem) : null) : null
 
   const management = h(Section, { title: t('Private desktop'), className: 'bt-computer-setup-details' },
     stage === 'install' ? h(Row, { label: t('Install from PowerShell'), hint: t('If WinGet is unavailable, use the installation guide.') },
@@ -408,6 +412,10 @@ export function ComputerSettings({ Section, Row, bots, privateSetup = false, onC
 
 async function readStatus(bridge, botIds) {
   const stage = await bridge.settings('readiness')
-  const instances = stage === 'prepared' || stage === 'rebuild' ? await bridge.settings('inventory', JSON.parse(botIds)) : null
-  return { stage, instances }
+  if (stage !== 'prepared') return { stage, instances: null }
+  try {
+    return { stage, instances: await bridge.settings('inventory', JSON.parse(botIds)) }
+  } catch (failure) {
+    return { stage, instances: null, inventoryError: computerError(failure) }
+  }
 }

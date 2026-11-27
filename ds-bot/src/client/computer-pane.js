@@ -1,7 +1,6 @@
 import { createElement as h, useLayoutEffect, useRef, useState } from 'react'
 import { LiveDesktop } from './computer-live.js'
 import { DesktopWorkspace } from './computer-workspace.js'
-import { ComputerFiles } from './computer-files.js'
 import { call } from './api.js'
 import { computerError } from './computer-error.js'
 import { t } from './i18n.js'
@@ -33,19 +32,7 @@ function DesktopTextEntry({ sendText }) {
   h('button', { type: 'submit', className: 'bt-browser-retry', disabled: !sendText || !text }, t('Send to desktop')))
 }
 
-export function ComputerPane({ subject, conversation, members, bots, openSettings, sessionId, workDir, actions, run, onPickFolder }) {
-  const [files, setFiles] = useState(false)
-  return h('div', { className: 'bt-computer-panel' },
-    h('div', { className: 'bt-computer-actions', role: 'group', 'aria-label': t('Computer') },
-      [[false, 'Screen'], [true, 'Workspace files']].map(([value, label]) => h('button', {
-        key: label, type: 'button', className: 'bt-browser-retry', 'aria-pressed': files === value,
-        onClick: () => setFiles(value),
-      }, t(label)))),
-    files ? h(ComputerFiles, { key: sessionId, sessionId, workDir, group: Array.isArray(members), actions, run, onPickFolder })
-      : h(ComputerScreen, { subject, conversation, members, bots, openSettings }))
-}
-
-function ComputerScreen({ subject, conversation, members, bots, openSettings }) {
+export function ComputerScreen({ subject, conversation, members, bots, name, openSettings }) {
   const bridge = window.dsBotApp?.computer
   const [state, setState] = useState({})
   const group = Array.isArray(members)
@@ -266,7 +253,7 @@ function ComputerScreen({ subject, conversation, members, bots, openSettings }) 
   const controlButton = () => state.status === 'user'
     ? button('Hand back', () => desktop('hand-back'), pending === 'hand-back' || pending === 'off', 'bt-computer-primary')
     : button('Take control', () => desktop('take'), busy || !['idle', 'bot'].includes(state.status), 'bt-computer-primary')
-  const target = () => h('span', { className: 'bt-computer-target', title: targetLabel }, targetLabel || t('Screen'))
+  const target = () => h('span', { className: 'bt-computer-target', title: targetLabel }, targetLabel || t('{name}’s screen', { name }))
   const statusLabel = () => h('span', { className: 'bt-computer-status', role: 'status' }, controlStatus)
   const fullscreenToolbar = sendText => h('header', { className: 'bt-computer-fullscreen-toolbar' },
     target(), statusLabel(),

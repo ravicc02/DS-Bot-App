@@ -70,9 +70,7 @@
     "browser-pane.js": {
       "2px": 1,
       "3px": 2,
-      "5px": 1,
-      "7px": 1,
-      "9px": 3
+      "7px": 1
     },
     "member-status.js": {
       "13px": 1
@@ -96,10 +94,6 @@
     }
   },
   "springs": {
-    "browser-pane.js": {
-      "springEasing(144,19.7)": 1,
-      "springEasing(576,39.4)": 1
-    },
     "sidebar.js": {
       "springEasing(1000,63)": 1
     }

@@ -21,7 +21,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const [given, shotFile] = process.argv.slice(2)
 const executable = given || packedExecutable()
 const computerMode = process.env.DS_BOT_PACKED_COMPUTER
-const computerCheck = ['1', 'windows', 'linux', 'browser', 'files', 'live'].includes(computerMode)
+const computerCheck = ['1', 'windows', 'linux', 'browser', 'files', 'routines', 'live'].includes(computerMode)
 const liveCheck = computerMode === 'live'
 const linuxCheck = ['linux', '1', 'live'].includes(computerMode)
 const legacyDockerImage = process.env.DS_BOT_PACKED_LEGACY_DOCKER_IMAGE
@@ -273,8 +273,8 @@ async function chat(cdp, computer) {
   // The mock model's greeting for a new team.
   await until(text('先让团队帮你做哪块'), 'the greeting')
   await dismissNotice()
-  // The desktop suites verify a model turn after the user authorizes computer access.
-  if (computer && ['1', 'windows', 'linux', 'live'].includes(computer.mode)) {
+  // Focused feature checks exercise their own flows. Keep the composer turn for the general smoke check.
+  if (computer) {
     return checkComputer({ ...computer, cdp, evaluate, until, devtools })
   }
   // Click the composer through the input pipeline. A bare focus() is not enough where no window
@@ -338,7 +338,6 @@ async function chat(cdp, computer) {
   }
   await sleep(1000)
   console.log(`check-packed: chat ${JSON.stringify(await evaluate('document.body.innerText.slice(-200)'))}`)
-  if (computer) return checkComputer({ ...computer, cdp, evaluate, until, devtools })
 }
 
 let failed = false
@@ -413,7 +412,7 @@ ${liveRoute}`)
   await main.opened
   const windowState = async expression => {
     const answer = await main.call('Runtime.evaluate', {
-      expression: `(() => { const { BrowserWindow, desktopCapturer } = process.getBuiltinModule('module').createRequire(process.execPath)('electron'); const win = BrowserWindow.getAllWindows()[0]; return ${expression} })()`,
+      expression: `(() => { const { BrowserWindow } = process.getBuiltinModule('module').createRequire(process.execPath)('electron'); const win = BrowserWindow.getAllWindows()[0]; return ${expression} })()`,
       returnByValue: true, awaitPromise: true,
     })
     if (answer.exceptionDetails) throw new Error(answer.exceptionDetails.exception?.description ?? answer.exceptionDetails.text)
@@ -448,7 +447,7 @@ ${liveRoute}`)
     console.error(`check-packed: native window state ${JSON.stringify(state)}`)
   }
   if (computerCheck && process.platform === 'win32') await windowState('win?.setMinimizable(true)')
-  if (chatError) throw problems.length ? new Error(`${chatError.message}\n${problems.join('\n')}`, { cause: chatError }) : chatError
+  if (chatError) throw problems.length ? new Error(`${chatError.stack ?? chatError.message}\n${problems.join('\n')}`, { cause: chatError }) : chatError
   // Close the native window: a renderer-initiated close can stop page CDP evaluations even
   // when Electron prevents the close. Read visibility from the main process as well.
   await windowState('win.close()')

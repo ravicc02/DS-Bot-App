@@ -1,11 +1,10 @@
 import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
-import { computerConversation, isMainOf } from './sources.js'
+import { isMainOf } from './sources.js'
 import { HEADER, currentPart, runStatsOf, stripHeader, usageOf } from './text.js'
 import { PlusIcon, ShareIcon, CloseIcon, ChevronLeftIcon, GearIcon } from './icons.js'
 import { botState, BotMark, BotAvatar } from './mark.js'
 import { GlobeIcon, Favicon, PanelMenu, menuItemFor } from './browser-pane.js'
 import { drawerMenuKeys } from './side-model.js'
-import { ComputerPane } from './computer-pane.js'
 import { useEscape } from './overlay-hooks.js'
 import { BotSettingsForm } from './bot-settings.js'
 import { GroupSettingsForm, ROOM_MODES, roomSubtitle, shownMode } from './group-settings.js'
@@ -30,7 +29,7 @@ function transcriptOf(list, id, name, hiddenTurns = []) {
   return lines.join('\n\n')
 }
 
-const TAB_LABELS = { details: 'Details', browser: 'Browser', computer: 'Computer' }
+const TAB_LABELS = { details: 'Details', browser: 'Browser' }
 
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return '' } }
 const shortUrl = url => String(url ?? '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
@@ -175,11 +174,11 @@ function GroupOverview({ room, roster, actions, usage, useWork, openSettings }) 
   ]
 }
 
-export function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, roster, actions, desktopConversation, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages }) {
+export function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, roster, actions, useSessions, useSessionStatus, useActivity, useWork, useBrowserTabs, useBrowserPages }) {
   const owner = roster.byId[sessionId]
   const part = owner ? currentPart(owner) : sessionId
   const isMainBot = isMainOf(roster, owner?.id)
-  const tab = startTab === 'computer' || (startTab === 'browser' && owner) ? startTab : 'details'
+  const tab = startTab === 'browser' && owner && !(roster.browser === true && actions.browserShow) ? 'browser' : 'details'
   const room = roster.roomsById[sessionId]
   // The info pane swaps its overview for the Bot or group settings view in place.
   const [view, setView] = useState(startTab === 'settings' && (owner || room) ? 'settings' : 'overview')
@@ -198,8 +197,6 @@ export function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, ro
   const close = () => actions.closeOverlay()
   useEscape(close)
   const bot = owner
-  const conversation = computerConversation(roster, sessionId)
-  const inMainView = conversation !== undefined && conversation === desktopConversation
   const running = useSessionStatus(map => map.get(part)?.running === true)
   const doing = useActivity(map => map[bot?.id ?? sessionId])
   const transcript = useSessions(list => transcriptOf(list, part, bot?.name ?? room?.name ?? t('Bot'), roster.exchangeTurns[part]))
@@ -252,14 +249,13 @@ export function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, ro
     if (room) await run(actions.updateRoom(room.id, { name: next }))
   }
   const subtitle = bot ? bot.role : roomSubtitle(room, roster)
-  const tabs = bot ? ['details', 'browser'] : ['details']
+  const tabs = bot && !(roster.browser === true && actions.browserShow) ? ['details', 'browser'] : ['details']
   const openTab = key => {
     if (key === 'browser' && globalThis.window?.dsBotApp?.browser && actions.openBrowser) actions.openBrowser(sessionId)
     else actions.setDetailsTab(sessionId, key)
   }
-  if ((bot || room) && globalThis.window?.dsBotApp?.computer) tabs.push('computer')
   return [h(Fragment, { key: 'top' }, top),
-    tab === 'computer' ? null : h('div', { key: 'id', className: 'bt-drawer-id', 'data-move': side },
+    h('div', { key: 'id', className: 'bt-drawer-id', 'data-move': side },
       bot ? h(BotAvatar, { bot, size: 64, state: botState(running, doing, roster.questions?.[part] !== undefined), main: isMainBot, badge: false, gaze: true, pokeable: true })
         : h(MemberPile, { room, roster }),
       editing
@@ -274,7 +270,7 @@ export function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, ro
     tabs.length > 1 ? h('div', { key: 'tabs', ref: glide.box, className: 'bt-tabs', role: 'tablist', 'data-move': side },
       h('span', { ref: glide.thumb, className: 'bt-thumb', 'aria-hidden': true }),
       tabs.map(key => h('button', { key, type: 'button', role: 'tab', className: 'bt-tab', 'aria-selected': tab === key, onClick: () => openTab(key) }, t(TAB_LABELS[key])))) : null,
-    h('div', { key: `body:${tab}`, className: tab === 'computer' ? 'bt-drawer-body bt-drawer-computer' : 'bt-drawer-body', 'data-move': move },
+    h('div', { key: `body:${tab}`, className: 'bt-drawer-body', 'data-move': move },
       errorLine,
       room && tab === 'details' ? h(GroupOverview, { room, roster, actions, usage, useWork, openSettings: () => setView('settings') }) : null,
       bot && tab === 'details' ? [
@@ -295,19 +291,5 @@ export function DetailsDrawer({ sessionId, startRenaming, startTab, hasStrip, ro
           h('div', { className: 'bt-kv' }, h('span', null, bot.name), h('span', null, usage))) : null,
         h(ScheduleSummary, { key: 'routines', bot, actions }),
       ] : null,
-      tab === 'computer' && !inMainView ? h('p', { className: 'bt-muted' }, t('Open this conversation to use the computer.')) : null,
-      tab === 'computer' && inMainView ? h(ComputerPane, {
-        key: conversation,
-        subject: bot?.id ?? room.id,
-        bots: roster.bots,
-        sessionId: part,
-        workDir: (bot ?? room).workDir,
-        actions,
-        run,
-        onPickFolder: workDir => run(bot ? actions.updateBot(bot.id, { workDir }) : actions.updateRoom(room.id, { workDir })),
-        conversation,
-        openSettings: resume => actions.openSettings('browser', resume ? 'private-desktop' : null, resume),
-        members: room?.members.map(id => roster.byId[id]).filter(Boolean),
-      }) : null,
       bot && tab === 'browser' ? h(BrowserCards, { bot, sessionId, roster, actions, useBrowserTabs, useBrowserPages }) : null)]
 }

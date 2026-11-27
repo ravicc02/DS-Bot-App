@@ -171,6 +171,44 @@ async function nativeButton(python, pid, names) {
   }
 }
 
+// A Windows window thumbnail can omit a native child view. Read the composed display instead.
+async function windowsDisplayColors(python, points) {
+  const script = String.raw`
+import ctypes as c
+from ctypes import wintypes as w
+import json
+import sys
+
+user = c.windll.user32
+user.SetProcessDPIAware()
+user.GetDC.restype = w.HDC
+user.ReleaseDC.argtypes = [w.HWND, w.HDC]
+get_pixel = c.windll.gdi32.GetPixel
+get_pixel.argtypes = [w.HDC, c.c_int, c.c_int]
+get_pixel.restype = w.DWORD
+
+dc = user.GetDC(None)
+if not dc:
+    raise RuntimeError('Could not get the display device context.')
+try:
+    colors = []
+    coords = iter(map(int, sys.argv[1:]))
+    for x, y in zip(coords, coords):
+        value = get_pixel(dc, x, y)
+        colors.append(None if value == 0xffffffff else [(value >> shift) & 255 for shift in (0, 8, 16)])
+    print(json.dumps(colors))
+finally:
+    user.ReleaseDC(None, dc)
+`
+  const coordinates = points.flatMap(({ x, y }) => [String(x), String(y)])
+  try {
+    const { stdout } = await exec(python, ['-c', script, ...coordinates], { windowsHide: true, timeout: 5000 })
+    return JSON.parse(stdout)
+  } catch (error) {
+    throw new Error(error.stderr?.trim() || 'Could not sample the Windows display.', { cause: error })
+  }
+}
+
 const byText = (selector, labels) => `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).find(node => ${JSON.stringify(labels)}.includes(node.textContent.trim()))`
 async function press(cdp, key, code, windowsVirtualKeyCode) {
   for (const type of ['keyDown', 'keyUp']) await cdp.call('Input.dispatchKeyEvent', { type, key, code, windowsVirtualKeyCode })
@@ -181,8 +219,17 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     const find = byText(selector, labels)
     await until(`(() => { const button = ${find}; if (!button || button.disabled) return false; button.click(); return true })()`, labels[0], 25_000)
   }
-  const livePanel = '.bt-panel:not([data-leaving]) > .bt-panel-view'
-  const detailsButton = 'button.bt-pill[aria-expanded]:not([data-memory=updated])'
+  const panel = '.bt-panel:not([data-leaving])'
+  const livePanel = `${panel} > .bt-panel-view`
+  const openWorkTab = async view => {
+    await until(`(() => {
+      const tab = document.querySelector('${panel} [data-work-tab=${view}]')
+      if (tab?.getAttribute('aria-pressed') === 'true') return true
+      if (tab) tab.click()
+      else if (!document.querySelector('${panel}')) document.querySelector('.bt-header-computer')?.click()
+      return false
+    })()`, `the ${view} tab for the current conversation`, 25_000)
+  }
   const pane = `${livePanel} .bt-computer button`
   const settings = '.bt-computer-settings button'
   const screen = `document.querySelector(${JSON.stringify(`${livePanel} .bt-computer-preview`)})`
@@ -204,28 +251,10 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       throw new Error(`${error.message} ${JSON.stringify(details)}`)
     }
   }
-  const openPane = async () => {
-    try {
-      await until(`(() => {
-        const header = document.querySelector(${JSON.stringify(detailsButton)})
-        if (!header) return false
-        if (header.getAttribute('aria-expanded') === 'false') { header.click(); return false }
-        if (document.querySelector(${JSON.stringify(`${livePanel} .bt-computer`)})) return true
-        const tab = ${byText(`${livePanel} .bt-tab`, ['Computer', '电脑'])}
-        if (tab?.getAttribute('aria-selected') === 'false') tab.click()
-        return false
-      })()`, 'the current conversation computer pane', 25_000)
-    } catch (error) {
-      const state = await evaluate(`({
-        headers: [...document.querySelectorAll('button.bt-pill')].map(node => [node.textContent, node.getAttribute('aria-expanded')]),
-        tabs: [...document.querySelectorAll('.bt-tab')].map(node => [node.textContent, node.getAttribute('aria-selected')]),
-        tail: document.body.innerText.slice(-480),
-      })`)
-      throw new Error(`${error.message}: ${JSON.stringify(state)}`)
-    }
-  }
+  const openPane = () => openWorkTab('computer')
   if (mode === 'browser') return checkBrowser()
   if (mode === 'files') return checkFiles()
+  if (mode === 'routines') return checkRoutines()
   await openPane()
   await until(`(document.querySelector(${JSON.stringify(`${livePanel} .bt-computer`)})?.offsetWidth ?? 0) >= 430`,
     'the expanded screen preview in the main window')
@@ -298,16 +327,14 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     writeFileSync(removed, 'This file will be removed.')
     await api('send', { sessionId: mainBotId, text: 'Computer files smoke' })
     await until("document.body.innerText.includes('Computer files smoke finished.')", 'the mock model presenting workspace files', 60_000)
-    await openPane()
-    const toolbar = `${livePanel} .bt-computer-panel > .bt-computer-actions button`
-    const files = ['Workspace files', '工作区文件']
+    await openWorkTab('data')
     const list = `${livePanel} .bt-computer-files`
     const fileButton = `${list} button`
-    await click(toolbar, ...files)
+    await openWorkTab('data')
     await until(byText(fileButton, ['removed-fixture.txt']), 'the second presented file can be opened')
-    await click(toolbar, 'Screen', '画面', '屏幕')
+    await openPane()
     unlinkSync(removed)
-    await click(toolbar, ...files)
+    await openWorkTab('data')
     await until(`(${byText(fileButton, ['desktop-fixture.txt'])}) && !document.querySelector('${list} [title="removed-fixture.txt"]')`,
       'the missing file is filtered out after reopening the pane')
     await click(fileButton, 'desktop-fixture.txt')
@@ -316,10 +343,52 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     console.log('check-packed: the workspace file list opened a presented file and removed the missing file from the list')
   }
 
+  async function checkRoutines() {
+    const { mainBotId } = await api('state', {})
+    const title = 'Work panel routine check'
+    const form = "document.querySelector('.bt-settings .bt-task-form')"
+    const edit = async (selector, value) => {
+      await evaluate(`(${form}).querySelector(${JSON.stringify(selector)}).focus()`)
+      await cdp.call('Input.insertText', { text: value })
+      await until(`(${form})?.querySelector(${JSON.stringify(selector)}).value === ${JSON.stringify(value)}`, selector)
+    }
+    await openWorkTab('routines')
+    await click(`${livePanel} .bt-more`, 'No scheduled tasks yet. Add one', '还没有定时任务，去添加')
+    await until(form, 'the scheduled task form')
+    assert.equal(await evaluate(`${form}.querySelector('.bt-task-bot').value`), mainBotId)
+    await edit('input.bt-bs-input', title)
+    await edit('textarea', 'Summarize the fixture workspace.')
+    await click('.bt-task-form button[type=submit]', 'Create task', '创建任务')
+    await until(byText('.bt-settings .bt-task-title', [title]), 'the new scheduled task')
+    await evaluate("document.querySelector('.bt-settings-close').click()")
+    await until("!document.querySelector('.bt-settings-layer')", 'routine settings closed')
+    await openWorkTab('routines')
+    await until(`(() => {
+      const task = ${byText(`${livePanel} .bt-task-line-title`, [title])};
+      if (!task) return false;
+      task.closest('button').click();
+      return true;
+    })()`, 'the routine in the current Bot panel')
+    await until(byText('.bt-settings .bt-task-title', [title]), 'the task can be managed from the panel')
+    await until(`(() => {
+      const remove = document.querySelector('.bt-settings .bt-task-remove');
+      if (!remove || remove.disabled) return false;
+      remove.click();
+      return true;
+    })()`, 'task delete confirmation')
+    await click('.bt-task-remove[data-confirm]', 'Delete', '删除')
+    await until(`!(${byText('.bt-settings .bt-task-title', [title])})`, 'the deleted scheduled task is gone')
+    await evaluate("document.querySelector('.bt-settings-close').click()")
+    await until("!document.querySelector('.bt-settings-layer')", 'routine settings closed after deleting')
+    await openWorkTab('routines')
+    await until(`!!(${byText(`${livePanel} .bt-more`, ['No scheduled tasks yet. Add one', '还没有定时任务，去添加'])})`, 'the routine was removed from the panel')
+    console.log('check-packed: the routines panel selected the active Bot and supported creating, reopening, and deleting a scheduled task')
+  }
+
   async function closePane() {
     await until(`(() => {
-      if (!document.querySelector(${JSON.stringify(`${livePanel} .bt-computer`)})) return true
-      document.querySelector(${JSON.stringify(`${detailsButton}[aria-expanded=true]`)})?.click()
+      if (!document.querySelector('${panel}')) return true
+      document.querySelector('${panel} .bt-work-head > button:last-child')?.click()
       return false
     })()`, 'the computer pane to close')
   }
@@ -581,6 +650,17 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
       }
       return
     }
+    if (process.env.DS_BOT_PACKED_POOL_ONLY === '1') {
+      await click(settings, 'Close', '关闭')
+      await until("!document.querySelector('.bt-computer-setup')", 'setup closed after creation')
+      await evaluate("document.querySelector('.bt-settings-close').click()")
+      await until("!document.querySelector('.bt-settings-layer')", 'settings closed after setup')
+      const member = await createOtherBot()
+      const room = await api('create-room', { name: 'Desktop pool QA', members: [state.mainBotId, member.other.id], admin: state.mainBotId })
+      const groupRow = `document.querySelector(${JSON.stringify(`[data-room-id="${room.id}"]`)})`
+      await checkIsolation(groupRow, member, true)
+      return
+    }
     const { width, height } = await windowState('win.getBounds()')
     try {
       await windowState('win.setSize(520, 510)')
@@ -602,16 +682,24 @@ export async function checkComputer({ cdp, until, evaluate, work, python, pid, m
     await until("!document.querySelector('.bt-settings-layer')", 'settings closed after setup')
     await openPane()
     await authorizePrivate()
-    await waitView(`(() => {
-      const screen = ${screen};
-      if (!screen || screen.naturalWidth !== 1280 || screen.naturalHeight !== 900) return false;
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 16;
-      const context = canvas.getContext('2d');
-      context.drawImage(screen, 0, 0, 16, 16);
-      const pixels = context.getImageData(0, 0, 16, 16).data;
-      return pixels.some((value, index) => index % 4 !== 3 && value > 16);
-    })()`, 'the visible private desktop on first open')
+    try {
+      await waitView(`(() => {
+        const screen = ${screen};
+        if (!screen || screen.naturalWidth !== 1280 || screen.naturalHeight !== 900) return false;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 16;
+        const context = canvas.getContext('2d');
+        context.drawImage(screen, 0, 0, 16, 16);
+        const pixels = context.getImageData(0, 0, 16, 16).data;
+        return pixels.some((value, index) => index % 4 !== 3 && value > 16);
+      })()`, 'the visible private desktop on first open')
+    } catch (error) {
+      const status = await api('computer-status', { subject: state.mainBotId })
+      const panel = await evaluate(`({ active: document.querySelector('[data-bot-id][aria-current=page]')?.dataset.botId,
+        message: document.querySelector('.bt-computer')?.innerText,
+        width: ${screen}?.naturalWidth, height: ${screen}?.naturalHeight })`)
+      throw new Error(`${error.message}: ${JSON.stringify({ status, panel })}`, { cause: error })
+    }
     await capture(process.env.DS_BOT_PACKED_VIEWER_SCREENSHOT)
     await evaluate(`window.dsBotPreviewBefore = ${screen}.getAttribute('src'); true`)
     await runDocker('exec', '-d', container, '/usr/bin/xfce4-terminal', '--disable-server', '--maximize',
@@ -793,18 +881,18 @@ path.write_text(' '.join(received))
     const enterFullscreen = async () => {
       const button = byText(pane, ['Full screen', '\u5168\u5c4f'])
       await cdp.call('Page.bringToFront')
-      let point
-      await waitFor(async () => {
-        point = await evaluate(`(() => {
-          const control = ${button}
-          if (!control || control.disabled) return null
-          control.scrollIntoView({ block: 'nearest' })
-          const { x, y, width, height } = control.getBoundingClientRect()
-          const center = { x: x + width / 2, y: y + height / 2 }
-          return control.contains(document.elementFromPoint(center.x, center.y)) ? center : null
-        })()`)
-        return Boolean(point)
-      }, 'the visible full-screen button', 10_000)
+      const center = `(() => {
+        const control = ${button};
+        if (!control || control.disabled) return null;
+        control.scrollIntoView({ block: 'nearest' });
+        const rect = control.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        return control.contains(document.elementFromPoint(x, y)) ? { x, y } : null;
+      })()`
+      await until(center, 'the visible full-screen button', 10_000)
+      const point = await evaluate(center)
+      assert.ok(point, 'The full-screen button moved before input.')
       for (const type of ['mousePressed', 'mouseReleased']) {
         await cdp.call('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 })
       }
@@ -1004,7 +1092,7 @@ print((value or b'').decode(), end='')
     assert.equal((await api('computer-status', { subject: state.mainBotId })).target, undefined)
     console.log('check-packed: changing conversations removed the preview and revoked access')
     const groupRow = await checkGroup({ other, otherRow })
-    await checkIsolation(groupRow)
+    await checkIsolation(groupRow, { other, otherRow })
     await checkBrowser()
 
     async function createOtherBot() {
@@ -1055,7 +1143,7 @@ print((value or b'').decode(), end='')
         'for n in 1 2; do IFS= read -r line || exit 1; printf "%s\\n" "$line" >> "$1"; done', 'fixture', file)
       await waitFor(async () => (await activeWindow()).includes('DS Bot group queue fixture'), 'the shared desktop input fixture', 10_000)
       const marker = `fixture-group-${Date.now()}`
-      const details = byText('.bt-tab', ['Details', '详情'])
+      const details = `document.querySelector('${panel} .bt-work-head button[aria-label="Details"], ${panel} .bt-work-head button[aria-label="\u8be6\u60c5"]')`
       await until(`(() => { const tab = ${details}; if (!tab) return false; tab.click(); return true })()`, 'the group details tab')
       await api('send', { sessionId: room.id, text: `Computer queue smoke: ${marker} @all` })
       const approveMember = async bot => {
@@ -1150,7 +1238,7 @@ print((value or b'').decode(), end='')
       console.log('check-packed: two private desktops displayed, and control switched between the two input fixtures')
     }
 
-    async function checkIsolation(groupRow) {
+    async function checkIsolation(groupRow, { other, otherRow }, poolOnly = false) {
       const firstRow = `document.querySelector(${JSON.stringify(`[data-bot-id="${state.mainBotId}"]`)})`
       const settingsFile = join(work, 'shell', 'computer-settings.json')
       const scopedName = bot => `${name}-bot-${createHash('sha256').update(bot).digest('hex').slice(0, 32)}`
@@ -1201,6 +1289,9 @@ print((value or b'').decode(), end='')
         return info.Id
       }
 
+      const allow = byText(pane, ['Allow desktop access', '授权使用'])
+      if (poolOnly) return checkPool()
+
       await openSettings()
       const sharedStartedAt = await startedAt(container)
       await click(settings, 'Check startup', '检查启动')
@@ -1213,7 +1304,6 @@ print((value or b'').decode(), end='')
       await closeSettings()
       await evaluate(`${groupRow}.click()`)
       await openPane()
-      const allow = byText(pane, ['Allow desktop access', '授权使用'])
       await until(`(${allow})?.disabled && /Enable shared mode|开启共享|启用共享/.test(document.querySelector('.bt-computer-group-access')?.innerText ?? '')`,
         'group desktop access disabled in per-Bot mode')
       await evaluate(`${otherRow}.click()`)
@@ -1352,66 +1442,89 @@ print((value or b'').decode(), end='')
       assert.equal((await runDocker('exec', recreated, 'cat', '/home/cua/workspace/scope-check.txt')).stdout.trim(), 'isolation')
       console.log('check-packed: cancel preserved the running instance; delete removed only its container, and recreation recovered its workspace')
 
-      await openSettings()
-      await click('.bt-computer-isolation button', 'Desktop pool', '桌面池')
-      await waitSaved()
-      await closeSettings()
-      await evaluate(`${groupRow}.click()`)
-      await openPane()
-      await until(`(${allow})?.disabled && /Enable shared mode|开启共享|启用共享/.test(document.querySelector('.bt-computer-group-access')?.innerText ?? '')`,
-        'group desktop access disabled in pool mode')
-      await switchBot(firstRow)
-      await authorizePrivate()
-      await waitView(frameReady, 'the first pool desktop frame')
-      const seatOne = await assertScope('pool-seat-1')
-      await runDocker('exec', seatOne, 'sh', '-c', 'printf pool > /home/cua/workspace/pool-check.txt')
-      await switchBot(otherRow)
-      await authorizePrivate()
-      await waitView(frameReady, 'the second pool desktop frame')
-      const seatTwo = await assertScope('pool-seat-2')
-      assert.notEqual(seatOne, seatTwo)
-      const isolated = await runDocker('exec', seatTwo, 'sh', '-c', 'test ! -f /home/cua/workspace/pool-check.txt && printf isolated')
-      assert.equal(isolated.stdout.trim(), 'isolated')
-      await openSettings()
-      await setLimit('1')
-      assert.equal(await running(seatOne), 'false')
-      assert.equal(await running(seatTwo), 'false')
-      assert.equal((await authorization(other.id)).target, undefined)
-      await closeSettings()
-      await authorizePrivate()
-      await waitView(frameReady, 'the retained pool desktop after reducing the pool size')
-      assert.equal((await authorization(other.id)).target, 'private-desktop')
-      onGrant(other.id)
-      assert.equal(await assertScope('pool-seat-1'), seatOne)
-      assert.equal((await runDocker('exec', seatOne, 'cat', '/home/cua/workspace/pool-check.txt')).stdout.trim(), 'pool')
-      console.log('check-packed: pool mode assigned separate desktops, disabled group access, and retained workspace files after shrinking')
+      await checkPool()
+
+      async function checkPool() {
+        await openSettings()
+        await click('.bt-computer-isolation button', 'Desktop pool', '桌面池')
+        await waitSaved()
+        await closeSettings()
+        await evaluate(`${groupRow}.click()`)
+        await openPane()
+        await until(`(${allow})?.disabled && /Enable shared mode|开启共享|启用共享/.test(document.querySelector('.bt-computer-group-access')?.innerText ?? '')`,
+          'group desktop access disabled in pool mode')
+        await switchBot(firstRow)
+        await authorizePrivate()
+        await waitView(frameReady, 'the first pool desktop frame')
+        const seatOne = await assertScope('pool-seat-1')
+        await runDocker('exec', seatOne, 'sh', '-c', 'printf pool > /home/cua/workspace/pool-check.txt')
+        await switchBot(otherRow)
+        await authorizePrivate()
+        await waitView(frameReady, 'the second pool desktop frame')
+        const seatTwo = await assertScope('pool-seat-2')
+        assert.notEqual(seatOne, seatTwo)
+        const isolated = await runDocker('exec', seatTwo, 'sh', '-c', 'test ! -f /home/cua/workspace/pool-check.txt && printf isolated')
+        assert.equal(isolated.stdout.trim(), 'isolated')
+        await openSettings()
+        await setLimit('1')
+        assert.equal(await running(seatOne), 'false')
+        assert.equal(await running(seatTwo), 'false')
+        assert.equal((await authorization(other.id)).target, undefined)
+        await closeSettings()
+        await until(`${otherRow}?.getAttribute('aria-current') === 'page' && !(${screen})
+          && (${byText(pane, ['Off', '关闭'])})?.getAttribute('aria-pressed') === 'true'`, 'the old pool authorization and preview to clear')
+        try {
+          await authorizePrivate()
+          await waitFor(async () => (await authorization(other.id)).target === 'private-desktop',
+            'the resized pool authorization for the selected Bot', 30_000)
+          await waitView(`${frameReady} && ${otherRow}?.getAttribute('aria-current') === 'page'`,
+            'the retained pool desktop after reducing the pool size')
+        } catch (error) {
+          const status = await authorization(other.id)
+          const paneState = await evaluate(`({ text: document.querySelector('.bt-computer')?.innerText,
+            selected: ${otherRow}?.getAttribute('aria-current'), frameWidth: ${screen}?.naturalWidth })`)
+          const windows = await windowState('({ visible: win.isVisible(), minimized: win.isMinimized() })')
+          throw new Error(`${error.message}: ${JSON.stringify({ status, paneState, windows,
+            seatOneRunning: await running(seatOne), seatTwoRunning: await running(seatTwo) })}`, { cause: error })
+        }
+        assert.equal((await authorization(other.id)).target, 'private-desktop')
+        onGrant(other.id)
+        assert.equal(await assertScope('pool-seat-1'), seatOne)
+        assert.equal((await runDocker('exec', seatOne, 'cat', '/home/cua/workspace/pool-check.txt')).stdout.trim(), 'pool')
+        console.log('check-packed: pool mode assigned separate desktops, disabled group access, and retained workspace files after shrinking')
+      }
     }
   }
 
   async function checkBrowser() {
+    const { mainBotId } = await api('state', {})
+    const row = `document.querySelector(${JSON.stringify(`[data-bot-id="${mainBotId}"]`)})`
     await until(`(() => {
-      const header = document.querySelector(${JSON.stringify(detailsButton)})
-      if (!header) return false
-      if (header.getAttribute('aria-expanded') === 'false') { header.click(); return false }
-      return !!${byText(`${livePanel} .bt-tab`, ['Browser', '浏览器'])}
-    })()`, 'the browser tab for the test Bot')
-    await click(`${livePanel} .bt-tab`, 'Browser', '浏览器')
-    await until("!!document.querySelector('.bt-browser-address input')", 'the address bar in the app window')
+      const button = ${row};
+      if (button?.getAttribute('aria-current') === 'page') return true;
+      button?.click();
+      return false;
+    })()`, 'the main Bot conversation')
+    await openWorkTab('browser')
     const address = "document.querySelector('.bt-browser-address input')"
-    await until(`(() => {
-      const element = ${address};
-      if (!element) return false;
-      const box = element.getBoundingClientRect();
-      return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) === element;
-    })()`, 'the address bar to settle', 10_000)
-    const point = await evaluate(`(() => {
-      const box = ${address}.getBoundingClientRect();
-      return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-    })()`)
-    for (const type of ['mousePressed', 'mouseReleased']) {
-      await cdp.call('Input.dispatchMouseEvent', { ...point, type, button: 'left', clickCount: 1 })
+    const focusAddress = async () => {
+      const hit = `(() => {
+        const element = ${address};
+        if (!element) return null;
+        const box = element.getBoundingClientRect();
+        const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+        return document.elementFromPoint(point.x, point.y) === element ? point : null;
+      })()`
+      await until(hit, 'the address bar to settle', 10_000)
+      const point = await evaluate(hit)
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await cdp.call('Input.dispatchMouseEvent', { ...point, type, button: 'left', clickCount: 1 })
+      }
+      await until(`document.activeElement === ${address} && document.hasFocus() &&
+        ${address}.selectionStart === 0 && ${address}.selectionEnd === ${address}.value.length`,
+      'the address bar to hold focus and select its contents', 10_000)
     }
-    await until(`document.activeElement === ${address} && document.hasFocus()`, 'the address bar to hold focus', 10_000)
+    await focusAddress()
     const requested = Promise.withResolvers()
     const server = createServer((request, response) => {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
@@ -1421,8 +1534,23 @@ print((value or b'').decode(), end='')
     try {
       await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
       const url = `http://127.0.0.1:${server.address().port}/browser-fixture`
+      await evaluate(`(() => {
+        window.__addressTrace = [];
+        const element = ${address};
+        const snapshot = type => window.__addressTrace.push({ type, value: element.value,
+          active: document.activeElement === element, focus: document.hasFocus(),
+          start: element.selectionStart, end: element.selectionEnd });
+        for (const type of ['focus', 'blur', 'beforeinput', 'input', 'change']) element.addEventListener(type, () => snapshot(type));
+        snapshot('before');
+      })()`)
       await cdp.call('Input.insertText', { text: url })
-      await until(`${address}.value === ${JSON.stringify(url)}`, 'the complete fixture address', 10_000)
+      try {
+        await until(`${address}.value === ${JSON.stringify(url)}`, 'the complete fixture address', 10_000)
+      } catch (error) {
+        const trace = await evaluate(`({ events: window.__addressTrace, value: ${address}?.value,
+          active: document.activeElement === ${address}, focus: document.hasFocus() })`)
+        throw new Error(`${error.message}: ${JSON.stringify(trace)}`, { cause: error })
+      }
       await press(cdp, 'Enter', 'Enter', 13)
       try {
         assert.ok(await Promise.race([requested.promise, sleep(10_000, false, { ref: false })]), 'The embedded browser did not load the fixture.')
@@ -1446,32 +1574,107 @@ print((value or b'').decode(), end='')
         assert.equal(native.views[0].visible, true, 'The browser child view must be visible.')
         const { x, y, width, height } = native.views[0].bounds
         assert.deepEqual([x, y, width, height], expected, 'The native browser view must fill its app panel.')
-        const file = process.env.DS_BOT_PACKED_BROWSER_SCREENSHOT
-        // The app renderer's CDP screenshot excludes sibling native views. Sample the OS window.
-        let frame
-        for (let attempt = 0; attempt < 10; attempt++) {
-          frame = await windowState(`(async () => {
-            const outer = win.getBounds(), content = win.getContentBounds();
-            const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: outer.width, height: outer.height } });
-            const shot = sources.find(source => source.id === win.getMediaSourceId())?.thumbnail;
-            if (!shot || shot.isEmpty()) return null;
-            const { width, height } = shot.getSize(1);
-            const pixels = shot.toBitmap({ scaleFactor: 1 });
-            const colors = [0.35, 0.55, 0.75].map(step => {
-              const x = Math.round((content.x - outer.x + ${x} + ${width} * step) * width / outer.width);
-              const y = Math.round((content.y - outer.y + ${y} + ${height} * step) * height / outer.height);
-              const i = (y * width + x) * 4;
-              return [pixels[i + 2], pixels[i + 1], pixels[i]];
-            });
-            return { colors, png: ${Boolean(file)} ? shot.toPNG().toString('base64') : null };
+        const fixtureState = await windowState(`(async () => {
+          const view = win.contentView.children.find(view => view.webContents?.getURL() === ${JSON.stringify(url)});
+          return view.webContents.executeJavaScript("({ title: document.title, background: getComputedStyle(document.documentElement).backgroundColor, devicePixelRatio, width: innerWidth, height: innerHeight })");
+        })()`)
+        assert.equal(fixtureState.background, 'rgb(22, 78, 99)', JSON.stringify(fixtureState))
+        const points = await windowState(`(() => {
+          const { screen } = process.getBuiltinModule('module').createRequire(process.execPath)('electron');
+          const { x, y } = win.getContentBounds();
+          return [0.35, 0.55, 0.75].map(step => screen.dipToScreenPoint({
+            x: Math.round(x + ${x} + ${width} * step), y: Math.round(y + ${y} + ${height} * step),
+          }));
+        })()`)
+        const colors = Array.from({ length: 3 }, () => [22, 78, 99])
+        let composed
+        try {
+          await windowState(`(() => { win.setAlwaysOnTop(true); win.focus(); })()`)
+          await waitFor(async () => {
+            composed = await windowsDisplayColors(python, points)
+            return JSON.stringify(composed) === JSON.stringify(colors)
+          }, 'the browser fixture pixels on the Windows display', 8_000)
+        } catch (error) {
+          const state = await windowState(`(() => {
+            const view = win.contentView.children.find(view => view.webContents?.getURL() === ${JSON.stringify(url)});
+            return { focused: win.isFocused(), view: view?.getBounds(), window: win.getBounds(), content: win.getContentBounds(), children: win.contentView.children.length };
           })()`)
-          if (frame?.colors.every(color => String(color) === '22,78,99')) break
-          await sleep(200)
+          throw new Error(`${error.message} Windows sampled ${JSON.stringify(composed)} at ${JSON.stringify(points)}. ${JSON.stringify({ state, fixtureState })}`, { cause: error })
+        } finally {
+          await windowState('win.setAlwaysOnTop(false)')
         }
-        if (file && frame?.png) writeFileSync(file, Buffer.from(frame.png, 'base64'))
-        assert.deepEqual(frame?.colors, Array.from({ length: 3 }, () => [22, 78, 99]), 'The composed app window must display the fixture pixels.')
-        if (file) console.log(`check-packed: saved ${file}`)
       }
+      const takeover = '.bt-browser-takeover button'
+      const access = "document.querySelector('.bt-browser-access [role=switch]')"
+      await click(takeover, 'Take over', '接管')
+      await until(byText(takeover, ['Give back', '交还']), 'browser control handed to the user')
+      const chrome = '.bt-browser-display-controls'
+      const browserControl = labels => `Array.from(document.querySelectorAll('${chrome} button')).find(button =>
+        ${JSON.stringify(labels)}.includes(button.getAttribute('aria-label')))`
+      const displayButton = async (...labels) => {
+        const expression = `(() => {
+          const button = ${browserControl(labels)};
+          if (!button) return null;
+          const box = button.getBoundingClientRect();
+          const x = box.left + box.width / 2;
+          const y = box.top + box.height / 2;
+          return button.contains(document.elementFromPoint(x, y)) ? {x, y} : null;
+        })()`
+        await until(expression, labels[0], 10_000)
+        const point = await evaluate(expression)
+        for (const type of ['mousePressed', 'mouseReleased']) {
+          await cdp.call('Input.dispatchMouseEvent', { ...point, type, button: 'left', clickCount: 1 })
+        }
+      }
+      const normalWidth = await evaluate("document.querySelector('.bt-browser-frame').offsetWidth")
+      const checkBounds = async label => {
+        const getRect = "document.querySelector('.bt-browser-frame').getBoundingClientRect().toJSON()"
+        await waitFor(async () => {
+          const expected = await evaluate(getRect)
+          const actual = await windowState(`win.contentView.children.find(view => view.webContents?.getURL() === ${JSON.stringify(url)})?.getBounds()`)
+          return actual != null && ['x', 'y', 'width', 'height'].every(key => Math.abs(actual[key] - expected[key]) <= 2)
+        }, label, 10_000)
+      }
+      await displayButton('Maximize browser panel', '放大浏览器面板')
+      await until(`document.querySelector('.bt-panel[data-maximized]') && document.querySelector('.bt-browser-frame').offsetWidth > ${normalWidth}`, 'expanded browser')
+      await checkBounds('the native browser bounds after maximizing')
+      await displayButton('Full screen', '全屏')
+      await until("document.fullscreenElement?.classList.contains('bt-panel-browser')", 'the browser entering full screen', 10_000)
+      await checkBounds('the native browser bounds in full screen')
+      await until(byText(takeover, ['Give back', '交还']), 'browser takeover in full screen')
+      await displayButton('Exit full screen', '退出全屏')
+      await until("!document.fullscreenElement && document.querySelector('.bt-panel[data-maximized]')", 'the browser returning to the maximized panel', 10_000)
+      await displayButton('Restore browser panel', '还原浏览器面板')
+      await until(`!document.querySelector('.bt-panel[data-maximized]') && document.querySelector('.bt-browser-frame').offsetWidth === ${normalWidth}`, 'the original browser panel width')
+      await checkBounds('the native browser bounds after restoring')
+      console.log('check-packed: browser maximized, entered full screen, and restored with matching native view bounds and takeover')
+      await openWorkTab('routines')
+      await openWorkTab('browser')
+      await until(byText(takeover, ['Give back', '交还']), 'browser takeover survives a panel tab switch')
+      await click(takeover, 'Give back', '交还')
+      await until(byText(takeover, ['Take over', '接管']), 'browser control returned to the Bot')
+      await evaluate("document.querySelector('.bt-work-head > button:first-child').click()")
+      const settingsAccess = "document.querySelector('.bt-browser-settings [role=switch]')"
+      await until(`${settingsAccess}?.getAttribute('aria-checked') === 'true'`, 'browser access in settings')
+      await evaluate(`${settingsAccess}.click()`)
+      await until(`${settingsAccess}?.getAttribute('aria-checked') === 'false'`, 'browser permission switched off in settings')
+      await evaluate("document.querySelector('.bt-settings-close').click()")
+      await until(`!document.querySelector('.bt-settings-layer') && ${access}?.getAttribute('aria-checked') === 'false'`, 'browser panel follows the saved access setting')
+      await api('send', { sessionId: mainBotId, text: '看网页结构' })
+      await until("document.body.innerText.includes('The user has disabled browser access for this Bot.')", 'the browser tool rejects the Bot while access is disabled', 60_000)
+      const secondUrl = `${url}?manual=1`
+      await focusAddress()
+      await cdp.call('Input.insertText', { text: secondUrl })
+      await until(`${address}.value === ${JSON.stringify(secondUrl)}`, 'the user can enter a new address with access disabled')
+      await press(cdp, 'Enter', 'Enter', 13)
+      await waitFor(() => windowState(`win.contentView.children.some(view => view.webContents?.getURL() === ${JSON.stringify(secondUrl)})`), 'manual navigation with Bot access disabled', 10_000)
+      await evaluate(`${access}.click()`)
+      await until(`${access}?.getAttribute('aria-checked') === 'true'`, 'browser access restored in the panel')
+      await evaluate("document.querySelector('.bt-work-head > button:first-child').click()")
+      await until(`${settingsAccess}?.getAttribute('aria-checked') === 'true'`, 'browser settings follow the panel switch')
+      await evaluate("document.querySelector('.bt-settings-close').click()")
+      await until("!document.querySelector('.bt-settings-layer')", 'browser settings closed')
+      console.log('check-packed: native browser takeover, give-back, and per-Bot access worked from the panel and settings')
     } finally { server.closeAllConnections(); server.close() }
     console.log(process.platform === 'win32' ? 'check-packed: the app window displayed the browser fixture pixels' : 'check-packed: the embedded browser loaded the fixture')
   }

@@ -94,10 +94,11 @@ Apache License, Version 2.0, Copyright (c) Microsoft Corporation
   repository; see LICENSE for the text.
 
 The desktop queue, preview scheduling, viewer focus, clipboard and keyboard controls,
-workspace pane selection and hand-back ordering, full-screen controls and
+workspace pane selection and hand-back ordering, keyboard resizing
+(src/components/computer-panel-resize.ts at bbcf0a7), full-screen controls and
 Unicode text entry, and Podman readiness polling
 adapt OpenMausBot (server/turn-resources.ts, server/podman-machine.ts,
-src/components/ComputerPanel.tsx,
+src/components/ComputerPanel.tsx, src/components/BrowserPanel.tsx,
 src/components/LiveDesktop.tsx, src/components/DesktopViewer.tsx,
 src/components/LocalVmWorkspace.tsx, src/lib/local-vm-workspace.ts, and
 src/lib/desktop-connection.ts), Copyright 2026 Milind Soni and OpenMausBot

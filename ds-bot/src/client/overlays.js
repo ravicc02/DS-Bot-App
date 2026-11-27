@@ -7,7 +7,7 @@ import { VoiceMode } from './voice.js'
 import { SettingsDialog } from './settings.js'
 import { ContextMenu } from './context-menu.js'
 import { PANEL_LINGER_MS, BotPanel } from './browser-pane.js'
-import { frameLayout, panelLayoutView, FALLBACK_SIDEBAR_WIDTH } from './frame-layout.js'
+import { frameLayout, FALLBACK_SIDEBAR_WIDTH } from './frame-layout.js'
 import { MemoryDialog } from './memory-panel.js'
 import { useLinger } from './motion.js'
 
@@ -38,7 +38,7 @@ export function Overlays({ useRoster, useUi, useSessions, useSessionStatus, useA
   const layout = frameLayout({
     viewport: frameSnap.viewport, sidebarWidth: frameSnap.sidebarWidth,
     pref, drawer: ui.leftDrawer === true,
-    panel: open ? { view: panelLayoutView(open.view, open.tab), yielded: ui.panelYield === true } : null,
+    panel: open ? { view: open.view, yielded: ui.panelYield === true } : null,
   })
   const shown = open !== null && layout.panel !== 'folded' ? open : null
   const [kept, setKept] = useState(shown)
