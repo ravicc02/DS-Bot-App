@@ -19,6 +19,7 @@ const temporaryFiles = 'rw,nosuid,nodev,noexec,size=256m,mode=1777'
 const imageIdPattern = /^sha256:[a-f0-9]{64}$/u
 const containerIdPattern = /^[a-f0-9]{64}$/u
 const scopePattern = /^[a-f0-9]{32}$/u
+const bundledPodmanProfile = /^\/mnt\/[a-z]\/(?:[^/\r\n]+\/)*(?:resources|runtime)\/computer\/seccomp\.json$/u
 export const privateDesktopScope = operator => operator === undefined ? null : createHash('sha256').update(operator).digest('hex').slice(0, 32)
 const noValues = value => value == null || Object.keys(value).length === 0
 const same = (values, expected) => Array.isArray(values) && values.length === expected.length && expected.every(value => values.includes(value))
@@ -106,7 +107,8 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
   const { name: sharedName } = resources(instance)
   const podman = runtime.name === 'podman'
   const seccompPath = join(dirname(imageDir), 'seccomp.json')
-  const podmanProfile = podman ? podmanProfilePath(seccompPath) : undefined
+  const stableSeccompPath = join(dirname(imageFile), 'computer-seccomp.json')
+  const podmanProfile = podman ? podmanProfilePath(stableSeccompPath) : undefined
   const command = async (...args) => (await runtime.command(args)).stdout.trim()
   const inspect = async (kind, id) => JSON.parse(await command(kind, 'inspect', id))[0]
   let daemon
@@ -136,10 +138,27 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
       info.Name === name && info.Driver === 'local' && info.Scope === 'local' && noValues(info.Options) && info.Labels?.[label] === instance))) throw unsafe()
   }
 
-  async function verify({ id, imageId, version, scope }) {
+  async function verify({ id, imageId, version, scope }, replacing = false) {
     await verifyDaemon()
     await verifyVolumes(scope, false)
-    return verifyContainer(await inspect('container', id), imageId, instance, id, version, scope, podmanProfile)
+    const info = await inspect('container', id)
+    const profile = replacing && podman ? previousProfile(info) ?? podmanProfile : podmanProfile
+    return verifyContainer(info, imageId, instance, id, version, scope, profile)
+  }
+
+  // Podman records the old install path in inspect. Only replacement or status may accept it.
+  function previousProfile(info) {
+    const options = info?.HostConfig?.SecurityOpt
+    if (!Array.isArray(options)) return undefined
+    const path = options.find(option => typeof option === 'string' && option.startsWith('seccomp='))?.slice('seccomp='.length)
+    return bundledPodmanProfile.test(path ?? '') ? path : undefined
+  }
+
+  async function preparePodmanProfile() {
+    await writeFile(stableSeccompPath, JSON.stringify(seccomp), { flag: 'wx' }).catch(error => {
+      if (error.code !== 'EEXIST') throw error
+    })
+    if (!isDeepStrictEqual(JSON.parse(await readFile(stableSeccompPath, 'utf8')), seccomp)) throw unsafe()
   }
 
   async function containers(running = false) {
@@ -180,9 +199,11 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     if (existing.length && !old) throw unsafe()
     if (!rebuild && old?.version === imageVersion && await currentImage().then(() => true, () => false)) return
     if (existing.length && !rebuild) throw new Error('Rebuild the private desktop to replace its existing container.')
-    for (const entry of existing) {
-      const info = await verify({ ...entry, imageId: old.id, version: old.version })
-      if (info.State.Running) throw new Error('Stop the private desktop before rebuilding it.')
+    const selected = existing.map(entry => ({ ...entry, imageId: old.id, version: old.version }))
+    const checked = await Promise.all(selected.map(desktop => verify(desktop, true)))
+    for (const info of checked) {
+      signal.throwIfAborted()
+      if (info.State.Running) await command('container', 'stop', '--time', '3', info.Id)
     }
     const iidFile = `${imageFile}.${randomUUID()}`
     try {
@@ -205,11 +226,11 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
       const id = podman ? canonicalImageId(image?.Id) : image?.Id
       if (id !== built || image.Config?.Labels?.[imageLabel] !== imageVersion
         || image.Os !== 'linux' || image.Architecture !== 'amd64') throw unsafe()
-      for (const entry of existing) {
-        const info = await verify({ ...entry, imageId: old.id, version: old.version })
+      for (const desktop of selected) {
+        const info = await verify(desktop, true)
         signal.throwIfAborted()
-        if (info.State.Running) throw unsafe()
-        await command('container', 'rm', entry.id)
+        if (info.State.Running !== false) throw unsafe()
+        await command('container', 'rm', desktop.id)
       }
       await writeFile(iidFile, JSON.stringify({ daemon, id, version: imageVersion, runtime: runtime.name }))
       await rename(iidFile, imageFile)
@@ -237,9 +258,10 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
     if (!existing) report?.('creating-container')
     await verifyVolumes(scope, !existing)
     if (!isDeepStrictEqual(JSON.parse(await readFile(seccompPath, 'utf8')), seccomp)) throw unsafe()
+    if (podman) await preparePodmanProfile()
     const id = existing ?? await command('container', 'create', '--name', name, '--label', `${label}=${instance}`,
       '--network', 'none', '--ipc', 'private', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
-      '--security-opt', `seccomp=${seccompPath}`,
+      '--security-opt', `seccomp=${podman ? stableSeccompPath : seccompPath}`,
       '--tmpfs', `/tmp:${temporaryFiles}${podman ? ',notmpcopyup' : ''}`, ...resourceArgs(desired), '--pids-limit', '384', '--init', '--restart', 'no',
       ...mounts.flatMap(volume => ['--mount', `type=volume,source=${volume.name},target=${volume.path}`]), imageId)
     const selected = { id, imageId, scope }
@@ -459,9 +481,23 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
         if (['CUA_RUNTIME_STOPPED', 'CUA_CGROUP_UNAVAILABLE'].includes(error.code)) return 'start'
         throw error
       }
-      try { await currentImage() } catch (error) {
+      let imageId
+      try { imageId = await currentImage() } catch (error) {
         if (error.code === 'CUA_IMAGE_MISSING') return (await containers()).length ? 'rebuild' : 'prepare'
         throw error
+      }
+      if (podman) {
+        let movedProfile = false
+        for (const { id, scope } of await containers()) {
+          const info = await inspect('container', id)
+          const legacy = previousProfile(info)
+          if (legacy) {
+            await verifyVolumes(scope, false)
+            verifyContainer(info, imageId, instance, id, imageVersion, scope, legacy)
+            movedProfile = true
+          }
+        }
+        if (movedProfile) return 'rebuild'
       }
       return 'prepared'
     },
@@ -475,7 +511,7 @@ export function dockerBackend(instance, { imageDir, imageFile, runtime = desktop
       const pending = { abort, done: undefined }
       building = pending
       pending.done = (async () => {
-        if (rebuild) await stopManaged()
+        if (rebuild) await stopAll()
         await build(rebuild, abort.signal, report)
       })()
       try { await pending.done } finally { building = undefined; for (const state of desktops.values()) scheduleIdle(state) }

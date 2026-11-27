@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { desktopRuntime, findDockerDesktop } from '../src/computer/docker-installation.mjs'
+import { desktopRuntime, findDockerDesktop, podmanProfilePath } from '../src/computer/docker-installation.mjs'
 import { dockerBackend, verifyContainer } from '../src/computer/docker.mjs'
 import seccomp from '../src/computer/seccomp.json' with { type: 'json' }
 
@@ -31,11 +31,11 @@ test('a managed desktop must have its recorded image and container IDs', () => {
   assert.throws(() => verifyContainer(container, image, instance, '3'.repeat(64)), /configuration changed/u)
 })
 
-test('Podman validates version 5 containers for an image upgrade', () => {
+function podmanContainer(profile) {
   const container = config()
-  const profile = '/mnt/f/ds-bot/seccomp.json'
   container.Name = name
   container.Image = image.slice('sha256:'.length)
+  container.State = { Running: true }
   Object.assign(container.HostConfig, {
     UTSMode: 'private', CgroupMode: 'private', Cgroups: 'default', UsernsMode: '',
     SecurityOpt: ['no-new-privileges', `seccomp=${profile}`],
@@ -43,10 +43,69 @@ test('Podman validates version 5 containers for an image upgrade', () => {
     Binds: container.Mounts.map(mount => `${mount.Name}:${mount.Destination}:rprivate,nosuid,nodev,rbind`),
   })
   for (const mount of container.Mounts) Object.assign(mount, { Propagation: 'rprivate', Options: ['nosuid', 'nodev', 'rbind'] })
+  return container
+}
+
+test('Podman validates version 5 containers for an image upgrade', () => {
+  const profile = '/mnt/f/ds-bot/seccomp.json'
+  const container = podmanContainer(profile)
   for (const version of ['5', '6']) assert.equal(verifyContainer(container, image, instance, id, version, undefined, profile), container)
   assert.throws(() => verifyContainer(container, image, instance, id, '4', undefined, profile), /configuration changed/u)
   container.HostConfig.NetworkMode = 'bridge'
   assert.throws(() => verifyContainer(container, image, instance, id, '5', undefined, profile), /configuration changed/u)
+})
+
+test('a relocated Podman profile requires rebuilding and preserves the desktop volumes', { skip: process.platform !== 'win32' }, async t => {
+  const root = await mkdtemp(join(tmpdir(), 'dsbot-cua-profile-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const imageFile = join(root, 'image.json')
+  await writeFile(imageFile, JSON.stringify({ id: image, version: '6', daemon: 'test-daemon', runtime: 'podman' }))
+  await writeFile(join(root, 'seccomp.json'), JSON.stringify(seccomp))
+  const stableProfile = podmanProfilePath(join(root, 'computer-seccomp.json'))
+  const oldProfile = '/mnt/f/old-install/resources/computer/seccomp.json'
+  const container = podmanContainer(stableProfile)
+  const volumes = container.Mounts.map(({ Name }) => ({
+    Name, Driver: 'local', Scope: 'local', Labels: container.Config.Labels,
+  }))
+  const imageInfo = { Id: container.Image, Os: 'linux', Architecture: 'amd64', Config: { Labels: { 'io.github.qingj01.dsbot.cua-image': '6' } } }
+  const changes = []
+  let exists = true
+  const backend = dockerBackend(instance, {
+    imageDir: join(root, 'image'), imageFile, runtime: {
+      name: 'podman', installed: async () => true, verify: async () => 'test-daemon',
+      async command(args) {
+        const [kind, op, ...rest] = args
+        if (kind === 'container' && op === 'ls') return { stdout: exists ? `${name}|${id}` : '' }
+        if (kind === 'image' && op === 'inspect') return { stdout: JSON.stringify([imageInfo]) }
+        if (kind === 'volume' && op === 'inspect') return { stdout: JSON.stringify(volumes) }
+        if (kind === 'container' && op === 'inspect' && rest[0] === id) return { stdout: JSON.stringify([container]) }
+        if (kind === 'container' && op === 'stop' && rest.at(-1) === id) {
+          changes.push('stop')
+          container.State.Running = false
+        } else if (kind === 'build') {
+          changes.push('build')
+          await writeFile(args[args.indexOf('--iidfile') + 1], image)
+        } else if (kind === 'container' && op === 'rm' && rest[0] === id) {
+          changes.push('remove container')
+          assert.equal(container.State.Running, false)
+          exists = false
+        } else assert.fail(`Unexpected command: ${args.join(' ')}`)
+        return { stdout: '' }
+      },
+    },
+  })
+  assert.equal(await backend.readiness(), 'prepared')
+  container.HostConfig.SecurityOpt[1] = `seccomp=${oldProfile}`
+  assert.equal(await backend.readiness(), 'rebuild')
+  assert.deepEqual(changes, [])
+  await assert.rejects(backend.inventory(), /configuration changed/u)
+  container.HostConfig.NetworkMode = 'bridge'
+  await assert.rejects(backend.setup(true), /configuration changed/u)
+  assert.deepEqual(changes, [])
+  container.HostConfig.NetworkMode = 'none'
+  await backend.setup(true)
+  assert.deepEqual(changes, ['stop', 'build', 'remove container'])
+  assert.equal(await backend.readiness(), 'prepared')
 })
 
 test('resource settings preserve legacy desktops and require bounded limits without extra swap', () => {
