@@ -127,6 +127,7 @@ export function createBotBrowsers({ bridge, createSource, storage = globalThis.l
   const appViewEvents = bridge.views?.subscribe?.((change) => {
     const { botId, tabId } = change ?? {}
     if (!botId || !tabId) return
+    if (change.url === 'about:blank') change = { ...change, url: '', title: '' }
     if (change.type === 'closed') {
       const entry = views.get(tabId)
       entry?.stop()
@@ -326,7 +327,7 @@ export function createBotBrowsers({ bridge, createSource, storage = globalThis.l
       const state = (await bridge.views.sync(botId)).find(view => view.tabId === tabId)
       if (state) {
         entry.botAttached = state.botAttached === true
-        element.update(state)
+        element.update(state.url === 'about:blank' ? { ...state, url: '', title: '' } : state)
       }
     }
     return entry
@@ -469,7 +470,13 @@ export function createBotBrowsers({ bridge, createSource, storage = globalThis.l
     if (entry === undefined) return false
     publish(tabId, { url, loading: true, error: null })
     persist(owner.get(tabId))
-    if (!entry.ready) entry.pending = url
+    if (entry.appView) {
+      void entry.element.loadURL(url).catch((error) => {
+        const page = pages.getSnapshot()[tabId]
+        if (!page || views.get(tabId) !== entry || page.error || error?.code === 'ERR_ABORTED') return
+        if (page.url === url || page.url === '') publish(tabId, { url, loading: false, error: String(error?.message ?? error) })
+      })
+    } else if (!entry.ready) entry.pending = url
     else void entry.element.loadURL(url).catch(() => {})
     return true
   }

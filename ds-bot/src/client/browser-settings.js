@@ -1,5 +1,7 @@
+import { ComputerSettings } from './computer-settings.js'
 import { createElement as h, useEffect, useState } from 'react'
 import { BotAvatar } from './mark.js'
+import { Switch } from './bot-settings.js'
 import { dateLocale, t } from './i18n.js'
 
 const ACTIONS = [['post', 'Post'], ['upload', 'Upload'], ['download', 'Download'], ['delete', 'Delete']]
@@ -25,18 +27,25 @@ function grantKinds(grant) {
   return ACTIONS.filter(([kind]) => grant.kinds.includes(kind)).map(([, label]) => t(label))
 }
 
-export function BrowserPage({ roster, actions, run, Section, Row }) {
+export function BrowserPage({ roster, actions, run, Section, Row, privateSetup = false, onPrivateContinue }) {
   const bots = roster.bots ?? []
-  const [botId, setBotId] = useState(bots[0]?.id ?? '')
+  const allowedBots = bots.filter(bot => bot.browserAccess !== false)
+  const [savingAccess, setSavingAccess] = useState(null)
+  const toggleAccess = async bot => {
+    setSavingAccess(bot.id)
+    try { await run(actions.updateBot(bot.id, { browserAccess: bot.browserAccess === false })) }
+    finally { setSavingAccess(null) }
+  }
+  const [botId, setBotId] = useState(allowedBots[0]?.id ?? '')
   const [site, setSite] = useState('')
   const [kinds, setKinds] = useState(['post'])
   const [duration, setDuration] = useState('hour')
   const [busy, setBusy] = useState(false)
-  const selectedBot = bots.find(bot => bot.id === botId)
+  const selectedBot = allowedBots.find(bot => bot.id === botId)
 
   useEffect(() => {
-    if (!bots.some(bot => bot.id === botId)) setBotId(bots[0]?.id ?? '')
-  }, [bots, botId])
+    if (!allowedBots.some(bot => bot.id === botId)) setBotId(allowedBots[0]?.id ?? '')
+  }, [allowedBots, botId])
 
   const grants = bots.flatMap(bot => (bot.browserGrants ?? []).map((grant, index) => ({
     bot, grant, index, expired: expired(grant),
@@ -69,8 +78,13 @@ export function BrowserPage({ roster, actions, run, Section, Row }) {
   }
 
   return h('div', { className: 'bt-browser-settings' },
+    h(ComputerSettings, { key: Number(privateSetup), Section, Row, bots, privateSetup, onContinue: onPrivateContinue }),
     h(Section, { title: t('Browser access') },
-      h('p', { className: 'bt-browser-note' }, t('Bots browse, click and fill in forms freely. Posting, uploading, downloading and deleting ask you first unless you allow them here. Payments are always yours: the Bot hands the page to you.'))),
+      h('p', { className: 'bt-browser-note' }, t('Bots browse, click and fill in forms freely. Posting, uploading, downloading and deleting ask you first unless you allow them here. Payments are always yours: the Bot hands the page to you.')),
+      bots.map(bot => h(Row, { key: bot.id, label: bot.name }, h(Switch, {
+        label: t('Let {name} use the browser', { name: bot.name }), on: bot.browserAccess !== false,
+        disabled: savingAccess !== null, onChange: () => toggleAccess(bot),
+      })))),
     h(Section, { title: t('Allowed actions') },
       grants.length === 0
         ? h(Row, { label: t('Nothing allowed yet.') })
@@ -92,8 +106,8 @@ export function BrowserPage({ roster, actions, run, Section, Row }) {
     h(Section, { title: t('Allow an action') },
       h('form', { className: 'bt-browser-form', onSubmit: add },
         h(Row, { label: t('Bot') },
-          h('select', { className: 'bt-select', value: botId, onChange: event => setBotId(event.target.value), disabled: bots.length === 0 },
-            bots.map(bot => h('option', { key: bot.id, value: bot.id }, bot.name)))),
+          h('select', { className: 'bt-select', value: botId, onChange: event => setBotId(event.target.value), disabled: allowedBots.length === 0 },
+            allowedBots.map(bot => h('option', { key: bot.id, value: bot.id }, bot.name)))),
         h(Row, { label: t('Site') },
           h('input', {
             className: 'bt-select bt-browser-site',

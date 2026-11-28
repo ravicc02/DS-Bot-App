@@ -81,6 +81,12 @@ test('a Bot in another Conversation View can return to chat without changing its
   assert.equal(details, 1)
 })
 
+test('the conversation details pill exposes its closed and open states', () => {
+  assert.equal(header({}).children[0].props['aria-expanded'], false)
+  const open = header({}, { useUi: hook({ details: 'a' }) })
+  assert.equal(open.children[0].props['aria-expanded'], true)
+})
+
 test('a missing View or navigation face keeps the ordinary Bot header', () => {
   const views = [{ id: 'chat' }, { id: 'trajectory' }]
   for (const view of [null, 'chat', 'uninstalled-plugin']) {

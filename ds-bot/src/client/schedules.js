@@ -218,15 +218,16 @@ export function BotSchedules({ bot, roster, actions }) {
 }
 
 // The details panel's line: the Bot's next tasks, or how to add one.
-export function ScheduleSummary({ bot, actions }) {
+export function ScheduleSummary({ bot, actions, expanded = false }) {
   const view = useSchedules(actions)
-  const tasks = view?.available ? view.tasks.filter(task => task.botId === bot.id && task.status === 'active') : []
+  const tasks = view?.available ? view.tasks.filter(task => task.botId === bot.id && (expanded || task.status === 'active')) : []
   return h('div', null,
-    h('div', { className: 'bt-section-title' }, t('Scheduled tasks')),
+    h('div', { className: 'bt-section-title' }, t(expanded ? 'Routines' : 'Scheduled tasks')),
     tasks.length === 0
       ? h('button', { type: 'button', className: 'bt-more', onClick: () => actions.openSettings('schedules', bot.id) }, view?.available === false ? t('Switch on Automation tasks on the Plugins page in Harness settings.') : t('No scheduled tasks yet. Add one'))
-      : h('div', { className: 'bt-task-list' }, tasks.slice(0, 3).map(task => h('button', { key: task.id, type: 'button', className: 'bt-task-line', onClick: () => actions.openSettings('schedules') },
-          h(ClockIcon), h('span', { className: 'bt-task-line-title' }, task.title), h('span', { className: 'bt-task-line-when' }, timingText(task))))))
+      : h('div', { className: 'bt-task-list' }, (expanded ? tasks : tasks.slice(0, 3)).map(task => h('button', { key: task.id, type: 'button', className: 'bt-task-line', onClick: () => actions.openSettings('schedules', bot.id) },
+          h(ClockIcon), h('span', { className: 'bt-task-line-title' }, task.title), h('span', { className: 'bt-task-line-when' }, timingText(task))))),
+    expanded && tasks.length > 0 ? h('button', { type: 'button', className: 'bt-more', onClick: () => actions.openSettings('schedules', bot.id) }, t('Manage scheduled tasks')) : null)
 }
 
 export const SCHEDULE_CSS = `

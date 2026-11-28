@@ -1201,7 +1201,9 @@ export function install(rt) {
     if (sessionId === undefined || switches.has(sessionId) || readOnly()) return
     try {
       const agent = await rt.resolveAgent(sessionId)
-      if (agent.status === 'idle' && await folderMove(agent) !== undefined) startSwitch(agent, { folder: true })
+      // A turn finishing its last step has no pre-step left to pick up the change.
+      if (agent.status !== 'idle') await agent.whenIdle()
+      if (agent.status === 'idle' && currentOf(owner) === sessionId && await folderMove(agent) !== undefined) startSwitch(agent, { folder: true })
     } catch (error) {
       rt.warn('ds-bot: %s did not move to its working folder: %s', owner.botId === undefined ? rt.roomOf(owner.roomId)?.name ?? owner.roomId : rt.botOf(owner.botId)?.name ?? owner.botId, error)
     }

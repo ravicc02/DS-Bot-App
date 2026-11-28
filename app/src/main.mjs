@@ -2,7 +2,7 @@
 // The window loads the Host's loopback address as DSH Web does: DSH's sign-in sends the page's
 // origin as the address the browser comes back to, and accepts only a loopback one.
 import { app, BrowserWindow, WebContentsView, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, protocol, session, shell as electronShell, Tray } from 'electron'
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
 import { release } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -16,6 +16,12 @@ import { importFromBrowser, listSources } from './browser-sources.mjs'
 import { applyCookies, CookieImports } from './cookie-import.mjs'
 import { parseCookieFile } from './cookie-parse.mjs'
 import { downloadSaver } from './downloads.mjs'
+import { dockerBackend, newComputerInstance, privateDesktopScope } from './computer/docker.mjs'
+import { desktopRuntime, privateDesktopRuntime } from './computer/docker-installation.mjs'
+import { windowsBackend } from './computer/driver.mjs'
+import { createComputerService } from './computer/service.mjs'
+import { defaultDesktopLimits, validDesktopLimits } from './computer/limits.mjs'
+import { isPoolOperator, poolOperator } from './computer/seat-pool.mjs'
 import { canonicalExecPath } from './canonical-path.mjs'
 import { chooseLocations, localeText, programFolder, saveLocations, text } from './first-run.mjs'
 import { hostPort } from './host-port.mjs'
@@ -64,6 +70,7 @@ if (process.env.DS_BOT_SHELL_DATA) app.setPath('userData', process.env.DS_BOT_SH
 protocol.registerSchemesAsPrivileged([LEGACY_STORAGE_SCHEME])
 
 let mainWindow
+let computer
 let host
 // The Host's loopback origin, which the window loads.
 let origin
@@ -168,7 +175,10 @@ if (canonical !== undefined) {
 
 function stopHost() {
   stopping = true
-  hostStop ??= (host?.stop() ?? Promise.resolve()).catch((error) => { console.error(error) }).finally(() => { stopped = true })
+  hostStop ??= Promise.allSettled([computer?.close(), host?.stop()]).then(results => {
+    for (const result of results) if (result.status === 'rejected') console.error(result.reason)
+    stopped = true
+  })
   return hostStop
 }
 
@@ -183,10 +193,234 @@ async function start() {
   const runtimeDir = app.isPackaged ? process.resourcesPath : join(here, '..', 'build', 'runtime')
   const profileDir = join(where.dataDir, 'profiles', PROFILE)
   mkdirSync(profileDir, { recursive: true })
+  if (process.platform === 'win32' && process.arch === 'x64') {
+    const idFile = join(app.getPath('userData'), 'computer-instance.txt')
+    mkdirSync(dirname(idFile), { recursive: true })
+    try { writeFileSync(idFile, newComputerInstance(), { flag: 'wx' }) } catch (error) {
+      if (error.code !== 'EEXIST') throw error
+    }
+    const settingsFile = join(dirname(idFile), 'computer-settings.json')
+    const validIdle = value => Number.isSafeInteger(value) && value >= 0 && value <= 1440
+    const validLimit = value => Number.isSafeInteger(value) && value >= 1 && value <= 8
+    const validMode = value => value === 'shared' || value === 'per-bot' || value === 'pool'
+    const validDesktopOperator = value => isBotId(value) || isPoolOperator(value)
+    let computerSettings = { idleMinutes: 480, privateMode: 'shared', maxInstances: 2, limits: defaultDesktopLimits }
+    try {
+      const saved = JSON.parse(readFileSync(settingsFile, 'utf8'))
+      if (validIdle(saved?.idleMinutes)) computerSettings.idleMinutes = saved.idleMinutes
+      if (validMode(saved?.privateMode)) computerSettings.privateMode = saved.privateMode
+      if (validLimit(saved?.maxInstances)) computerSettings.maxInstances = saved.maxInstances
+      if (validDesktopLimits(saved?.limits)) {
+        const { memoryGb, cpus } = saved.limits
+        computerSettings.limits = { memoryGb, cpus }
+      }
+    } catch { /* Use defaults when settings are absent or unreadable. */ }
+    function saveComputerSettings(update) {
+      const next = { ...computerSettings, ...update }
+      writeFileSync(`${settingsFile}.tmp`, `${JSON.stringify(next)}\n`)
+      renameSync(`${settingsFile}.tmp`, settingsFile)
+      computerSettings = next
+      return { ...next, runtime: runtime.name }
+    }
+    const imageFile = join(dirname(idFile), 'computer-image.json')
+    const runtime = desktopRuntime(await privateDesktopRuntime(imageFile))
+    const backends = {
+      'local-desktop': windowsBackend(join(runtimeDir, 'computer', 'cua-driver.exe')),
+      'private-desktop': dockerBackend(readFileSync(idFile, 'utf8').trim(), {
+        imageDir: join(runtimeDir, 'computer', 'image'), imageFile, runtime,
+        idleMinutes: () => computerSettings.idleMinutes, maxInstances: () => computerSettings.maxInstances,
+        desktopLimits: () => computerSettings.limits,
+      }),
+    }
+    computer = createComputerService(backends, async target => {
+      const zh = app.getLocale().startsWith('zh')
+      const local = target === 'local-desktop'
+      const scope = zh ? '截图可能保存在对话中，发送给模型，并对群聊成员可见。你可以随时停止。'
+        : 'Screenshots can be saved in the conversation, sent to the model, and seen by group members. You can stop at any time.'
+      const access = local
+        ? (zh ? 'Bot 可以看到主屏幕，并使用这台电脑的鼠标和键盘。' : 'The Bot can see the primary screen and use this computer’s mouse and keyboard.')
+        : computerSettings.privateMode === 'per-bot'
+          ? (zh ? '所选 Bot 使用自己的私有桌面、工作区和浏览器配置。' : 'The selected Bot uses its own private desktop, workspace, and browser profile.')
+          : computerSettings.privateMode === 'pool'
+            ? (zh ? '此对话会使用桌面池中的一台桌面。其他对话可能在稍后使用同一桌面。' : 'This conversation uses a desktop from the pool. Another conversation may use it later.')
+            : (zh ? '获授权的 Bot 共用此桌面、工作区和浏览器配置。' : 'Authorized Bots share this desktop, workspace, and browser profile.')
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'warning', title: 'DS Bot App', noLink: true, defaultId: 0, cancelId: 0,
+        buttons: zh ? ['取消', '允许'] : ['Cancel', 'Allow'],
+        message: local
+          ? (zh ? '允许此对话操控这台电脑？' : 'Allow this conversation to control this computer?')
+          : (zh ? '允许此对话控制私有桌面？' : 'Allow this conversation to control the private desktop?'),
+        detail: `${access}\n\n${scope}`,
+      })
+      return response === 1
+    }, { privateMode: () => computerSettings.privateMode, privateScope: privateDesktopScope,
+      maxInstances: () => computerSettings.maxInstances })
+    ipcMain.on('ds-bot:computer-reset', event => { if (fromWindow(event)) resetComputer() })
+    ipcMain.handle('ds-bot:computer-choose', (event, conversation, target, operator) => {
+      assertComputerWindow(event)
+      return computer.choose(conversation, target, operator)
+    })
+    const progressTo = (event, id) => (phase, detail) => {
+      if (typeof id === 'string' && /^[\w-]{1,80}$/u.test(id) && fromWindow(event)) {
+        event.sender.send('ds-bot:computer-progress', { id, phase, detail })
+      }
+    }
+    ipcMain.handle('ds-bot:computer-setup', async (event, rebuild, id) => {
+      assertComputerWindow(event)
+      if (typeof rebuild !== 'boolean') throw new Error('Unknown computer operation.')
+      const zh = app.getLocale().startsWith('zh')
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'question', title: 'DS Bot App', noLink: true, defaultId: 0, cancelId: 0,
+        buttons: zh ? ['取消', rebuild ? '重建' : '准备'] : ['Cancel', rebuild ? 'Rebuild' : 'Prepare'],
+        message: zh ? (rebuild ? '重建私有桌面？' : '准备私有桌面？')
+          : (rebuild ? 'Rebuild the private desktop?' : 'Prepare the private desktop?'),
+        detail: zh ? (rebuild ? '这会停止此应用管理的私有桌面并替换容器。工作区和 Chromium 配置会保留。' : '桌面运行环境可能需要下载镜像和软件包。')
+          : (rebuild ? 'This stops the private desktops managed by this app and replaces their containers. Workspaces and Chromium profiles are kept.' : 'The desktop runtime may need to download the image and software packages.'),
+      })
+      if (response !== 1) return false
+      assertComputerWindow(event)
+      const report = progressTo(event, id)
+      report('preparing-desktop')
+      await computer.setup(rebuild, report)
+      return true
+    })
+    ipcMain.handle('ds-bot:computer-settings', async (event, op, value, id) => {
+      assertComputerWindow(event)
+      if (op === 'read') return { ...computerSettings, runtime: runtime.name }
+      if (op === 'idle') {
+        if (!validIdle(value)) throw new Error('Enter 0 to 1440 minutes.')
+        const saved = saveComputerSettings({ idleMinutes: value })
+        backends['private-desktop'].scheduleIdle()
+        return saved
+      }
+      if (op === 'limits') {
+        if (!validDesktopLimits(value)) throw new Error('Enter 2 to 128 GiB of memory and 1 to 64 CPUs.')
+        const { memoryGb, cpus } = value
+        return saveComputerSettings({ limits: { memoryGb, cpus } })
+      }
+      if (op === 'policy') {
+        if (!validMode(value?.privateMode) || !validLimit(value?.maxInstances)) throw new Error('Invalid private desktop isolation settings.')
+        const { privateMode, maxInstances } = value
+        const shrinkPool = privateMode === 'pool' && maxInstances < computerSettings.maxInstances
+        if (privateMode === computerSettings.privateMode && !shrinkPool) return saveComputerSettings({ maxInstances })
+        await computer.changePrivatePolicy(() => saveComputerSettings({ privateMode, maxInstances }))
+        return { ...computerSettings, runtime: runtime.name }
+      }
+      if (op === 'readiness') return backends['private-desktop'].readiness()
+      if (op === 'inventory') {
+        if (!Array.isArray(value) || !value.every(isBotId)) throw new Error('Invalid desktop inventory request.')
+        const bots = new Map(value.map(id => [privateDesktopScope(id), id]))
+        const entries = await backends['private-desktop'].inventory()
+        const seats = new Map(Array.from({ length: 8 }, (_, index) => [privateDesktopScope(poolOperator(index)), index + 1]))
+        return entries.map(entry => ({ ...entry, botId: bots.get(entry.scope), seat: seats.get(entry.scope) }))
+      }
+      if (op === 'stop' || op === 'stop-instance') {
+        const single = op === 'stop-instance'
+        if (single && value !== null && (typeof value !== 'string' || !/^[a-f0-9]{32}$/u.test(value))) throw new Error('Invalid private desktop instance.')
+        const zh = app.getLocale().startsWith('zh')
+        const { response } = await dialog.showMessageBox(mainWindow, {
+          type: 'question', title: 'DS Bot App', noLink: true, defaultId: 0, cancelId: 0,
+          buttons: zh ? ['取消', '停止'] : ['Cancel', 'Stop'],
+          message: single
+            ? (zh ? '停止选中的私有桌面？' : 'Stop the selected private desktop?')
+            : (zh ? '停止运行中的私有桌面？' : 'Stop the running private desktops?'),
+          detail: zh ? '这会结束当前操控。工作区和 Chromium 配置会保留。'
+            : 'This ends current control. Workspaces and Chromium profiles are kept.',
+        })
+        if (response !== 1) return false
+        assertComputerWindow(event)
+        if (single) await computer.stopPrivateInstance(value)
+        else await computer.stopPrivate()
+        return true
+      }
+      if (op === 'delete-instance') {
+        const { scope, id } = value ?? {}
+        if ((scope !== null && (typeof scope !== 'string' || !/^[a-f0-9]{32}$/u.test(scope)))
+          || typeof id !== 'string' || !/^[a-f0-9]{64}$/u.test(id)) throw new Error('Invalid private desktop instance.')
+        const zh = app.getLocale().startsWith('zh')
+        const { response } = await dialog.showMessageBox(mainWindow, {
+          type: 'warning', title: 'DS Bot App', noLink: true, defaultId: 0, cancelId: 0,
+          buttons: zh ? ['取消', '删除'] : ['Cancel', 'Delete'],
+          message: zh ? '删除选中的私有桌面？' : 'Delete the selected private desktop?',
+          detail: zh ? '工作区和 Chromium 配置会保留。其他存放在此桌面里的文件和改动会被删除。'
+            : 'The workspace and Chromium profile are kept. Other files and changes inside this desktop will be deleted.',
+        })
+        if (response !== 1) return false
+        assertComputerWindow(event)
+        await computer.deletePrivateInstance(scope, id)
+        return true
+      }
+      if (op === 'start-instance' || op === 'restart-instance') {
+        const restart = op === 'restart-instance'
+        if (value !== null && !validDesktopOperator(value)) throw new Error('Invalid private desktop instance.')
+        if (restart) {
+          const zh = app.getLocale().startsWith('zh')
+          const { response } = await dialog.showMessageBox(mainWindow, {
+            type: 'question', title: 'DS Bot App', noLink: true, defaultId: 0, cancelId: 0,
+            buttons: zh ? ['取消', '重启'] : ['Cancel', 'Restart'],
+            message: zh ? '重启选中的私有桌面？' : 'Restart the selected private desktop?',
+            detail: zh ? '这会结束当前操控。工作区和 Chromium 配置会保留。'
+              : 'This ends current control. Workspaces and Chromium profiles are kept.',
+          })
+          if (response !== 1) return false
+          assertComputerWindow(event)
+        }
+        const report = progressTo(event, id)
+        if (restart) report('restarting-desktop')
+        return computer.startPrivateInstance(value ?? undefined, restart, report)
+      }
+      if (op === 'install') {
+        await electronShell.openExternal(runtime.name === 'podman' ? 'https://podman-desktop.io/docs/installation/windows-install'
+          : 'https://docs.docker.com/desktop/setup/install/windows-install/')
+        return true
+      }
+      if (op === 'start') {
+        await runtime.start(file => electronShell.openPath(file), progressTo(event, id))
+        return true
+      }
+      if (op === 'startup') {
+        if (value !== null && value !== undefined && !validDesktopOperator(value)) throw new Error('Invalid private desktop instance.')
+        return computer.checkStartup(value ?? undefined)
+      }
+      if (op === 'preview-instance') {
+        if (value !== null && !validDesktopOperator(value)) throw new Error('Invalid private desktop instance.')
+        return computer.previewPrivateInstance(value ?? undefined)
+      }
+      throw new Error('Unknown computer operation.')
+    })
+    ipcMain.handle('ds-bot:computer-workspace', (event, op, id, value) => {
+      if (op === 'close') {
+        assertWindow(event)
+        return computer.closeWorkspace(id)
+      }
+      assertComputerWindow(event)
+      if (op === 'open' && Array.isArray(value) && value.every(entry => isBotId(entry?.operator))) return computer.openWorkspace(value, id)
+      if (op === 'frame') return computer.workspaceFrame(id, value)
+      if (op === 'take' || op === 'hand-back') return computer.workspaceControl(id, value, op)
+      throw new Error('Unknown computer operation.')
+    })
+    ipcMain.on('ds-bot:computer-live', (event, message) => {
+      const [port] = event.ports
+      for (const extra of event.ports.slice(1)) extra.close()
+      if (!port) return
+      void (async () => {
+        assertComputerWindow(event)
+        await computer.live(message?.conversation, message?.display, port)
+      })().catch(() => {}).finally(() => port.close())
+    })
+    ipcMain.handle('ds-bot:computer-window-shown', (event) => {
+      assertWindow(event)
+      return windowShown()
+    })
+    ipcMain.handle('ds-bot:computer-view', (event, conversation, op, input, display) => {
+      assertComputerWindow(event)
+      return computer.inline(conversation, op, input, display)
+    })
+  }
   const newHost = () => new HostProcess({
     entry: join(here, 'host.mjs'),
     cwd: profileDir,
-    env: { ...process.env, DSH_HOME: where.dataDir, DS_BOT_PORT: String(port), DS_BOT_APP: '1', DS_BOT_USER_DSH_HOME: userDshHome(), DS_BOT_RUNTIME_DIR: runtimeDir, ...(where.workspace ? { DS_BOT_WORKSPACE: where.workspace } : {}) },
+    env: { ...process.env, DSH_HOME: where.dataDir, DS_BOT_PORT: String(port), DS_BOT_APP: '1', DS_BOT_COMPUTER: computer ? '1' : '', DS_BOT_USER_DSH_HOME: userDshHome(), DS_BOT_RUNTIME_DIR: runtimeDir, ...(where.workspace ? { DS_BOT_WORKSPACE: where.workspace } : {}) },
     pnpm,
     onFailure: fail,
   })
@@ -216,7 +450,19 @@ async function start() {
       if (newer.length > 0) console.warn(`DS Bot: this DSH cannot read ${newer.join(', ')}, which the import left out`)
     }, (error) => { console.error('DS Bot: the Sessions the import left out were not copied:', error) })
     host = newHost()
-    host.onMessage(message => {
+    const attached = host
+    attached.onMessage(message => {
+      if (message?.type === 'ds-bot:computer' && typeof message.id === 'string') {
+        const respond = response => {
+          if (host !== attached || stopping || failed) return
+          try { attached.send({ type: 'ds-bot:computer-result', id: message.id, ...response }) } catch { /* Host closed. */ }
+        }
+        if (!computer || stopping || failed || host !== attached) return
+        void computer.request(message.request).then(result => respond({ result }), error => {
+          respond({ error: error instanceof Error ? error.message : 'Computer control failed.' })
+        })
+        return
+      }
       if (message?.type !== 'ds-bot:browser-endpoint' || typeof message.id !== 'string' || !isBotId(message.botId)) return
       const downloadRoots = message.downloadRoots
       if (!Array.isArray(downloadRoots) || downloadRoots.length > 4 || !Array.from(downloadRoots).every(root => typeof root === 'string' && isAbsolute(root))) {
@@ -369,11 +615,13 @@ async function start() {
     const win = mainWindow
     if (win === undefined || stopping || win.isDestroyed()) return false
     tokenSpent = true
-    await win.loadURL(url)
+    await loadHostPage(win, url)
     hostReady = true
     return true
   })().catch((error) => {
-    fail(error)
+    // A failed page load can be recovered by opening a fresh window through the tray.
+    // Host startup failures still go through ready.catch(fail) above.
+    console.error('DS Bot: the initial Host page did not load:', error)
     return false
   })
 }
@@ -627,6 +875,7 @@ function createWindow() {
   win.on('closed', () => {
     if (mainWindow !== win) return
     mainWindow = undefined
+    resetComputer()
     // The Bot browsers' tabs belonged to this window; they wait for the next one.
     botViews.release()
   })
@@ -636,6 +885,19 @@ function createWindow() {
   // The tabs that outlived the last window join this one.
   botViews.attach(win)
   const contents = win.webContents
+  contents.on('did-start-navigation', event => { if (event.isMainFrame && !event.isSameDocument) resetComputer() })
+  contents.on('render-process-gone', resetComputer)
+  if (computer) {
+    const notifyComputerWindow = () => contents.send('ds-bot:computer-window-shown', windowShown())
+    const hideComputerWindow = () => {
+      resetComputer()
+      notifyComputerWindow()
+    }
+    win.on('hide', hideComputerWindow)
+    win.on('minimize', hideComputerWindow)
+    win.on('show', notifyComputerWindow)
+    win.on('restore', notifyComputerWindow)
+  }
   // The session is the same for every window of the app, so the handler is bound once.
   if (!downloadsBound) {
     downloadsBound = true
@@ -696,6 +958,13 @@ function rebuildWindow() {
   return win
 }
 
+async function loadHostPage(win, url) {
+  try { await win.loadURL(url) } catch {
+    // Electron includes the single-use credential in loadURL errors.
+    throw new Error('Could not load the Host sign-in page.')
+  }
+}
+
 // The window talks to the Host that runs. The first one trades the launch URL for the Host's
 // cookie; the later ones use the plain address, which that cookie carries. The launch URL is
 // used again only when no browser carried it at all, so that a token is never spent twice.
@@ -714,7 +983,7 @@ async function connectHost(win) {
   // There is no cookie: the launch URL is the one way in, and only while it was not used.
   if (launchUrl !== undefined && !tokenSpent) {
     tokenSpent = true
-    await win.loadURL(launchUrl)
+    await loadHostPage(win, launchUrl)
     hostReady = true
     return
   }
@@ -778,6 +1047,18 @@ function assertWindow(event) {
     || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('DS Bot App: rejected IPC from an unknown page')
 }
 
+function assertComputerWindow(event) {
+  assertWindow(event)
+  if (!computer || stopping || failed || !hostReady) throw new Error('Computer control is unavailable on this host.')
+  if (!windowShown()) throw new Error('Restore the app window to use computer control.')
+}
+
+function resetComputer() {
+  if (!computer) return
+  void computer.reset().catch(error => { console.error(error) })
+  try { host?.send({ type: 'ds-bot:computer-reset' }) } catch { /* Host closed. */ }
+}
+
 function fromWindow(event) {
   try { assertWindow(event); return true } catch { return false }
 }
@@ -791,6 +1072,7 @@ async function fail(error) {
   console.error(error)
   if (failed || stopping) return
   failed = true
+  resetComputer()
   const found = await Promise.race([updates?.latest() ?? null, sleep(UPDATE_CHECK_WAIT_MS).then(() => null)])
   const throwaway = Boolean(process.env.DS_BOT_HOME)
   const t = localeText(UPDATE_TEXT)

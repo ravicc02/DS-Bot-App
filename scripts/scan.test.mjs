@@ -68,3 +68,31 @@ test('draft markers are detected without flagging ordinary draft prose', () => {
     assert.match(result.stdout, /draft-marker/u)
   }
 })
+
+test('known private desktop paths stay accepted while personal paths still fail', () => {
+  const dockerfile = 'app/src/computer/Dockerfile'
+  const home = '/home/'
+  const workspace = home + 'cua/workspace'
+  const profile = home + 'cua/.config/chromium'
+  const packedCheck = 'app/scripts/check-packed-computer.mjs'
+  const twoDesktopFixture = workspace + '/workspace-input-${index}.txt'
+  const known = scan({
+    [dockerfile]: [workspace, profile + '/.ds-bot-profile'].join(' '),
+    [packedCheck]: [workspace + '/group-queue.txt', workspace + '/pool-check.txt', twoDesktopFixture].join(' '),
+  })
+  assert.equal(known.status, 0, known.stdout + known.stderr)
+
+  for (const [file, text] of [
+    [dockerfile, workspace + ' ' + home + 'person/notes'],
+    [dockerfile, workspace + '/personal.txt'],
+    [dockerfile, profile + '-backup/data'],
+    ['notes.txt', workspace],
+    [packedCheck, workspace + '/local-notes.txt'],
+    [packedCheck, twoDesktopFixture + '.bak'],
+    [dockerfile, twoDesktopFixture],
+  ]) {
+    const result = scan({ [file]: text })
+    assert.equal(result.status, 1, result.stdout + result.stderr)
+    assert.match(result.stdout, /personal-path/u)
+  }
+})

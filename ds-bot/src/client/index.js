@@ -1,7 +1,7 @@
 import { call } from './api.js'
 import { isHex, inkText, paintCss } from './inks.js'
 import { DEFAULT_MASK, SHAPES, markupCache, maskOf } from './characters.js'
-import { createSource, EMPTY_ROSTER, indexRoster, isAgentSession } from './sources.js'
+import { createSource, EMPTY_ROSTER, indexRoster, isAgentSession, trackDesktopConversation } from './sources.js'
 import { teamActions } from './team-actions.js'
 import { themeCss, shellTokens, registry, registerShape, registerTheme, allThemes, layoutOf, widthOf, flatWidthOf } from './themes.js'
 import { MENTION_ORIGIN, currentPart } from './text.js'
@@ -14,6 +14,7 @@ import { HeaderPill } from './header.js'
 import { ComposerPlus, ComposerVoice, menuIcons } from './composer.js'
 import { CHATS_SOURCE, atSources } from './at-menu.js'
 import { BtwDock, BtwTurnTail } from './btw.js'
+import { computerFileAddress } from './computer-files.js'
 import { SIDE_CSS, sideSource } from './side-chat.js'
 import { VOICE_BUNDLE, closingReplyText, requestPreparation } from './speech.js'
 import { sameVersion } from './dsh-offer.js'
@@ -54,6 +55,7 @@ export const inject = ['sessions', 'uiWorkspace', 'uiConversation', 'slots', 'th
 export function apply(ctx) {
   ctx.effect(() => installLocale(ctx.get('locale')), 'ds-bot: interface copy')
   const roster = createSource(EMPTY_ROSTER)
+  const desktop = trackDesktopConversation(() => window.dsBotApp?.computer?.reset?.())
   const mobileApprovals = createMobileApprovals((endpoint, payload, signal) => call('mobile', { endpoint, payload }, signal))
   ctx.effect(() => {
     mobileApprovals.start()
@@ -438,7 +440,6 @@ export function apply(ctx) {
     const f = frame.getSnapshot()
     return frameLayout({ viewport: f.viewport, sidebarWidth: f.sidebarWidth, pref: sidebarPref.getSnapshot(), drawer: state.leftDrawer, panel: { view: view ?? state.view, yielded: state.panelYield === true } }).panel === 'folded'
   }
-  const yieldBrowser = state => state.panelYield === true || panelFolded('browser')
   // Bot mode's view must hold a team conversation; an outside Session wears the
   // Bot skin without one. Runs whenever the surface is (or stays) Bot mode —
   // including a cold start, where no setSurface call ever fires.
@@ -565,6 +566,7 @@ export function apply(ctx) {
       }
       show.cancel()
       if (mode === 'agent') {
+        desktop.revoke()
         ui.set(state => ({ ...state, details: null, view: 'details', settings: null, palette: null, newChat: null, menu: null, voice: null, exchange: null, memory: null, toast: null }))
       }
       writeMode(mode)
@@ -573,6 +575,7 @@ export function apply(ctx) {
       // shell's own view gets it back (below DSH_NARROW the shell decides itself).
       if (mode === 'agent' && window.innerWidth >= DSH_NARROW && frame.getSnapshot().collapsed) ctx.layout.toggleSidebar()
       if (mode !== 'bot') return
+      if (window.dsBotApp?.computer) desktop.sync(roster.getSnapshot(), mainView())
       ensureBotHome()
     },
     markUnread: id => writeUnread(id, true),
@@ -606,7 +609,7 @@ export function apply(ctx) {
         if (!bot) return
         browsers.ensureTabs(bot.id)
         if (browsers.tabs.getSnapshot()[bot.id]?.active == null) browsers.openTab(bot.id)
-        ui.set(state => ({ ...state, details: id, view: 'browser', renaming: false, tab: null, panelYield: yieldBrowser(state) }))
+        actions.openWorkPanel(id, 'browser')
       },
       // '+' on the strip or the drawer's new-tab card: a blank tab in the browser view.
       browserNewTab: (id) => {
@@ -614,7 +617,7 @@ export function apply(ctx) {
         if (!bot) return null
         browsers.ensureTabs(bot.id)
         const tabId = browsers.openTab(bot.id)
-        ui.set(state => ({ ...state, details: id, view: 'browser', renaming: false, tab: null, panelYield: yieldBrowser(state) }))
+        actions.openWorkPanel(id, 'browser')
         return tabId
       },
       // A drawer card: its tab active, the panel on the browser view.
@@ -622,7 +625,7 @@ export function apply(ctx) {
         const bot = roster.getSnapshot().byId[id]
         if (!bot) return
         browsers.activate(bot.id, tabId)
-        ui.set(state => ({ ...state, details: id, view: 'browser', panelYield: yieldBrowser(state) }))
+        actions.openWorkPanel(id, 'browser')
       },
       browserEnsure: botId => browsers.ensureTabs(botId),
       browserCloseTab: (botId, tabId) => browsers.closeTab(botId, tabId),
@@ -659,11 +662,6 @@ export function apply(ctx) {
       } : null,
     })
   }
-  actions.setPanelView = (view) => {
-    if (view !== 'details' && view !== 'browser') return
-    ui.set(state => (state.details && state.view !== view ? { ...state, view } : state))
-  }
-  actions.closePanel = () => { ui.set(state => (state.details ? { ...state, details: null, view: 'details', renaming: false, tab: null } : state)) }
   // Whether AccountLauncher holds the shell's settings seat; FooterAccount keeps the phone entry visible either way.
   actions.signInEntry = () => ctx.slots.entries?.('settings.models.sign-in')?.[0] ?? null
   actions.canSignIn = () => Boolean(actions.signInEntry())
@@ -730,7 +728,8 @@ export function apply(ctx) {
   const browserPages = browsers?.pages ?? createSource({})
   const browserTabs = browsers?.tabs ?? createSource({})
   const browserHolds = browsers?.holds ?? createSource({})
-  const face = () => ({ actions, hooks: { roster, ui, activity, work, memoryNews, registry, turnClock, live, cards, heldCards, browserPages, browserTabs, browserHolds, surface, update, frame, sidebarPref } })
+  const desktopConversation = desktop.source
+  const face = () => ({ actions, hooks: { roster, ui, activity, work, memoryNews, registry, turnClock, live, cards, heldCards, browserPages, browserTabs, browserHolds, surface, update, frame, sidebarPref, desktopConversation } })
   ctx.effect(() => noticeApprovals({
     work,
     roster,
@@ -798,6 +797,17 @@ export function apply(ctx) {
     actions.closePanel()
     try {
       ctx.get('sidebarRight')?.openTab('files')
+    } catch (error) {
+      actions.reportError(error, 'right-sidebar')
+    }
+  }
+
+  actions.canOpenComputerFile = () => Boolean(ctx.get('sidebarRight') && ctx.get('remote.workspaceFiles'))
+  actions.statComputerFile = (sessionId, path, signal) => ctx.get('remote.workspaceFiles').stat(sessionId, path, signal)
+  actions.openComputerFile = (sessionId, path) => {
+    try {
+      ctx.get('sidebarRight')?.openResource(computerFileAddress(sessionId, path))
+      actions.closePanel()
     } catch (error) {
       actions.reportError(error, 'right-sidebar')
     }
@@ -1018,6 +1028,7 @@ export function apply(ctx) {
     const sync = () => {
       const list = ctx.sessions.list.getSnapshot()
       const main = Object.values(list.byId ?? {}).find(session => (session?.retainedBy?.mainView ?? 0) > 0)?.id
+      if (window.dsBotApp?.computer && surface.getSnapshot().mode === 'bot') desktop.sync(roster.getSnapshot(), main)
       const plain = isAgentSessionId(main)
       setPlain(plain)
       if (plain) dropPanels()
@@ -1066,7 +1077,7 @@ export function apply(ctx) {
     const offList = ctx.sessions.list.subscribe(sync)
     const offRoster = roster.subscribe(sync)
     sync()
-    return () => { offList(); offRoster() }
+    return () => { desktop.dispose(); offList(); offRoster() }
   }, 'ds-bot: agent surface')
 
   ctx.effect(() => {

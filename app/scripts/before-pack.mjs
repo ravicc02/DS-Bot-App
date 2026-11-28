@@ -4,6 +4,7 @@
 import { Arch } from 'electron-builder'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { prepareComputerRuntime } from './prepare-computer.mjs'
 import { preparePrimaryRuntime, runtimeTarget } from './prepare-runtime.mjs'
 
 const WHERE = {
@@ -41,11 +42,23 @@ export function officeRuntimeRequest(context) {
   }
 }
 
-export async function beforePack(context, prepare = preparePrimaryRuntime) {
+export function checkPluginCopy(appDir) {
+  const files = ['client.js', 'index.js', 'src/host/parts.js', 'src/host/computer/index.js', 'src/host/computer/images.js']
+  for (const file of files) {
+    const source = readFileSync(join(appDir, '..', 'ds-bot', file))
+    const installed = readFileSync(join(appDir, 'node_modules', 'ds-bot', file))
+    if (!source.equals(installed)) throw new Error(`The installed ds-bot copy is stale (${file}). Run npm ci in app before packaging.`)
+  }
+}
+
+export async function beforePack(context, prepare = preparePrimaryRuntime, prepareComputer = prepareComputerRuntime, checkPlugin = checkPluginCopy) {
   const targets = []
   for (const archToNames of context.packager?.packagerOptions?.targets?.values() ?? [])
     for (const arch of archToNames.keys()) targets.push(Arch[arch])
   const problem = archProblem({ target: Arch[context.arch], platform: context.electronPlatformName, targets })
   if (problem !== undefined) throw new Error(problem)
-  await prepare(officeRuntimeRequest(context))
+  const request = officeRuntimeRequest(context)
+  checkPlugin(context.packager.appDir ?? context.packager.projectDir)
+  await prepare(request)
+  if (request.target === 'win-x64') await prepareComputer(request)
 }

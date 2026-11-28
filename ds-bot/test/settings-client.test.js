@@ -4,12 +4,14 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+import { desktopClientPlugin } from '../scripts/build-client.mjs'
 
 const require = createRequire(fileURLToPath(new URL('../package.json', import.meta.url)))
 const React = require('react')
 const { renderToStaticMarkup } = require('react-dom/server')
 const { outputFiles } = await build({
   entryPoints: [fileURLToPath(new URL('../src/client/settings.js', import.meta.url))],
+  plugins: [await desktopClientPlugin()],
   bundle: true, format: 'cjs', platform: 'browser', write: false,
   external: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
 })
@@ -31,7 +33,7 @@ test('settings opens with every navigation icon rendered by React', () => {
   const buttons = [...nav.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)]
   assert.equal(buttons.length, 14)
   for (const [, content] of buttons) assert.match(content, /<svg\b/)
-  assert.match(nav, /Browser/)
+  assert.match(nav, /Computer and browser/)
   assert.match(nav, /Plugin updates/)
 })
 

@@ -11,7 +11,10 @@ test('a build for the architecture of this Node goes on', async () => {
   assert.equal(archProblem({ target: 'x64', platform: 'win32', host: 'x64' }), undefined)
   const asked = []
   const packager = { projectDir: 'app-dir', appInfo: { version: '0.0.0' } }
-  await beforePack({ arch: Arch[process.arch], electronPlatformName: process.platform, packager }, async (request) => { asked.push(request) })
+  const computer = []
+  await beforePack({ arch: Arch[process.arch], electronPlatformName: process.platform, packager },
+    async request => { asked.push(request) }, async request => { computer.push(request) }, () => {})
+  assert.deepEqual(computer, process.platform === 'win32' && process.arch === 'x64' ? asked : [])
   assert.equal(asked.length, 1)
   assert.equal(asked[0].target, runtimeTarget(process.platform, process.arch))
   assert.equal(asked[0].output, join('app-dir', 'build', 'runtime'))
@@ -46,4 +49,9 @@ test('the Office payload goes next to the asar for a platform the lock pins', ()
   assert.equal(request.output, join('app-dir', 'build', 'runtime'))
   assert.throws(() => officeRuntimeRequest({ arch: Arch.arm64, electronPlatformName: 'win32', packager: { projectDir: 'app-dir' } }), /No Office runtime payload for win32 arm64/)
   assert.match(readFileSync(new URL('../electron-builder.yml', import.meta.url), 'utf8'), /from: build\/runtime\/primary-runtime\r?\n\s+to: primary-runtime/u)
+})
+
+test('the computer payload goes next to the Windows asar', () => {
+  assert.match(readFileSync(new URL('../electron-builder.yml', import.meta.url), 'utf8'),
+    /^win:\r?\n  extraResources:\r?\n    - from: build\/runtime\/computer\r?\n      to: computer$/mu)
 })

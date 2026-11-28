@@ -1,3 +1,4 @@
+import { assertBrowserAccess } from './browser.js'
 // The whole team uses one browser plugin. Each Bot still gets its own profile
 // directory, including the group Sessions where that Bot speaks.
 import { isAbsolute, join } from 'node:path'
@@ -67,7 +68,7 @@ export function handoffHold(rt, botId, { sessionId, callId, ...hold }) {
 async function authorizeBrowserAction(rt, exec, botId, action) {
   await rt.load()
   const bot = rt.botOf(botId)
-  if (bot === undefined) throw new Error('Unknown Bot')
+  assertBrowserAccess(rt, botId)
   if (action.kind === 'payment') {
     throw new Error(`This looks like a payment ("${action.label}" on ${action.host}). The user makes payments themselves: call browser_handoff with reason "payment" and stop. Nothing was done.`)
   }
@@ -103,7 +104,10 @@ async function authorizeBrowserAction(rt, exec, botId, action) {
   } catch {
     throw new Error('The approval service was unavailable. Nothing was done.')
   }
-  if (outcome === 'allowed-once') return
+  if (outcome === 'allowed-once') {
+    assertBrowserAccess(rt, botId)
+    return
+  }
   if (outcome === 'rejected') {
     throw new Error(`The user did not approve ${action.label} on ${action.host}. Do not try this action again unless the user asks. Nothing was done.`)
   }
@@ -147,6 +151,7 @@ export function install(rt) {
     playwrightUrl,
     executablePath,
     connect: process.env.DS_BOT_APP === '1' && typeof process.send === 'function' ? appBrowserEndpoint : undefined,
+    assertAccess: botId => assertBrowserAccess(rt, botId),
     getHold: botId => rt.browserChannel?.holdOf(botId) ?? null,
     onHold: (botId, hold) => rt.browserChannel?.setHold(botId, hold && handoffHold(rt, botId, hold)),
     subscribeHolds: listener => rt.browserChannel?.subscribeHolds?.(listener),

@@ -44,6 +44,47 @@ export function indexRoster(value) {
   return { ...value, agents: value.agents ?? [], byId, roomsById, agentsById, agentOf, ready: true }
 }
 
+// The workspace selection follows a conversation across its Session parts.
+export function computerConversation(roster, sessionId) {
+  if (sessionId == null) return undefined
+  const bot = roster.byId[sessionId]
+  if (bot) return 'bot-' + bot.id
+  const room = roster.roomsById[sessionId]
+  return room ? 'room-' + room.id : undefined
+}
+
+export function trackDesktopConversation(reset, rolloverDelay = 5000) {
+  const source = createSource(null)
+  let timer
+  function clear() {
+    clearTimeout(timer)
+    timer = undefined
+  }
+  function revoke() {
+    clear()
+    if (!source.getSnapshot()) return
+    source.set(null)
+    reset()
+  }
+  return {
+    source,
+    sync(roster, main) {
+      const previous = source.getSnapshot()
+      if (previous && main === undefined) {
+        // Archiving a part leaves the main view empty until its successor lands.
+        timer ??= setTimeout(revoke, rolloverDelay)
+        return
+      }
+      clear()
+      const current = computerConversation(roster, main) ?? null
+      if (previous && current !== previous) revoke()
+      source.set(current)
+    },
+    revoke,
+    dispose: clear,
+  }
+}
+
 // Whether a main-view Session id belongs to the team's DSH Agent: the conversation
 // group then stays withdrawn while the shell keeps the sidebar. Before the roster
 // arrives, the ids cached from the last pull answer.

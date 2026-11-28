@@ -259,6 +259,10 @@ export function install(rt) {
   async function updateBot(id, patch, actorId, fromSessionId) {
     const bot = rt.botOf(id)
     if (bot === undefined) throw new Error('Unknown Bot')
+    if (patch.browserAccess !== undefined) {
+      if (actorId !== undefined) throw new Error(`Only the user can set browser access for ${bot.name}`)
+      if (typeof patch.browserAccess !== 'boolean') throw new Error('Browser access must be a boolean')
+    }
     if (patch.browserGrants !== undefined && actorId !== undefined) {
       throw new Error(`Only the user can set what ${bot.name} may do in the browser`)
     }
@@ -324,6 +328,7 @@ export function install(rt) {
       modelChanged = true
     }
     if (patch.permission !== undefined) await rt.setPermission(bot, patch.permission)
+    if (patch.browserAccess !== undefined) bot.browserAccess = patch.browserAccess
     if (browserGrants !== undefined) {
       if (browserGrants === null) delete bot.browserGrants
       else bot.browserGrants = browserGrants

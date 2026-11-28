@@ -12,10 +12,19 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { hostExecutable } from '../src/host-process.mjs'
+import { desktopRuntime } from '../src/computer/docker-installation.mjs'
+import { windowsBackend } from '../src/computer/driver.mjs'
+import { checkComputer, startComputerWindow } from './check-packed-computer.mjs'
+import { stringify } from 'yaml'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const [given, shotFile] = process.argv.slice(2)
 const executable = given || packedExecutable()
+const computerMode = process.env.DS_BOT_PACKED_COMPUTER
+const computerCheck = ['1', 'windows', 'linux', 'browser', 'files', 'routines', 'live'].includes(computerMode)
+const liveCheck = computerMode === 'live'
+const linuxCheck = ['linux', '1', 'live'].includes(computerMode)
+const legacyDockerImage = process.env.DS_BOT_PACKED_LEGACY_DOCKER_IMAGE
 
 function packedExecutable() {
   const out = join(root, 'dist-pack')
@@ -44,6 +53,11 @@ if (!existsSync(executable)) {
     join('office-skills', 'office', 'SKILL.md'),
     join(unpacked, 'node_modules', '@deepseek-ai', 'libreoffice-kit', 'lib', 'cli.js'),
     join(unpacked, 'node_modules', 'ds-bot', 'office.js'),
+    ...(windows && process.arch === 'x64' ? [
+      'computer/cua-driver.exe', 'computer/cua-driver-uia.exe', 'computer/CUA-LICENSE.txt', 'computer/seccomp.json',
+      'computer/image/Dockerfile', 'computer/image/start-desktop.sh',
+      'computer/image/cua_driver-0.37.0-py3-none-manylinux_2_31_x86_64.whl',
+    ] : []),
   ]
   const missing = required.filter((entry) => !existsSync(join(resources, entry)))
   if (missing.length > 0) {
@@ -70,11 +84,12 @@ function stopChildren() {
 }
 
 // An app that hangs, for example behind its error box, must not hold up CI.
+const timeoutMinutes = linuxCheck ? 24 : 8
 setTimeout(() => {
-  console.error('check-packed: FAILED: gave up after 8 minutes')
+  console.error(`check-packed: FAILED: gave up after ${timeoutMinutes} minutes`)
   stopChildren()
   process.exit(1)
-}, 8 * 60_000).unref()
+}, timeoutMinutes * 60_000).unref()
 
 // Run from inside this checkout, the app would find a module that the build left out in the
 // checkout's own node_modules, so the check runs a copy of the app from the throwaway folder.
@@ -117,7 +132,7 @@ function checkSharp(app) {
 
 function startMock() {
   const mock = spawn(process.execPath, [join(root, '..', 'ds-bot', 'dev', 'mock-llm.mjs')], {
-    env: { ...process.env, MOCK_PORT: '0', MOCK_LOG: join(work, 'mock.log') }, stdio: ['ignore', 'pipe', 'inherit'],
+    env: { ...process.env, MOCK_PORT: '0', MOCK_LOG: join(work, 'mock.log'), ...(computerCheck ? { MOCK_LOG_TOOLS: '1' } : {}) }, stdio: ['ignore', 'pipe', 'inherit'],
   })
   children.push(mock)
   return new Promise((done, reject) => {
@@ -148,7 +163,8 @@ async function appPage(port, deadline, main = false) {
   while (Date.now() < deadline) {
     try {
       const targets = await (await fetch(`http://127.0.0.1:${String(port)}/json/list`)).json()
-      const page = targets.find(target => main ? target.type === 'node' : target.type === 'page' && /^http:\/\/127\.0\.0\.1:\d+\//u.test(target.url))
+      // The first launch also opens a hidden loopback document to migrate drafts.
+      const page = targets.find(target => main ? target.type === 'node' : target.type === 'page' && /^http:\/\/127\.0\.0\.1:\d+\/$/u.test(target.url))
       if (page) return page
     } catch {
       // The debugging port is not listening yet.
@@ -198,7 +214,11 @@ function devtools(url, problems) {
   })
   const opened = new Promise((done, reject) => {
     socket.addEventListener('open', done, { once: true })
-    socket.addEventListener('error', reject, { once: true })
+    socket.addEventListener('error', () => reject(new Error('Could not connect to DevTools')), { once: true })
+  })
+  socket.addEventListener('close', () => {
+    for (const entry of pending.values()) entry.reject(new Error('The DevTools target closed'))
+    pending.clear()
   })
   const call = (method, params = {}) => new Promise((done, reject) => {
     const id = next++
@@ -223,8 +243,12 @@ function micaRules() {
     .filter(rule => rule.length > 0)
 }
 
-async function chat(cdp) {
-  const evaluate = async expression => (await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value
+async function chat(cdp, computer) {
+  const evaluate = async expression => {
+    const result = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
+    if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text)
+    return result.result.value
+  }
   const until = async (expression, label, ms = 120_000) => {
     const end = Date.now() + ms
     while (Date.now() < end) {
@@ -249,6 +273,10 @@ async function chat(cdp) {
   // The mock model's greeting for a new team.
   await until(text('先让团队帮你做哪块'), 'the greeting')
   await dismissNotice()
+  // Focused feature checks exercise their own flows. Keep the composer turn for the general smoke check.
+  if (computer) {
+    return checkComputer({ ...computer, cdp, evaluate, until, devtools })
+  }
   // Click the composer through the input pipeline. A bare focus() is not enough where no window
   // manager gives the window focus (xvfb in CI): the text and the Enter would go nowhere.
   const box = "[...document.querySelectorAll('[role=textbox][contenteditable=true], textarea')].at(-1)"
@@ -314,21 +342,72 @@ async function chat(cdp) {
 
 let failed = false
 const problems = []
+let closeApp
+const desktops = new Map()
+const grantSubjects = new Set()
 try {
   const packedApp = outsideCheckout(resolve(executable))
   checkSharp(packedApp)
+  if (process.platform === 'win32' && process.arch === 'x64') {
+    const driver = await windowsBackend(join(dirname(packedApp), 'resources', 'computer', 'cua-driver.exe')).open(undefined, AbortSignal.timeout(15_000))
+    try {
+      const image = await driver.run({ kind: 'observe' })
+      console.log(`check-packed: packaged Windows driver captured the primary desktop at ${image.width}x${image.height}`)
+    } finally { await driver.close() }
+  }
   const modelUrl = await startMock()
+  const python = join(dirname(packedApp), 'resources', 'primary-runtime', 'dependencies', 'python', 'python.exe')
+  if (liveCheck && (!process.env.DS_BOT_PACKED_VISION_URL || !process.env.DS_BOT_PACKED_VISION_KEY)) {
+    throw new Error('Set the vision endpoint and credential in the environment for the live desktop check.')
+  }
+  const fixture = ['1', 'windows', 'live'].includes(computerMode) ? await startComputerWindow(children, work, python, liveCheck) : undefined
+  if (computerCheck) {
+    const profile = join(work, 'home', 'profiles', 'ds-bot')
+    mkdirSync(profile, { recursive: true })
+    const liveRoute = liveCheck ? stringify([{ id: 'llm-pi-ai', config: { providers: { 'qa-vision': {
+      api: 'openai-responses', baseURL: process.env.DS_BOT_PACKED_VISION_URL, apiKeyEnv: 'DS_BOT_PACKED_VISION_KEY',
+      models: [{ id: 'gpt-6.2-sol', contextWindow: 100_000, maxTokens: 8000, input: ['text', 'image'] }],
+    } } } }]) : ''
+    // File presentation and preview are checked within one Session. Rollover has its own desktop check.
+    const mockContextWindow = computerMode === 'files' ? 1_000_000 : 100_000
+    writeFileSync(join(profile, 'cordis.patch.yml'), `- id: llm-deepseek
+  config:
+    models:
+      - { id: deepseek-flash, contextWindow: ${mockContextWindow}, maxTokens: 8000, inputModalities: [text, image] }
+      - { id: deepseek-v4-pro, contextWindow: ${mockContextWindow}, maxTokens: 8000 }
+${liveRoute}`)
+  }
+  if (legacyDockerImage) {
+    if (process.platform !== 'win32' || computerMode !== 'linux' || !/^sha256:[a-f0-9]{64}$/u.test(legacyDockerImage)) {
+      throw new Error('Set DS_BOT_PACKED_LEGACY_DOCKER_IMAGE to a full Docker image ID with DS_BOT_PACKED_COMPUTER=linux on Windows.')
+    }
+    const runtime = desktopRuntime('docker')
+    const daemon = await runtime.verify()
+    if (!daemon) throw new Error('The legacy desktop check needs Docker Desktop with its Linux engine running.')
+    const { stdout } = await runtime.command(['image', 'inspect', '--format', '{{json .}}', legacyDockerImage])
+    const image = JSON.parse(stdout)
+    const version = image.Config?.Labels?.['io.github.qingj01.dsbot.cua-image']
+    if (image.Id !== legacyDockerImage || image.Os !== 'linux' || image.Architecture !== 'amd64' || !['2', '3', '4'].includes(version)) {
+      throw new Error('Use a DS Bot Docker desktop image from image version 2, 3, or 4.')
+    }
+    writeFileSync(join(work, 'shell', 'computer-image.json'), JSON.stringify({ daemon, id: image.Id, version }))
+  }
   const port = await freePort()
   const mainPort = await freePort()
   // A terminal inside an Electron-based editor may set ELECTRON_RUN_AS_NODE, which turns the app into plain Node.
   const { ELECTRON_RUN_AS_NODE: _runAsNode, ...env } = process.env
   Object.assign(env, {
-    DS_BOT_HOME: join(work, 'home'), DS_BOT_SHELL_DATA: join(work, 'shell'),
+    DS_BOT_HOME: join(work, 'home'), DS_BOT_SHELL_DATA: join(work, 'shell'), DS_BOT_WORKSPACE: join(work, 'workspace'),
     DEEPSEEK_BASE_URL: modelUrl, DEEPSEEK_API_KEY: 'mock-key',
   })
   const app = spawn(packedApp, [`--remote-debugging-port=${String(port)}`, `--inspect=127.0.0.1:${String(mainPort)}`], { stdio: 'inherit', env })
   children.push(app)
   const exited = new Promise((done) => { app.once('exit', (code, signal) => { done({ code, signal }) }) })
+  closeApp = async () => {
+    if (app.exitCode !== null || app.signalCode !== null) return exited
+    await browserClose(port)
+    return Promise.race([exited, sleep(40_000, undefined, { ref: false })])
+  }
   const cdp = devtools((await appPage(port, Date.now() + 120_000)).webSocketDebuggerUrl, problems)
   await cdp.opened
   const main = devtools((await appPage(mainPort, Date.now() + 30_000, true)).webSocketDebuggerUrl, problems)
@@ -341,13 +420,36 @@ try {
     if (answer.exceptionDetails) throw new Error(answer.exceptionDetails.exception?.description ?? answer.exceptionDetails.text)
     return answer.result?.value
   }
-  const chatError = await chat(cdp).then(() => undefined, error => error)
+  const windowEvents = computerCheck ? await windowState(`(() => {
+    const events = [];
+    const record = name => () => {
+      events.push([name, Date.now(), win.isDestroyed() ? null : win.isVisible()]);
+      if (events.length > 30) events.shift();
+    };
+    for (const name of ['show', 'hide', 'minimize', 'restore', 'close', 'closed']) win.on(name, record(name));
+    win.webContents.on('render-process-gone', record('render-process-gone'));
+    if (process.platform === 'win32') win.setMinimizable(false);
+    globalThis.packedCheckWindowEvents = events;
+    return { visible: win.isVisible(), minimized: win.isMinimized() };
+  })()`) : undefined
+  const chatError = await chat(cdp, computerCheck && { fixture, port, work, python, pid: app.pid, problems, mode: computerMode, windowState,
+    legacyDockerImage,
+    onDesktop: value => desktops.set(value.name, value),
+    onGrant: subject => grantSubjects.add(subject),
+  }).then(() => undefined, error => error)
   if (shotFile) {
     const { data } = await cdp.call('Page.captureScreenshot', { format: 'png' })
     writeFileSync(resolve(shotFile), Buffer.from(data, 'base64'))
     console.log(`check-packed: saved ${resolve(shotFile)}`)
   }
-  if (chatError) throw chatError
+  if (chatError && windowEvents) {
+    const state = await windowState(`({ initial: ${JSON.stringify(windowEvents)},
+      current: win ? { visible: win.isVisible(), minimized: win.isMinimized() } : null,
+      events: globalThis.packedCheckWindowEvents })`).catch(error => ({ error: error.message }))
+    console.error(`check-packed: native window state ${JSON.stringify(state)}`)
+  }
+  if (computerCheck && process.platform === 'win32') await windowState('win?.setMinimizable(true)')
+  if (chatError) throw problems.length ? new Error(`${chatError.stack ?? chatError.message}\n${problems.join('\n')}`, { cause: chatError }) : chatError
   // Close the native window: a renderer-initiated close can stop page CDP evaluations even
   // when Electron prevents the close. Read visibility from the main process as well.
   await windowState('win.close()')
@@ -371,17 +473,83 @@ try {
   if (problems.length > 0) throw new Error(`page problems:\n  ${problems.join('\n  ')}`)
   cdp.close()
   main.close()
-  await browserClose(port)
-  const outcome = await Promise.race([exited, sleep(40_000).then(() => undefined)])
+  const outcome = await closeApp()
   if (outcome === undefined) throw new Error('the app did not exit after the quit')
   console.log(`check-packed: app exited (code ${String(outcome.code)}, signal ${String(outcome.signal)})`)
   if (outcome.code !== 0) throw new Error(`the app exited with code ${String(outcome.code)}`)
+  if (desktops.size) {
+    for (const entry of desktops.values()) {
+      const running = await entry.runDocker('container', 'inspect', '--format', '{{.State.Running}}', entry.container)
+      if (running.stdout.trim() !== 'false') throw new Error('An isolated private desktop did not stop at app exit.')
+    }
+    console.log('check-packed: exiting the app stopped the isolated desktop')
+  }
+  if (grantSubjects.size) {
+    const restartPort = await freePort()
+    const restarted = spawn(packedApp, [`--remote-debugging-port=${String(restartPort)}`], { stdio: 'inherit', env })
+    children.push(restarted)
+    const restartExit = new Promise(done => { restarted.once('exit', (code, signal) => done({ code, signal })) })
+    closeApp = async () => {
+      if (restarted.exitCode === null && restarted.signalCode === null) await browserClose(restartPort)
+      return Promise.race([restartExit, sleep(40_000, undefined, { ref: false })])
+    }
+    const restartPage = devtools((await appPage(restartPort, Date.now() + 120_000)).webSocketDebuggerUrl, problems)
+    try {
+      await restartPage.opened
+      await restartPage.call('Runtime.enable')
+      for (const subject of grantSubjects) {
+        const deadline = Date.now() + 60_000
+        let status
+        while (Date.now() < deadline) {
+          const reply = await restartPage.call('Runtime.evaluate', {
+            expression: `fetch('/api/bot', { method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(${JSON.stringify({ endpoint: 'computer-status', payload: { subject } })}) }).then(r => r.json())`,
+            awaitPromise: true, returnByValue: true,
+          })
+          status = reply.result?.value
+          if (status?.ok) break
+          await sleep(500)
+        }
+        if (!status?.ok) throw new Error('Could not read computer authorization after restart.')
+        if (status.value?.target !== undefined) throw new Error('A previous computer authorization survived restart.')
+      }
+    } finally { restartPage.close() }
+    if ((await closeApp())?.code !== 0) throw new Error('The restarted app did not quit cleanly.')
+    console.log('check-packed: restarting the app requires fresh computer authorization')
+  }
   console.log('check-packed: passed')
 } catch (error) {
   failed = true
-  console.error(`check-packed: FAILED: ${error instanceof Error ? error.message : String(error)}`)
+  console.error(`check-packed: FAILED: ${error instanceof Error ? error.stack : String(error)}`)
+  await closeApp?.().catch(() => {})
 }
 stopChildren()
 await sleep(500)
+for (const desktop of desktops.values()) {
+  try {
+    const label = 'io.github.qingj01.dsbot.cua-instance'
+    const { stdout } = await desktop.runDocker('container', 'ls', '--all', '--no-trunc', '--filter', `name=${desktop.name}`, '--format', '{{.Names}}|{{.ID}}')
+    const entry = stdout.trim().split('\n').map(line => line.trim().split('|')).find(([name]) => name === desktop.name)
+    if (entry) {
+      const [, id] = entry
+      if (!/^[a-f0-9]{64}$/u.test(id)) throw new Error('Invalid test desktop ID.')
+      const { stdout: state } = await desktop.runDocker('container', 'inspect', '--format', `{{.Id}}|{{index .Config.Labels "${label}"}}|{{.State.Running}}`, id)
+      const [current, owner, running] = state.trim().split('|')
+      if (current !== id || owner !== desktop.instance) throw new Error('The test desktop ownership changed.')
+      if (running === 'true' && failed) await desktop.runDocker('container', 'stop', '--time', '3', id)
+      else if (running !== 'false') throw new Error('The test desktop was not stopped.')
+      await desktop.runDocker('container', 'rm', id)
+    }
+    for (const suffix of ['workspace', 'chromium']) {
+      const name = `${desktop.name}-${suffix}`
+      const result = await desktop.runDocker('volume', 'inspect', '--format', `{{index .Labels "${label}"}}`, name)
+      if (result.stdout.trim() !== desktop.instance) throw new Error(`Ownership changed for test volume ${name}.`)
+      await desktop.runDocker('volume', 'rm', name)
+    }
+  } catch (error) {
+    failed = true
+    console.error(`check-packed: private desktop fixture cleanup incomplete: ${error.message}`)
+  }
+}
 rmSync(work, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })
 process.exit(failed ? 1 : 0)

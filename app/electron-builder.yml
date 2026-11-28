@@ -30,6 +30,9 @@ npmRebuild: false
 # So the binaries come from npm as it installed them; a build for another architecture stops.
 beforePack: ./scripts/before-pack.mjs
 win:
+  extraResources:
+    - from: build/runtime/computer
+      to: computer
   target:
     - target: nsis
       arch: [x64]

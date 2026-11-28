@@ -252,6 +252,12 @@ const OPEN_MAX = 64
  * life of the process, so the tool list, and with it the cached prompt prefix, never changes
  * under a running Session.
  */
+export function assertBrowserAccess(rt, botId) {
+  if (!rt.botOf(botId) || rt.botOf(botId).browserAccess === false) {
+    throw new Error('The user has disabled browser access for this Bot.')
+  }
+}
+
 export function install(rt) {
   const { ctx, config } = rt
   const enabled = typeof config.browser === 'boolean' ? config.browser
@@ -274,7 +280,9 @@ export function install(rt) {
       await rt.load()
       const botId = rt.selfOf(exec.agent?.id)
       if (botId === undefined || rt.botOf(botId) === undefined) return 'Only Bots on the team have a browser.'
+      assertBrowserAccess(rt, botId)
       const result = await channel.read(botId)
+      assertBrowserAccess(rt, botId)
       if (result.absent) return NO_BROWSER
       if (result.error) return `Your browser page could not be read: ${result.error}`
       if (!/^https?:/i.test(String(result.page?.url ?? ''))) return NO_PAGE

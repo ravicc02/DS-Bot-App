@@ -88,7 +88,7 @@ async function loadChromium(playwrightUrl) {
 /**
  * @param {{ botId: string, profileRoot: string, headless?: boolean, playwrightUrl?: string, executablePath?: string, actionTimeout?: number, downloadDir?: string | (() => Promise<string | undefined>), uploadRoots?: () => Promise<string[]>, connect?: (botId: string) => Promise<string>, getHold?: () => any, onHold?: (hold: any) => void }} options
  */
-export async function openBotBrowser({ botId, profileRoot, downloadDir, headless = true, playwrightUrl, executablePath, actionTimeout = ACTION_TIMEOUT, connect, getHold, onHold, uploadRoots }) {
+export async function openBotBrowser({ botId, profileRoot, downloadDir, headless = true, playwrightUrl, executablePath, actionTimeout = ACTION_TIMEOUT, connect, assertAccess, getHold, onHold, uploadRoots }) {
   const getDownloadDir = typeof downloadDir === 'function' ? downloadDir : async () => downloadDir
   const userDataDir = join(profileRoot, botId)
   const chromium = await loadChromium(playwrightUrl)
@@ -114,10 +114,10 @@ export async function openBotBrowser({ botId, profileRoot, downloadDir, headless
       if (Array.isArray(saved) && saved.length > 0) await context.addCookies(saved)
     } catch { /* no cookies yet */ }
   }
-  return createSession({ context, browser, page, botId, userDataDir, cookieFile, downloadDir: getDownloadDir, actionTimeout, getHold, onHold, uploadRoots })
+  return createSession({ context, browser, page, botId, userDataDir, cookieFile, downloadDir: getDownloadDir, actionTimeout, assertAccess, getHold, onHold, uploadRoots })
 }
 
-export function createSession({ context, browser, page, botId, userDataDir, cookieFile, downloadDir, actionTimeout, getHold, onHold, uploadRoots }) {
+export function createSession({ context, browser, page, botId, userDataDir, cookieFile, downloadDir, actionTimeout, assertAccess, getHold, onHold, uploadRoots }) {
   const pages = new Set()
   const unknownByOrigin = new Map()
   const unknownPageOrigins = new WeakMap()
@@ -131,6 +131,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
   let pendingDeleteLocator = null
 
   const ready = () => {
+    assertAccess?.()
     const externalHold = getHold?.()
     if (externalHold?.by === 'user') throw new Error('The user has taken over this browser. Wait for them to give it back.')
     if (hold && getHold && externalHold == null) hold = null
@@ -202,6 +203,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
   async function tabs() {
     ready()
     await pendingPageReady
+    ready()
     const active = activePage()
     return Promise.all(openPages().map(async (target, index) => ({
       index,
@@ -214,6 +216,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
   async function snapshotText({ observe = true } = {}) {
     ready()
     await pendingPageReady
+    ready()
     const target = activePage()
     if (!target) throw new Error('The browser has no open tabs.')
     const [title, yaml, openTabs] = await Promise.all([
@@ -277,6 +280,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
     if (previous && !previous.observed) throw pendingWriteError(previous)
     if (previous) unknownByOrigin.delete(action.origin)
     await gate?.(action)
+    assertAccess?.()
   }
 
   async function clearPendingDelete() {
@@ -444,6 +448,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
 
   async function performWrite(action, target, perform) {
     await authorizeWrite(action)
+    ready()
     return captureAction(async () => {
       const requests = []
       const pendingRequests = new Map()
@@ -498,6 +503,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
 
   async function finishAction(perform) {
     return captureAction(async () => {
+      ready()
       await perform()
       await settle()
       return snapshotText()
@@ -509,6 +515,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
     const target = activePage()
     if (!target) throw new Error('The browser has no open tabs.')
     const image = await target.screenshot({ type: 'jpeg', quality: 32 })
+    assertAccess?.()
     if (image.length > 180_000) return { text: `Screenshot of ${target.url()} was too large to attach.` }
     lastImage = image.toString('base64')
     return { text: `Screenshot of ${target.url()}.`, image: lastImage }
@@ -539,6 +546,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
         throw new Error(`No tab at index ${index}.`)
       }
       await clearPendingDelete()
+      ready()
       current = open[index]
       await settle()
       return snapshotText()
@@ -551,6 +559,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
       }
       if (open.length === 1) throw new Error('Cannot close the last browser tab.')
       await clearPendingDelete()
+      ready()
       await open[index].close()
       await settle()
       return snapshotText()
@@ -611,6 +620,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
       })
       if (paymentField) throw new Error('Payment details are entered by the user. Call browser_handoff with reason "payment". Nothing was typed.')
       return captureAction(async () => {
+        ready()
         await locator.fill(String(text), { timeout: actionTimeout })
         if (submit) {
           const action = await focusedAction(target)
@@ -713,6 +723,7 @@ export function createSession({ context, browser, page, botId, userDataDir, cook
       return `Waiting for the user (${kind}). ${hold.note || 'Ask them to take over.'} ${guidance}`
     },
     resume() {
+      assertAccess?.()
       if (getHold?.()?.by === 'user') throw new Error('The user has taken over this browser. Only the user can give it back.')
       hold = null
       onHold?.(null)

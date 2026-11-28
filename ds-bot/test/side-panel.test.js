@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+import { desktopClientPlugin } from '../scripts/build-client.mjs'
 import { drawerMenuKeys, panelHasStrip, stripMenuKeys } from '../src/client/side-model.js'
 
 // The strip shows whenever the Bot has a browser tab or a side chat; side chats
@@ -37,6 +38,7 @@ test('the details `···` hides when it would be empty', () => {
 // the useState for `open` starts true so the items are on the tree.
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL('../src/client/browser-pane.js', import.meta.url))],
+  plugins: [await desktopClientPlugin()],
   bundle: true, format: 'cjs', platform: 'node', write: false,
   external: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
 })
@@ -101,6 +103,7 @@ test('a rejecting menu action reports through reportError', async () => {
 // controls draft/fail and records what the setters get.
 const sideBundle = await build({
   entryPoints: [fileURLToPath(new URL('../src/client/side-chat.js', import.meta.url))],
+  plugins: [await desktopClientPlugin()],
   bundle: true, format: 'cjs', platform: 'node', write: false,
   external: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
 })

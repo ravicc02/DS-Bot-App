@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+import { desktopClientPlugin } from '../scripts/build-client.mjs'
 import { columnOpened, createSwitchWindow, drawerOpened, rightColumnOpen } from '../src/client/right-panel.js'
 
 // jsdom comes from the harness that test/harness-resolve.mjs found, like the dsh packages.
@@ -74,6 +75,7 @@ test('a newer Session switch restarts the window and the old settle is stale', (
 // row's components are vnodes, so only the drawer's own body runs.
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL('../src/client/details-drawer.js', import.meta.url))],
+  plugins: [await desktopClientPlugin()],
   bundle: true, format: 'cjs', platform: 'node', write: false,
   external: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
 })

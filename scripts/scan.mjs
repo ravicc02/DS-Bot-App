@@ -29,6 +29,11 @@ const NOT_PUBLIC = /(^|[\s(`'"]|\.\.\/)(spec|research|backup|shots|attachments|w
 // color keys) to move saved data over; there, and on lines that say "legacy" (旧版), old names stay.
 const LEGACY_FILES = /(^|\/)(src\/client\/storage\.js|test\/legacy[\w-]*\.test\.js)$/
 
+// The private desktop image creates this service account and these mount points.
+const CUA_PATH_FILES = /^(app\/(src\/computer\/(Dockerfile|docker\.mjs)|scripts\/check-packed-computer\.mjs|test\/computer-docker\.test\.mjs)|ds-bot\/(client\.js|src\/client\/computer-settings\.js))$/
+const CUA_WORKSPACE_TEST_PATH = /^\/home\/cua\/workspace\/workspace-input-\$\{index\}\.txt(?![\w./-])/
+const CUA_PATH = /^\/home\/cua\/(?:workspace(?:\/(?:\.ds-bot-workspace|(?:live-bot|bot|viewer|scope|pool)-check\.txt|group-queue\.txt|scroll\.html))?|\.config\/chromium(?:\/\.ds-bot-profile)?)(?![\w./-])/
+
 const extra = extraPatterns()
 
 const TEXT_RULES = [
@@ -115,6 +120,10 @@ for (const file of files) {
       rule.re.lastIndex = 0
       for (const match of line.matchAll(rule.re)) {
         if (rule.secret && PLACEHOLDER.test(match[0])) continue
+        if (rule.id === 'personal-path' && CUA_PATH_FILES.test(file)) {
+          const path = line.slice(match.index)
+          if (CUA_PATH.test(path) || (file === 'app/scripts/check-packed-computer.mjs' && CUA_WORKSPACE_TEST_PATH.test(path))) continue
+        }
         const shown = rule.secret ? `${match[0].slice(0, 6)}… (${match[0].length} chars)` : snippet(line, match.index, match[0].length)
         add(rule.level, rule.id, file, index + 1, shown, rule.summary)
       }

@@ -47,6 +47,7 @@ export function install(rt) {
         return botId ? [{ id: request.id, botId, sessionId: request.sessionId, tool: request.toolName, reason: request.reason, at: request.createdAt, answerable: false }] : []
       })
       stopApprovals = rt.ctx.on('approval/request', (request, next) => {
+        if (String(request.toolName ?? '').startsWith('computer_')) return next()
         const sessionId = request.agent?.session?.id ?? request.agent?.id
         if (rt.groupOwners?.has(sessionId)) return next()
         const owned = rt.chatOwners?.has(sessionId)

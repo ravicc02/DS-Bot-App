@@ -1,4 +1,5 @@
 import { projectHistoricalView } from './view-projection.js'
+import { isComputerImage } from '../host/computer/images.js'
 
 const textOf = content => (Array.isArray(content) ? content : []).filter(block => block?.type === 'text').map(block => block.text ?? '').join('\n')
 const reasoningOf = content => (Array.isArray(content) ? content : []).filter(block => block?.type === 'reasoning').map(block => block.text ?? '').join('\n')
@@ -38,7 +39,7 @@ function storedCall(value) {
 
 const attachmentsOf = (content, redact = text => text) => (Array.isArray(content) ? content : []).flatMap(block => {
   const ref = block?.type === 'image' || block?.type === 'file' ? block.attachment : undefined
-  if (typeof ref?.attachmentId !== 'string') return []
+  if (typeof ref?.attachmentId !== 'string' || isComputerImage(ref)) return []
   return [{ id: ref.attachmentId, type: block.type, name: String(redact(ref.name ?? (block.type === 'image' ? 'Image' : 'File'))), size: ref.bytes,
     ...(ref.mediaType ? { mediaType: ref.mediaType } : {}), ...(ref.width ? { width: ref.width, height: ref.height } : {}) }]
 })

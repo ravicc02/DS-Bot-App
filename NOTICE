@@ -93,7 +93,24 @@ Apache License, Version 2.0, Copyright (c) Microsoft Corporation
   The license is the same Apache License, Version 2.0 that covers this
   repository; see LICENSE for the text.
 
-No other third-party code is copied into this repository. At run time the
+The desktop queue, preview scheduling, viewer focus, clipboard and keyboard controls,
+workspace pane selection and hand-back ordering, keyboard resizing
+(src/components/computer-panel-resize.ts at bbcf0a7), full-screen controls and
+Unicode text entry, and Podman readiness polling
+adapt OpenMausBot (server/turn-resources.ts, server/podman-machine.ts,
+src/components/ComputerPanel.tsx, src/components/BrowserPanel.tsx,
+src/components/LiveDesktop.tsx, src/components/DesktopViewer.tsx,
+src/components/LocalVmWorkspace.tsx, src/lib/local-vm-workspace.ts, and
+src/lib/desktop-connection.ts), Copyright 2026 Milind Soni and OpenMausBot
+contributors, Apache License, Version 2.0.
+Source: https://github.com/milind-soni/OpenMausBot
+
+The generated ds-bot/client.js bundles noVNC 1.7.0, Copyright (C) 2022 the
+noVNC authors, MPL 2.0, with components under their respective BSD and MIT
+licenses. The corresponding source and license notices are available in the
+@novnc/novnc 1.7.0 npm package and at https://github.com/novnc/noVNC/tree/v1.7.0.
+
+At run time the
 plugin uses the @deepseek-ai/* packages of the DeepSeek Harness install it
 runs in; they are not bundled. The bundled ds-bot/office.js includes
 @xmldom/xmldom (https://github.com/xmldom/xmldom, MIT License, Copyright (c)
@@ -135,3 +152,24 @@ their ideas; it does not contain their code.
     (packages/experimental/client-ui-voice-input), MIT: the voice chat
     records with the same steps (record, resample to 16 kHz mono, PCM16 WAV)
     before it calls the plugin's speech service.
+
+The Windows x64 desktop distribution includes Cua Driver 0.45.4 and the
+Cua Driver 0.37.0 Linux wheel from Cua AI, Inc.
+(https://github.com/trycua/cua), MIT. The license is included in the computer
+resources. The shared Linux desktop is built locally from a pinned TryCua
+XFCE image and retains the packages and notices from that image. The private
+desktop image installs Debian's fonts-noto-cjk package, SIL Open Font License
+1.1. Its copyright and license are retained at
+/usr/share/doc/fonts-noto-cjk/copyright.
+
+The shared Linux desktop includes a modified Moby seccomp profile, Apache-2.0.
+Source: https://github.com/moby/profiles/blob/9ee3204f0d0cfa19ca2c6a7b0fcf5a2b353954ae/seccomp/default.json
+DS Bot adds the namespace and chroot operations required by Chromium's sandbox.
+
+Private desktop pool seat selection adapts OpenMausBot
+(server/local-vm-seat-pool.ts), Copyright 2026 Milind Soni and OpenMausBot
+contributors, Apache License, Version 2.0.
+
+Private desktop resource arguments and updates on start adapt OpenMausBot
+(server/container-limits.ts and server/local-vm-settings.ts), Copyright 2026
+Milind Soni and OpenMausBot contributors, Apache License, Version 2.0.

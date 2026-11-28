@@ -273,8 +273,8 @@ export class BotViews {
         return contents.loadURL(url)
       }
       case 'command':
-        if (payload.command === 'back' && contents.canGoBack()) contents.goBack()
-        else if (payload.command === 'forward' && contents.canGoForward()) contents.goForward()
+        if (payload.command === 'back' && contents.navigationHistory.canGoBack()) contents.navigationHistory.goBack()
+        else if (payload.command === 'forward' && contents.navigationHistory.canGoForward()) contents.navigationHistory.goForward()
         else if (payload.command === 'reload') contents.reload()
         else if (payload.command === 'stop') contents.stop()
         return true
@@ -410,7 +410,7 @@ export class BotViews {
     return {
       botId: entry.botId, tabId: entry.tabId, createdByBot: entry.createdByBot,
       url: contents.getURL(), title: contents.getTitle(), loading: contents.isLoading(),
-      canGoBack: contents.canGoBack(), canGoForward: contents.canGoForward(),
+      canGoBack: contents.navigationHistory.canGoBack(), canGoForward: contents.navigationHistory.canGoForward(),
       favicon: entry.favicon ?? null, error: entry.error ?? null, live: true,
       botAttached: entry.sessions.size > 0,
     }
