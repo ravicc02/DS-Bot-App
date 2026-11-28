@@ -96,6 +96,67 @@ test('reopening the group panel during a queued turn shows only its own last fra
   assert.equal((await status()).lastPreview, undefined)
 })
 
+test('a closed screen tab retains its last completed frame through a queued handoff', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1 })
+  const capture = controllable()
+  const closing = controllable()
+  const started = controllable()
+  const closeStarted = controllable()
+  const botFrame = { ...image, data: 'bot-frame' }
+  let captures = 0
+  let closes = 0
+  const service = fixture(t, {
+    run: () => {
+      captures++
+      if (captures === 1) return image
+      if (captures !== 2) return botFrame
+      started.resolve()
+      return capture.promise
+    },
+    close: async () => { if (++closes === 3) { closeStarted.resolve(); await closing.promise } },
+  })
+  try {
+    const room = await select(service, 'room-one')
+    const status = () => service.inline(room.conversation, 'status')
+    const { display } = await status()
+    const inline = op => service.inline(room.conversation, op, undefined, display)
+    assert.equal((await inline('observe')).preview, image)
+
+    const refresh = inline('observe')
+    await started.promise
+    const hide = inline('hand-back')
+    assert.deepEqual(await room.action('first', observe, 'member-one'), { waiting: true, position: 1 })
+    assert.equal((await status()).lastPreview, image)
+    capture.resolve({ ...image, data: 'cancelled-frame' })
+    await hide
+    assert.equal((await refresh).lastPreview, image)
+    assert.equal(await room.action('first', observe, 'member-one'), botFrame)
+    assert.deepEqual(await room.action('second', observe, 'member-two'), { waiting: true, position: 1 })
+    const release = room.end('first', 'member-one')
+    await closeStarted.promise
+    assert.equal((await status()).lastPreview, botFrame)
+    for (let i = 0; i < 3; i++) {
+      t.mock.timers.tick(10_001)
+      await room.action('second', observe, 'member-two')
+    }
+    const waiting = await room.action('second', observe, 'member-two')
+    assert.deepEqual(waiting, { waiting: true, position: 1 })
+    assert.equal((await status()).lastPreview, botFrame)
+    closing.resolve()
+    await release
+    assert.equal(await room.action('second', observe, 'member-two'), botFrame)
+
+    await service.request({ op: 'stop', conversation: room.conversation })
+    assert.equal((await status()).lastPreview, undefined)
+    await select(service, room.conversation)
+    assert.equal((await status()).preview, undefined)
+    assert.equal((await status()).lastPreview, undefined)
+  } finally {
+    capture.resolve(image)
+    closing.resolve()
+  }
+})
+
 test('private desktop scope follows the Bot across conversations and policy changes revoke granted and pending access', async t => {
   let privateMode = 'per-bot'
   let confirmation

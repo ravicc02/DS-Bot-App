@@ -32,8 +32,8 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     if (selecting?.conversation === conversation) selecting = undefined
   }
 
-  function clearPreview(grant) {
-    grant.preview = undefined
+  function invalidatePreview(grant, keepFrame = false) {
+    if (!keepFrame) grant.preview = undefined
     grant.previewRevision = Symbol()
   }
 
@@ -45,14 +45,18 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     grant.preview = { image, until: Date.now() + PREVIEW_LIFETIME, revision: grant.previewRevision }
   }
 
-  function inlinePreview(grant) {
-    const frame = previewOf(grant)
-    if (!frame) return {}
-    return grant.preview.revision === grant.previewRevision ? { preview: frame } : { lastPreview: frame }
+  function inlinePreview(grant, { status, waiting }) {
+    if (!grant?.preview) return {}
+    const { image, revision, until } = grant.preview
+    if (until > Date.now()) {
+      return revision === grant.previewRevision ? { preview: image } : { lastPreview: image }
+    }
+    // Do not acquire a viewer lease ahead of a Bot just to replace a stale frame.
+    return status === 'bot' || waiting ? { lastPreview: image } : {}
   }
 
-  function release(grant) {
-    clearPreview(grant)
+  function release(grant, keepFrame = false) {
+    invalidatePreview(grant, keepFrame)
     const lease = grant.lease
     if (!lease) return grant.draining ?? Promise.resolve()
     if (lease.type === 'bot') grant.finishedTurns.add(lease.owner.turn)
@@ -135,8 +139,8 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     const id = control.acquire(grant.slot, owner, type, grant.instance)
     const lease = { id, owner, type }
     // Keep the existing frame while the Bot's first capture is pending.
-    if (type === 'bot') grant.previewRevision = Symbol()
-    else clearPreview(grant)
+    if (type === 'bot') invalidatePreview(grant, true)
+    if (type === 'user') invalidatePreview(grant)
     grant.lease = lease
     return lease
   }
@@ -155,7 +159,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
     if (grant.lease && !control.active(grant.slot, grant.lease.id)) {
       if (grant.lease.type === 'bot') grant.finishedTurns.add(grant.lease.owner.turn)
       grant.lease = undefined
-      clearPreview(grant)
+      invalidatePreview(grant)
     }
     return grant
   }
@@ -194,7 +198,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
       return
     } finally {
       if (grant.lease === lease) {
-        const draining = release(grant)
+        const draining = release(grant, true)
         revision = grant.previewRevision
         await draining
       }
@@ -349,7 +353,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         control.cancelWaiting(grant.slot, grant, owner)
         grant.finishedTurns.add(owner.turn)
         if (grant.finishedTurns.size >= 4096) { await revoke(conversation); return view(conversation) }
-        if (grant.lease?.type === 'bot' && sameOwner(owner, grant.lease.owner)) await release(grant)
+        if (grant.lease?.type === 'bot' && sameOwner(owner, grant.lease.owner)) await release(grant, true)
         return view(conversation)
       }
       if (op !== 'action' || grant.finishedTurns.has(owner.turn)) throw changed()
@@ -369,7 +373,7 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         if (closed || !key(conversation)) throw changed()
         const state = view(conversation)
         const grant = grants.get(conversation)
-        return { ...state, ...inlinePreview(grant), display: grant?.display }
+        return { ...state, ...inlinePreview(grant, state), display: grant?.display }
       }
       if (!['observe', 'take', 'hand-back', 'input'].includes(op)) throw changed()
       const grant = grants.get(conversation)
@@ -379,12 +383,15 @@ export function createComputerService(backends, confirm, { privateMode = () => '
         throw changed()
       }
       try {
-        // Tab changes release interactive control, but an idle frame can outlive the tab.
-        if (op === 'hand-back' && !grant.lease && !grant.draining && !grant.transition) {
-          return { ...view(conversation), ...inlinePreview(grant), display }
+        // Closing a tab cancels its capture. Only completed frames can outlive the tab.
+        if (op === 'hand-back' && !grant.transition && (!grant.lease || grant.lease.type === 'viewer')) {
+          if (grant.lease || grant.draining) await release(grant, true)
+          if (grants.get(conversation) !== grant) return null
+          const state = view(conversation)
+          return { ...state, ...inlinePreview(grant, state), display }
         }
         const { preview: _preview, ...state } = await this.local(conversation, op, input, grant.token)
-        return { ...state, ...inlinePreview(grant), display }
+        return { ...state, ...inlinePreview(grant, state), display }
       } catch (error) {
         if (passive && grants.get(conversation) !== grant) return null
         throw error
