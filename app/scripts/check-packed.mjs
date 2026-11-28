@@ -368,11 +368,13 @@ try {
       api: 'openai-responses', baseURL: process.env.DS_BOT_PACKED_VISION_URL, apiKeyEnv: 'DS_BOT_PACKED_VISION_KEY',
       models: [{ id: 'gpt-6.2-sol', contextWindow: 100_000, maxTokens: 8000, input: ['text', 'image'] }],
     } } } }]) : ''
+    // File presentation and preview are checked within one Session. Rollover has its own desktop check.
+    const mockContextWindow = computerMode === 'files' ? 1_000_000 : 100_000
     writeFileSync(join(profile, 'cordis.patch.yml'), `- id: llm-deepseek
   config:
     models:
-      - { id: deepseek-flash, contextWindow: 100000, maxTokens: 8000, inputModalities: [text, image] }
-      - { id: deepseek-v4-pro, contextWindow: 100000, maxTokens: 8000 }
+      - { id: deepseek-flash, contextWindow: ${mockContextWindow}, maxTokens: 8000, inputModalities: [text, image] }
+      - { id: deepseek-v4-pro, contextWindow: ${mockContextWindow}, maxTokens: 8000 }
 ${liveRoute}`)
   }
   if (legacyDockerImage) {
